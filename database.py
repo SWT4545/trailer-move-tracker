@@ -754,3 +754,324 @@ def mark_update_sent(contractor_name):
             WHERE contractor_name = ?
         ''', (contractor_name,))
         conn.commit()
+
+# Enhanced Driver Management Functions
+def get_driver_by_phone(phone_number):
+    """Get driver by phone number"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM drivers WHERE phone_number = ? AND deleted = 0', (phone_number,))
+        row = cursor.fetchone()
+        if row:
+            return dict(row)
+        return None
+
+def update_driver_profile(driver_id, data):
+    """Update driver profile with enhanced fields"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        set_clause = ', '.join([f'{k} = ?' for k in data.keys()])
+        query = f'UPDATE drivers SET {set_clause} WHERE id = ?'
+        cursor.execute(query, list(data.values()) + [driver_id])
+        conn.commit()
+
+def create_driver_login(driver_id, username, password_hash):
+    """Create login credentials for driver"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE drivers 
+            SET username = ?, password_hash = ?, is_active = 1
+            WHERE id = ?
+        ''', (username, password_hash, driver_id))
+        conn.commit()
+
+def authenticate_driver(username, password_hash):
+    """Authenticate driver login"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT * FROM drivers 
+            WHERE username = ? AND password_hash = ? AND is_active = 1 AND deleted = 0
+        ''', (username, password_hash))
+        row = cursor.fetchone()
+        if row:
+            # Update last login
+            cursor.execute('UPDATE drivers SET last_login = CURRENT_TIMESTAMP WHERE id = ?', (row['id'],))
+            conn.commit()
+            return dict(row)
+        return None
+
+def get_driver_performance(driver_id, week_start=None):
+    """Get driver performance metrics"""
+    with get_connection() as conn:
+        if week_start:
+            return pd.read_sql_query('''
+                SELECT * FROM driver_performance 
+                WHERE driver_id = ? AND week_start = ?
+            ''', conn, params=(driver_id, week_start))
+        else:
+            return pd.read_sql_query('''
+                SELECT * FROM driver_performance 
+                WHERE driver_id = ? 
+                ORDER BY week_start DESC
+            ''', conn, params=(driver_id,))
+
+def update_driver_performance(driver_id, week_start, metrics):
+    """Update driver performance metrics"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT OR REPLACE INTO driver_performance 
+            (driver_id, week_start, miles_driven, routes_completed, on_time_count, late_count, earnings, performance_score)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (driver_id, week_start, metrics.get('miles_driven', 0), 
+              metrics.get('routes_completed', 0), metrics.get('on_time_count', 0),
+              metrics.get('late_count', 0), metrics.get('earnings', 0),
+              metrics.get('performance_score', 0)))
+        conn.commit()
+
+# Location Trailer Count Management
+def get_location_trailer_counts():
+    """Get old trailer counts at all locations"""
+    with get_connection() as conn:
+        return pd.read_sql_query('''
+            SELECT 
+                l.id,
+                l.location_title,
+                COALESCE(ltc.old_trailer_count, 0) as old_trailer_count,
+                ltc.alert_status,
+                ltc.days_since_last_pickup
+            FROM locations l
+            LEFT JOIN location_trailer_counts ltc ON l.id = ltc.location_id
+            WHERE l.deleted = 0
+            ORDER BY COALESCE(ltc.old_trailer_count, 0) DESC
+        ''', conn)
+
+def update_location_trailer_count(location_name, adjustment):
+    """Update trailer count at a location"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get location ID
+        cursor.execute('SELECT id FROM locations WHERE location_title = ?', (location_name,))
+        location = cursor.fetchone()
+        if not location:
+            return
+        
+        location_id = location['id']
+        
+        # Update or insert count
+        cursor.execute('''
+            INSERT INTO location_trailer_counts (location_id, location_name, old_trailer_count, last_updated)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(location_id) DO UPDATE SET
+                old_trailer_count = old_trailer_count + ?,
+                last_updated = CURRENT_TIMESTAMP
+        ''', (location_id, location_name, max(0, adjustment), adjustment))
+        
+        # Update alert status based on count
+        cursor.execute('SELECT old_trailer_count FROM location_trailer_counts WHERE location_id = ?', (location_id,))
+        result = cursor.fetchone()
+        if result:
+            count = result['old_trailer_count']
+            if count >= 5:
+                alert_status = 'red'
+            elif count >= 3:
+                alert_status = 'yellow'
+            else:
+                alert_status = 'green'
+            
+            cursor.execute('''
+                UPDATE location_trailer_counts 
+                SET alert_status = ? 
+                WHERE location_id = ?
+            ''', (alert_status, location_id))
+        
+        conn.commit()
+
+# Route Progress Tracking
+def add_route_progress(route_id, milestone, location=None, notes=None):
+    """Add route progress milestone"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO route_progress (route_id, milestone, confirmed_location, notes)
+            VALUES (?, ?, ?, ?)
+        ''', (route_id, milestone, location, notes))
+        conn.commit()
+
+def get_route_progress(route_id):
+    """Get all progress milestones for a route"""
+    with get_connection() as conn:
+        return pd.read_sql_query('''
+            SELECT * FROM route_progress 
+            WHERE route_id = ? 
+            ORDER BY timestamp
+        ''', conn, params=(route_id,))
+
+# Photo Management
+def save_route_photo(route_id, photo_type, photo_data, location=None):
+    """Save a photo for a route"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO route_photos (route_id, photo_type, photo_data, location)
+            VALUES (?, ?, ?, ?)
+        ''', (route_id, photo_type, photo_data, location))
+        conn.commit()
+        
+        # Update photo count on route
+        cursor.execute('''
+            UPDATE trailer_moves 
+            SET photos_captured = (
+                SELECT COUNT(*) FROM route_photos WHERE route_id = ?
+            )
+            WHERE id = ?
+        ''', (route_id, route_id))
+        conn.commit()
+
+def get_route_photos(route_id):
+    """Get all photos for a route"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, photo_type, timestamp, location 
+            FROM route_photos 
+            WHERE route_id = ?
+            ORDER BY timestamp
+        ''', (route_id,))
+        return [dict(row) for row in cursor.fetchall()]
+
+# Generic Document Management
+def save_generic_document(doc_type, name, file_data, is_generic=True):
+    """Save a generic document like rate confirmation"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO generic_documents (document_type, document_name, file_data, is_generic)
+            VALUES (?, ?, ?, ?)
+        ''', (doc_type, name, file_data, is_generic))
+        conn.commit()
+        return cursor.lastrowid
+
+def get_generic_document(doc_type='rate_confirmation'):
+    """Get the generic document"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT * FROM generic_documents 
+            WHERE document_type = ? AND is_generic = 1
+            ORDER BY uploaded_date DESC
+            LIMIT 1
+        ''', (doc_type,))
+        row = cursor.fetchone()
+        if row:
+            return dict(row)
+        return None
+
+# Training System Functions
+def get_training_modules(role=None):
+    """Get training modules for a specific role"""
+    with get_connection() as conn:
+        if role:
+            return pd.read_sql_query('''
+                SELECT * FROM training_modules 
+                WHERE role = ? AND is_active = 1
+                ORDER BY order_index
+            ''', conn, params=(role,))
+        else:
+            return pd.read_sql_query('''
+                SELECT * FROM training_modules 
+                WHERE is_active = 1
+                ORDER BY role, order_index
+            ''', conn)
+
+def save_training_progress(user_id, module_id, score=None, completed=False):
+    """Save training progress"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        if completed:
+            cursor.execute('''
+                UPDATE training_progress 
+                SET completed_at = CURRENT_TIMESTAMP, score = ?, is_certified = ?
+                WHERE user_id = ? AND module_id = ?
+            ''', (score, score >= 80 if score else False, user_id, module_id))
+        else:
+            cursor.execute('''
+                INSERT INTO training_progress (user_id, module_id, score)
+                VALUES (?, ?, ?)
+                ON CONFLICT DO UPDATE SET attempts = attempts + 1
+            ''', (user_id, module_id, score))
+        conn.commit()
+
+def get_training_progress(user_id):
+    """Get training progress for a user"""
+    with get_connection() as conn:
+        return pd.read_sql_query('''
+            SELECT 
+                tm.*,
+                tp.started_at,
+                tp.completed_at,
+                tp.score,
+                tp.is_certified
+            FROM training_modules tm
+            LEFT JOIN training_progress tp ON tm.id = tp.module_id AND tp.user_id = ?
+            WHERE tm.is_active = 1
+            ORDER BY tm.order_index
+        ''', conn, params=(user_id,))
+
+# Company Performance Metrics
+def get_company_performance(date_from=None, date_to=None):
+    """Get company performance metrics"""
+    with get_connection() as conn:
+        query = 'SELECT * FROM company_performance WHERE 1=1'
+        params = []
+        
+        if date_from:
+            query += ' AND metric_date >= ?'
+            params.append(date_from)
+        if date_to:
+            query += ' AND metric_date <= ?'
+            params.append(date_to)
+        
+        query += ' ORDER BY metric_date DESC'
+        
+        return pd.read_sql_query(query, conn, params=params)
+
+def update_company_performance(date, metrics):
+    """Update company performance metrics"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT OR REPLACE INTO company_performance 
+            (metric_date, routes_completed, routes_in_progress, on_time_percentage, 
+             average_completion_hours, fleet_utilization, customer_satisfaction, safety_incidents)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (date, metrics.get('routes_completed', 0), metrics.get('routes_in_progress', 0),
+              metrics.get('on_time_percentage', 0), metrics.get('average_completion_hours', 0),
+              metrics.get('fleet_utilization', 0), metrics.get('customer_satisfaction', 0),
+              metrics.get('safety_incidents', 0)))
+        conn.commit()
+
+# Status Report Generation
+def save_status_report(report_date, report_type, report_data, pdf_data=None, generated_by=None):
+    """Save a generated status report"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO status_reports 
+            (report_date, report_type, report_data, pdf_data, generated_by)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (report_date, report_type, report_data, pdf_data, generated_by))
+        conn.commit()
+        return cursor.lastrowid
+
+def get_status_reports(limit=10):
+    """Get recent status reports"""
+    with get_connection() as conn:
+        return pd.read_sql_query('''
+            SELECT * FROM status_reports 
+            ORDER BY generated_at DESC
+            LIMIT ?
+        ''', conn, params=(limit,))

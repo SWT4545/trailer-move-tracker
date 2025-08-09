@@ -31,16 +31,36 @@ USER_ROLES = {
         'can_export': True,
         'view_financial': True
     },
-    'manager': {
-        'description': 'Can view and edit most features, limited financial access',
+    'operations_coordinator': {
+        'description': 'Operations Coordinator - Strategic route planning and full operational control',
         'access': [
             'dashboard', 'trailer_management', 'add_move', 'progress_dashboard',
-            'locations', 'drivers', 'mileage', 'import_export'
+            'locations', 'drivers', 'mileage', 'import_export', 'email_center',
+            'driver_management', 'route_optimization', 'customer_communications',
+            'document_processing', 'reports_analytics'
         ],
         'can_edit': True,
-        'can_delete': False,
+        'can_delete': True,
         'can_export': True,
-        'view_financial': False
+        'view_financial': False,
+        'can_assign_drivers': True,
+        'can_send_emails': True,
+        'can_generate_reports': True
+    },
+    'operations_specialist': {
+        'description': 'Operations Specialist - Data entry and viewing, supports Operations Coordinator',
+        'access': [
+            'dashboard', 'trailer_management', 'progress_dashboard',
+            'locations', 'import_export'
+        ],
+        'can_edit': True,  # Limited to trailer and location data
+        'can_delete': False,
+        'can_export': False,
+        'view_financial': False,
+        'can_assign_drivers': False,
+        'can_send_emails': False,
+        'can_generate_reports': False,
+        'data_entry_only': True
     },
     'viewer': {
         'description': 'Read-only access to progress and basic info',
@@ -78,10 +98,17 @@ USERS = {
         'role': 'admin',
         'name': 'System Administrator'
     },
-    'manager': {
-        'password': 'manager123',  # Change this!
-        'role': 'manager',
-        'name': 'Operations Manager'
+    'ops_coordinator': {
+        'password': 'coordinator123',  # Change this!
+        'role': 'operations_coordinator',
+        'name': 'Operations Coordinator',
+        'title': 'Operations Coordinator'
+    },
+    'ops_specialist': {
+        'password': 'specialist123',  # Change this!
+        'role': 'operations_specialist',
+        'name': 'Operations Specialist',
+        'title': 'Operations Specialist'
     },
     'viewer': {
         'password': 'view123',  # Change this!

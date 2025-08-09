@@ -26,6 +26,112 @@ COLORS = {
 # CSS Styles for Streamlit
 CUSTOM_CSS = """
 <style>
+    /* Mobile-First Responsive Design */
+    @media (max-width: 768px) {
+        /* Mobile optimizations */
+        .stApp {
+            font-size: 16px !important;
+        }
+        
+        /* Prevent iOS zoom on inputs */
+        input, select, textarea {
+            font-size: 16px !important;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        
+        /* Larger touch targets */
+        .stButton > button {
+            min-height: 44px;
+            width: 100%;
+            margin: 0.5rem 0;
+            font-size: 16px !important;
+        }
+        
+        .stCheckbox {
+            min-height: 44px;
+        }
+        
+        .stSelectbox > div > div {
+            min-height: 44px;
+            font-size: 16px !important;
+        }
+        
+        /* Responsive columns */
+        [data-testid="column"] {
+            width: 100% !important;
+            flex: 1 1 100% !important;
+            padding: 0.25rem !important;
+        }
+        
+        /* Stack columns on mobile */
+        [data-testid="stHorizontalBlock"] {
+            flex-direction: column !important;
+            gap: 0.5rem !important;
+        }
+        
+        /* Responsive metrics */
+        [data-testid="metric-container"] {
+            padding: 0.5rem !important;
+            min-width: auto !important;
+        }
+        
+        /* Responsive header */
+        .main-header {
+            padding: 1rem !important;
+        }
+        
+        .main-header h1 {
+            font-size: 1.5rem !important;
+        }
+        
+        /* Responsive sidebar */
+        [data-testid="stSidebar"] {
+            width: 250px !important;
+            min-width: 250px !important;
+        }
+        
+        /* Responsive tables */
+        .stDataFrame {
+            overflow-x: auto !important;
+        }
+        
+        /* Responsive text */
+        h1 {
+            font-size: 1.5rem !important;
+        }
+        
+        h2 {
+            font-size: 1.3rem !important;
+        }
+        
+        h3 {
+            font-size: 1.1rem !important;
+        }
+        
+        /* Hide less important elements on mobile */
+        .css-1d391kg p {
+            font-size: 14px !important;
+        }
+    }
+    
+    /* Tablet optimizations */
+    @media (min-width: 768px) and (max-width: 1024px) {
+        [data-testid="column"] {
+            flex: 1 1 50% !important;
+        }
+        
+        .stButton > button {
+            min-width: 150px;
+        }
+    }
+    
+    /* Prevent text size adjustment */
+    body {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+    
     /* Main theme */
     .stApp {
         background-color: #FFFFFF;

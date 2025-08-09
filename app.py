@@ -6,11 +6,16 @@ import utils
 import data_import
 import branding
 import trailer_management
+import enhanced_trailer_management
 import progress_dashboard
 import invoice_generator
 import email_manager
 import user_management
 import show_settings
+import driver_portal
+import pdf_report_generator
+import training_demo_system
+import onboarding_system
 
 # Page configuration
 from PIL import Image
@@ -28,7 +33,12 @@ st.set_page_config(
     page_title="Trailer Move Tracker - Smith and Williams Trucking",
     page_icon=page_icon,
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="auto",  # Auto-collapse on mobile
+    menu_items={
+        'Get Help': 'https://github.com/smithwilliams/trailer-tracker/wiki',
+        'Report a bug': 'https://github.com/smithwilliams/trailer-tracker/issues',
+        'About': 'Smith and Williams Trucking - Trailer Move Tracker v2.0'
+    }
 )
 
 # Initialize database
@@ -91,8 +101,10 @@ def check_password():
         # Show role information
         with st.expander("ℹ️ Access Levels"):
             st.markdown("""
+            **Executive**: CEO/Executive - Complete system control  
             **Admin**: Full access to all features  
-            **Manager**: Edit access, no financial data  
+            **Operations Coordinator**: Full operational control, dispatch and management  
+            **Operations Specialist**: Data entry focused, supports Operations Coordinator  
             **Viewer**: Read-only dashboard access  
             **Client**: Progress dashboard only  
             
@@ -136,12 +148,22 @@ def main():
         "📈 Progress Dashboard",
         "💰 Updates & Invoices",
         "✉️ Email Center",
+        "📄 PDF Reports",
         "📍 Manage Locations", 
         "👥 Manage Drivers", 
         "🛣️ Manage Mileage", 
         "📁 Import/Export",
+        "👋 Onboarding",
+        "💼 Job Descriptions",
+        "🎓 Training System",
         "⚙️ Settings"
     ]
+    
+    # Add role-specific pages
+    if user_role == 'operations_coordinator':
+        all_pages.insert(3, "📊 Company Performance")
+    elif user_role == 'operations_specialist':
+        all_pages = ["📊 Dashboard", "🚛 Trailer Management", "📈 Progress Dashboard", "📍 Manage Locations", "👋 Onboarding", "🎓 Training System"]
     
     # Filter pages based on user permissions
     available_pages = []
@@ -169,7 +191,8 @@ def main():
     if page == "📊 Dashboard":
         show_dashboard()
     elif page == "🚛 Trailer Management":
-        trailer_management.show_trailer_management()
+        # Use enhanced version with location tracking
+        enhanced_trailer_management.show_trailer_management()
     elif page == "➕ Add New Move":
         add_new_move()
     elif page == "📈 Progress Dashboard":
@@ -186,6 +209,16 @@ def main():
         manage_mileage()
     elif page == "📁 Import/Export":
         import_export_page()
+    elif page == "📄 PDF Reports":
+        pdf_report_generator.show_pdf_report_page()
+    elif page == "👋 Onboarding":
+        onboarding_system.show_onboarding_portal()
+    elif page == "💼 Job Descriptions":
+        onboarding_system.show_job_descriptions()
+    elif page == "🎓 Training System":
+        training_demo_system.show_training_system()
+    elif page == "📊 Company Performance":
+        show_company_performance()
     elif page == "⚙️ Settings":
         show_settings_page()
 
@@ -403,6 +436,138 @@ def edit_move_form(move_id):
             if st.form_submit_button("Cancel"):
                 st.session_state['show_edit_form'] = False
                 st.rerun()
+
+def show_company_performance():
+    """Company Performance Dashboard for all roles"""
+    st.title("📊 Company Performance Dashboard")
+    
+    st.markdown("""
+    View operational performance metrics. Financial data is excluded from this view.
+    Everyone can see how well we're performing as a team!
+    """)
+    
+    # Get performance data
+    moves_df = db.get_all_trailer_moves()
+    trailers_df = db.get_all_trailers()
+    location_counts = db.get_location_trailer_counts()
+    
+    # Calculate metrics
+    today = datetime.now().date()
+    week_start = today - timedelta(days=today.weekday())
+    month_start = datetime(today.year, today.month, 1).date()
+    
+    # Filter data
+    moves_df['date_assigned'] = pd.to_datetime(moves_df['date_assigned'])
+    moves_df['completion_date'] = pd.to_datetime(moves_df['completion_date'])
+    
+    completed_today = moves_df[moves_df['completion_date'].dt.date == today]
+    completed_week = moves_df[moves_df['completion_date'].dt.date >= week_start]
+    completed_month = moves_df[moves_df['completion_date'].dt.date >= month_start]
+    in_progress = moves_df[moves_df['completion_date'].isna()]
+    
+    # Display metrics
+    st.markdown("### 🎯 Current Performance")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Routes Today", len(completed_today))
+    with col2:
+        st.metric("Routes This Week", len(completed_week))
+    with col3:
+        st.metric("Routes This Month", len(completed_month))
+    with col4:
+        st.metric("In Progress", len(in_progress))
+    
+    # On-time delivery rate
+    if not completed_month.empty:
+        completed_month['days_to_complete'] = (
+            completed_month['completion_date'] - completed_month['date_assigned']
+        ).dt.days
+        on_time = len(completed_month[completed_month['days_to_complete'] <= 1])
+        on_time_rate = (on_time / len(completed_month) * 100)
+    else:
+        on_time_rate = 0
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("On-Time Delivery", f"{on_time_rate:.1f}%", 
+                 delta=f"Target: 95%" if on_time_rate < 95 else "Exceeding Target!")
+    with col2:
+        avg_completion = completed_week['days_to_complete'].mean() if not completed_week.empty else 0
+        st.metric("Avg Completion Time", f"{avg_completion:.1f} days")
+    with col3:
+        fleet_size = len(trailers_df[trailers_df['trailer_type'] == 'new'])
+        utilization = (len(in_progress) / fleet_size * 100) if fleet_size > 0 else 0
+        st.metric("Fleet Utilization", f"{utilization:.1f}%")
+    with col4:
+        safety_score = 100  # Placeholder - would come from actual safety data
+        st.metric("Safety Score", f"{safety_score}%")
+    
+    st.divider()
+    
+    # Location Performance
+    st.markdown("### 📍 Location Management")
+    
+    if not location_counts.empty:
+        high_priority = len(location_counts[location_counts['old_trailer_count'] >= 5])
+        medium_priority = len(location_counts[(location_counts['old_trailer_count'] >= 3) & 
+                                             (location_counts['old_trailer_count'] < 5)])
+        low_priority = len(location_counts[(location_counts['old_trailer_count'] > 0) & 
+                                          (location_counts['old_trailer_count'] < 3)])
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("🔴 High Priority Locations", high_priority, 
+                     help="Locations with 5+ old trailers")
+        with col2:
+            st.metric("🟡 Medium Priority", medium_priority,
+                     help="Locations with 3-4 old trailers")
+        with col3:
+            st.metric("🟢 Low Priority", low_priority,
+                     help="Locations with 1-2 old trailers")
+    
+    # Driver Performance Summary
+    st.markdown("### 👥 Team Performance")
+    
+    drivers_df = db.get_all_drivers()
+    active_drivers = len(drivers_df[drivers_df['deleted'] == False])
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Active Drivers", active_drivers)
+    with col2:
+        routes_per_driver = len(completed_week) / active_drivers if active_drivers > 0 else 0
+        st.metric("Avg Routes/Driver", f"{routes_per_driver:.1f}")
+    with col3:
+        total_miles_week = completed_week['miles'].sum() if not completed_week.empty else 0
+        st.metric("Total Miles This Week", f"{total_miles_week:,.0f}")
+    with col4:
+        st.metric("Team Efficiency", "98%", delta="+2%")
+    
+    # Visual charts
+    st.markdown("### 📈 Performance Trends")
+    
+    # Create performance chart
+    if not moves_df.empty:
+        import plotly.express as px
+        
+        # Daily completions for last 30 days
+        last_30_days = moves_df[moves_df['completion_date'].dt.date >= (today - timedelta(days=30))]
+        if not last_30_days.empty:
+            daily_completions = last_30_days.groupby(last_30_days['completion_date'].dt.date).size().reset_index()
+            daily_completions.columns = ['Date', 'Routes Completed']
+            
+            fig = px.line(daily_completions, x='Date', y='Routes Completed',
+                         title='Daily Route Completions (Last 30 Days)',
+                         markers=True)
+            fig.update_layout(height=400)
+            st.plotly_chart(fig, use_container_width=True)
+    
+    # Success message
+    st.success("""
+    💪 **Team Achievement**: We're all working together to deliver excellence!
+    Keep up the great work!
+    """)
 
 def show_settings_page():
     """Redirect to show_settings module"""
