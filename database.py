@@ -103,6 +103,110 @@ def init_database():
             )
         ''')
         
+        # Create trailers table for trailer management
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS trailers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                trailer_number TEXT UNIQUE NOT NULL,
+                trailer_type TEXT NOT NULL CHECK(trailer_type IN ('new', 'old')),
+                current_location TEXT,
+                status TEXT DEFAULT 'available' CHECK(status IN ('available', 'assigned', 'completed')),
+                loaded_status BOOLEAN DEFAULT 0,
+                added_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                assigned_date TIMESTAMP,
+                completed_date TIMESTAMP,
+                assigned_to_move_id INTEGER,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                deleted BOOLEAN DEFAULT 0,
+                FOREIGN KEY (assigned_to_move_id) REFERENCES trailer_moves(id)
+            )
+        ''')
+        
+        # Create trailer_history table for tracking trailer movements
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS trailer_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                trailer_id INTEGER NOT NULL,
+                move_id INTEGER,
+                status_change TEXT NOT NULL,
+                change_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                changed_by TEXT,
+                notes TEXT,
+                FOREIGN KEY (trailer_id) REFERENCES trailers(id),
+                FOREIGN KEY (move_id) REFERENCES trailer_moves(id)
+            )
+        ''')
+        
+        # Create email_templates table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS email_templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                template_name TEXT UNIQUE NOT NULL,
+                subject TEXT NOT NULL,
+                body TEXT NOT NULL,
+                template_type TEXT DEFAULT 'custom',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Create email_recipients table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS email_recipients (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nickname TEXT,
+                email_address TEXT UNIQUE NOT NULL,
+                company_name TEXT,
+                is_default BOOLEAN DEFAULT 0,
+                is_favorite BOOLEAN DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                deleted BOOLEAN DEFAULT 0
+            )
+        ''')
+        
+        # Create email_history table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS email_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                recipients TEXT NOT NULL,
+                cc TEXT,
+                bcc TEXT,
+                subject TEXT NOT NULL,
+                body TEXT,
+                attachments TEXT,
+                delivery_status TEXT DEFAULT 'sent',
+                sent_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                error_message TEXT
+            )
+        ''')
+        
+        # Create contractor_update_preferences table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS contractor_update_preferences (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                contractor_name TEXT UNIQUE NOT NULL,
+                update_frequency TEXT DEFAULT 'Weekly Summary',
+                rate_confirmation_deadline TEXT DEFAULT '48 hours',
+                auto_send BOOLEAN DEFAULT 0,
+                last_update_sent TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Add new columns to trailer_moves table for trailer management
+        cursor.execute('''
+            PRAGMA table_info(trailer_moves)
+        ''')
+        columns = [col[1] for col in cursor.fetchall()]
+        
+        if 'new_trailer_id' not in columns:
+            cursor.execute('ALTER TABLE trailer_moves ADD COLUMN new_trailer_id INTEGER')
+        if 'old_trailer_id' not in columns:
+            cursor.execute('ALTER TABLE trailer_moves ADD COLUMN old_trailer_id INTEGER')
+        
         conn.commit()
 
 # Trailer Moves Operations
@@ -355,3 +459,298 @@ def get_recent_changes(limit=10):
             conn,
             params=(limit,)
         )
+
+# Trailer Management Operations
+def add_trailer(data):
+    """Add a new trailer to the system"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        columns = ', '.join(data.keys())
+        placeholders = ', '.join(['?' for _ in data])
+        query = f'INSERT INTO trailers ({columns}) VALUES ({placeholders})'
+        cursor.execute(query, list(data.values()))
+        conn.commit()
+        
+        # Add to history
+        trailer_id = cursor.lastrowid
+        add_trailer_history(trailer_id, None, 'added', data.get('notes', ''))
+        return trailer_id
+
+def get_all_trailers(trailer_type=None, status=None, include_deleted=False):
+    """Get all trailers with optional filters"""
+    with get_connection() as conn:
+        query = 'SELECT * FROM trailers WHERE 1=1'
+        params = []
+        
+        if not include_deleted:
+            query += ' AND deleted = 0'
+        
+        if trailer_type:
+            query += ' AND trailer_type = ?'
+            params.append(trailer_type)
+        
+        if status:
+            query += ' AND status = ?'
+            params.append(status)
+        
+        query += ' ORDER BY added_date DESC'
+        return pd.read_sql_query(query, conn, params=params)
+
+def get_available_trailers(trailer_type=None):
+    """Get available trailers for selection"""
+    return get_all_trailers(trailer_type=trailer_type, status='available')
+
+def get_trailer_by_id(trailer_id):
+    """Get a single trailer by ID"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM trailers WHERE id = ? AND deleted = 0', (trailer_id,))
+        row = cursor.fetchone()
+        if row:
+            return dict(row)
+        return None
+
+def get_trailer_by_number(trailer_number):
+    """Get a trailer by its number"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM trailers WHERE trailer_number = ? AND deleted = 0', (trailer_number,))
+        row = cursor.fetchone()
+        if row:
+            return dict(row)
+        return None
+
+def update_trailer(trailer_id, data):
+    """Update a trailer"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        data['updated_at'] = datetime.now()
+        set_clause = ', '.join([f'{k} = ?' for k in data.keys()])
+        query = f'UPDATE trailers SET {set_clause} WHERE id = ?'
+        cursor.execute(query, list(data.values()) + [trailer_id])
+        conn.commit()
+
+def assign_trailer_to_move(trailer_id, move_id):
+    """Assign a trailer to a move"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE trailers 
+            SET status = 'assigned', 
+                assigned_to_move_id = ?, 
+                assigned_date = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (move_id, trailer_id))
+        conn.commit()
+        
+        # Add to history
+        add_trailer_history(trailer_id, move_id, 'assigned')
+
+def complete_trailer_assignment(trailer_id):
+    """Mark a trailer assignment as completed"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get the move_id before updating
+        cursor.execute('SELECT assigned_to_move_id FROM trailers WHERE id = ?', (trailer_id,))
+        result = cursor.fetchone()
+        move_id = result['assigned_to_move_id'] if result else None
+        
+        cursor.execute('''
+            UPDATE trailers 
+            SET status = 'completed', 
+                completed_date = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (trailer_id,))
+        conn.commit()
+        
+        # Add to history
+        add_trailer_history(trailer_id, move_id, 'completed')
+
+def delete_trailer(trailer_id, soft_delete=True):
+    """Delete a trailer"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        if soft_delete:
+            cursor.execute('UPDATE trailers SET deleted = 1 WHERE id = ?', (trailer_id,))
+        else:
+            cursor.execute('DELETE FROM trailers WHERE id = ?', (trailer_id,))
+        conn.commit()
+
+def add_trailer_history(trailer_id, move_id, status_change, notes='', changed_by='system'):
+    """Add a history entry for trailer status change"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO trailer_history (trailer_id, move_id, status_change, changed_by, notes)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (trailer_id, move_id, status_change, changed_by, notes))
+        conn.commit()
+
+def get_trailer_history(trailer_id=None, move_id=None):
+    """Get trailer history"""
+    with get_connection() as conn:
+        query = 'SELECT * FROM trailer_history WHERE 1=1'
+        params = []
+        
+        if trailer_id:
+            query += ' AND trailer_id = ?'
+            params.append(trailer_id)
+        
+        if move_id:
+            query += ' AND move_id = ?'
+            params.append(move_id)
+        
+        query += ' ORDER BY change_date DESC'
+        return pd.read_sql_query(query, conn, params=params)
+
+def get_trailer_statistics():
+    """Get statistics for trailer management dashboard"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        stats = {}
+        
+        # Available new trailers
+        cursor.execute("SELECT COUNT(*) as count FROM trailers WHERE trailer_type = 'new' AND status = 'available' AND deleted = 0")
+        stats['available_new'] = cursor.fetchone()['count']
+        
+        # Available old trailers
+        cursor.execute("SELECT COUNT(*) as count FROM trailers WHERE trailer_type = 'old' AND status = 'available' AND deleted = 0")
+        stats['available_old'] = cursor.fetchone()['count']
+        
+        # Assigned trailers
+        cursor.execute("SELECT COUNT(*) as count FROM trailers WHERE status = 'assigned' AND deleted = 0")
+        stats['assigned'] = cursor.fetchone()['count']
+        
+        # Completed today
+        cursor.execute("""
+            SELECT COUNT(*) as count FROM trailers 
+            WHERE status = 'completed' 
+            AND DATE(completed_date) = DATE('now')
+            AND deleted = 0
+        """)
+        stats['completed_today'] = cursor.fetchone()['count']
+        
+        return stats
+
+# Email Management Operations
+def add_email_template(name, subject, body, template_type='custom'):
+    """Add or update an email template"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT OR REPLACE INTO email_templates (template_name, subject, body, template_type)
+            VALUES (?, ?, ?, ?)
+        ''', (name, subject, body, template_type))
+        conn.commit()
+        return cursor.lastrowid
+
+def get_email_template(name):
+    """Get an email template by name"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM email_templates WHERE template_name = ?', (name,))
+        row = cursor.fetchone()
+        if row:
+            return dict(row)
+        return None
+
+def get_all_email_templates():
+    """Get all email templates"""
+    with get_connection() as conn:
+        return pd.read_sql_query('SELECT * FROM email_templates ORDER BY template_name', conn)
+
+def add_email_recipient(email, nickname=None, company=None, is_default=False, is_favorite=False):
+    """Add or update an email recipient"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT OR REPLACE INTO email_recipients 
+            (email_address, nickname, company_name, is_default, is_favorite)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (email, nickname, company, is_default, is_favorite))
+        conn.commit()
+        return cursor.lastrowid
+
+def get_email_recipients(favorites_only=False):
+    """Get email recipients"""
+    with get_connection() as conn:
+        query = 'SELECT * FROM email_recipients WHERE deleted = 0'
+        if favorites_only:
+            query += ' AND is_favorite = 1'
+        query += ' ORDER BY is_favorite DESC, nickname'
+        return pd.read_sql_query(query, conn)
+
+def add_email_history(recipients, subject, body, cc=None, bcc=None, attachments=None, status='sent'):
+    """Add email to history"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO email_history 
+            (recipients, cc, bcc, subject, body, attachments, delivery_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (recipients, cc, bcc, subject, body, attachments, status))
+        conn.commit()
+        return cursor.lastrowid
+
+def get_email_history(limit=50):
+    """Get email history"""
+    with get_connection() as conn:
+        return pd.read_sql_query(
+            'SELECT * FROM email_history ORDER BY sent_date DESC LIMIT ?',
+            conn,
+            params=(limit,)
+        )
+
+# Contractor Update Preferences
+def save_contractor_update_preference(contractor_name, frequency, deadline, auto_send=False):
+    """Save or update contractor update preferences"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT OR REPLACE INTO contractor_update_preferences 
+            (contractor_name, update_frequency, rate_confirmation_deadline, auto_send, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (contractor_name, frequency, deadline, auto_send))
+        conn.commit()
+        return cursor.lastrowid
+
+def get_contractor_update_preference(contractor_name):
+    """Get update preferences for a specific contractor"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT * FROM contractor_update_preferences 
+            WHERE contractor_name = ?
+        ''', (contractor_name,))
+        row = cursor.fetchone()
+        if row:
+            return dict(row)
+        # Return defaults if no preference saved
+        return {
+            'update_frequency': 'Weekly Summary',
+            'rate_confirmation_deadline': '48 hours',
+            'auto_send': False
+        }
+
+def get_all_contractor_preferences():
+    """Get all contractor update preferences"""
+    with get_connection() as conn:
+        return pd.read_sql_query(
+            'SELECT * FROM contractor_update_preferences ORDER BY contractor_name',
+            conn
+        )
+
+def mark_update_sent(contractor_name):
+    """Mark that an update was sent to a contractor"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE contractor_update_preferences 
+            SET last_update_sent = CURRENT_TIMESTAMP
+            WHERE contractor_name = ?
+        ''', (contractor_name,))
+        conn.commit()

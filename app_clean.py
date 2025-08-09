@@ -43,8 +43,8 @@ def check_password():
     
     def login_submitted():
         """Checks user credentials and sets role."""
-        username = st.session_state.get("login_username", "")
-        password = st.session_state.get("login_password", "")
+        username = st.session_state.get("username", "")
+        password = st.session_state.get("password", "")
         
         # Check against auth_config
         if auth_config.validate_user(username, password):
@@ -52,11 +52,7 @@ def check_password():
             st.session_state["username"] = username
             st.session_state["user_role"] = auth_config.USERS[username]['role']
             st.session_state["user_name"] = auth_config.USERS[username]['name']
-            # Clear login fields
-            if "login_password" in st.session_state:
-                del st.session_state["login_password"]
-            if "login_username" in st.session_state:
-                del st.session_state["login_username"]
+            del st.session_state["password"]  # Don't store password
         else:
             st.session_state["authenticated"] = False
             st.session_state["auth_error"] = "Invalid username or password"
@@ -76,8 +72,8 @@ def check_password():
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             with st.form("login_form"):
-                st.text_input("Username", key="login_username", placeholder="Enter username")
-                st.text_input("Password", type="password", key="login_password", placeholder="Enter password")
+                st.text_input("Username", key="username", placeholder="Enter username")
+                st.text_input("Password", type="password", key="password", placeholder="Enter password")
                 submitted = st.form_submit_button("🔓 Login", use_container_width=True)
                 
                 if submitted:
@@ -407,8 +403,7 @@ def edit_move_form(move_id):
 def show_settings_page():
     """Redirect to show_settings module"""
     show_settings.show_settings_page()
-
-def add_new_move():
+                            st.error("Passwords do not match!")
     """Page for adding a new trailer move with trailer management integration"""
     st.title("➕ Add New Trailer Move")
     

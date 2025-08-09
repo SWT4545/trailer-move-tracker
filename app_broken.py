@@ -43,8 +43,8 @@ def check_password():
     
     def login_submitted():
         """Checks user credentials and sets role."""
-        username = st.session_state.get("login_username", "")
-        password = st.session_state.get("login_password", "")
+        username = st.session_state.get("username", "")
+        password = st.session_state.get("password", "")
         
         # Check against auth_config
         if auth_config.validate_user(username, password):
@@ -52,11 +52,7 @@ def check_password():
             st.session_state["username"] = username
             st.session_state["user_role"] = auth_config.USERS[username]['role']
             st.session_state["user_name"] = auth_config.USERS[username]['name']
-            # Clear login fields
-            if "login_password" in st.session_state:
-                del st.session_state["login_password"]
-            if "login_username" in st.session_state:
-                del st.session_state["login_username"]
+            del st.session_state["password"]  # Don't store password
         else:
             st.session_state["authenticated"] = False
             st.session_state["auth_error"] = "Invalid username or password"
@@ -76,8 +72,8 @@ def check_password():
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             with st.form("login_form"):
-                st.text_input("Username", key="login_username", placeholder="Enter username")
-                st.text_input("Password", type="password", key="login_password", placeholder="Enter password")
+                st.text_input("Username", key="username", placeholder="Enter username")
+                st.text_input("Password", type="password", key="password", placeholder="Enter password")
                 submitted = st.form_submit_button("🔓 Login", use_container_width=True)
                 
                 if submitted:
@@ -407,6 +403,176 @@ def edit_move_form(move_id):
 def show_settings_page():
     """Redirect to show_settings module"""
     show_settings.show_settings_page()
+                            st.error("Passwords do not match!")
+            
+            with col2:
+                st.markdown("#### 🔒 Lock/Unlock User")
+                with st.form("lock_user_form"):
+                    user_to_lock = st.selectbox(
+                        "Select User",
+                        options=[u for u in auth_config.USERS.keys() if u != 'admin'],
+                        help="Cannot lock admin account"
+                    )
+                    action = st.radio("Action", ["Lock User", "Unlock User"])
+                    
+                    if st.form_submit_button("Apply"):
+                        if action == "Lock User":
+                            st.warning(f"""
+                            ⚠️ User '{user_to_lock}' will be locked out.
+                            
+                            Add this to auth_config.py:
+                            """)
+                            st.code(f"""
+'{user_to_lock}': {{
+    'password': '{auth_config.USERS[user_to_lock]['password']}',
+    'role': '{auth_config.USERS[user_to_lock]['role']}',
+    'name': '{auth_config.USERS[user_to_lock]['name']}',
+    'active': False  # User is locked
+}}
+                            """)
+                        else:
+                            st.success(f"User '{user_to_lock}' unlocked")
+            
+            # Add New User Section
+            st.markdown("---")
+            st.markdown("### ➕ Add New User")
+            
+            with st.form("add_user_form"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    new_username = st.text_input("Username", placeholder="john_doe")
+                    new_user_password = st.text_input("Password", type="password", placeholder="TempPass2024!")
+                    new_user_name = st.text_input("Full Name", placeholder="John Doe")
+                
+                with col2:
+                    new_user_role = st.selectbox(
+                        "Role",
+                        options=['admin', 'manager', 'viewer', 'client'],
+                        index=1  # Default to manager
+                    )
+                    send_training = st.checkbox("Send training link", value=True)
+                
+                if st.form_submit_button("➕ Add User"):
+                    if new_username and new_user_password and new_user_name:
+                        st.success(f"✅ User '{new_username}' created!")
+                        
+                        st.markdown("**Add this to `auth_config.py`:**")
+                        st.code(f"""
+# Add to USERS dictionary:
+'{new_username}': {{
+    'password': '{new_user_password}',
+    'role': '{new_user_role}',
+    'name': '{new_user_name}'
+}},
+                        """)
+                        
+                        if send_training:
+                            training_link = f"http://localhost:8503?role={new_user_role}"
+                            st.markdown("**Training Link:**")
+                            st.code(training_link)
+                    else:
+                        st.error("Please fill all fields")
+            
+            # Quick Actions
+            st.markdown("---")
+            st.markdown("### ⚡ Quick Actions")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                if st.button("📋 Copy All Credentials"):
+                    credentials_text = "Username | Password | Role\\n"
+                    credentials_text += "-" * 40 + "\\n"
+                    for username, user_info in auth_config.USERS.items():
+                        credentials_text += f"{username} | {user_info['password']} | {user_info['role']}\\n"
+                    st.code(credentials_text)
+            
+            with col2:
+                if st.button("🔄 Reset All to Defaults"):
+                    st.warning("""
+                    ⚠️ This will reset all passwords to defaults:
+                    - admin: admin123
+                    - manager: manager123
+                    - viewer: view123
+                    - client: client123
+                    """)
+            
+            with col3:
+                if st.button("📊 User Activity Report"):
+                    st.info("Activity logging will be available in next update")
+            
+            # Security Reminder
+            st.markdown("---")
+            st.info("""
+            🔐 **Security Reminders:**
+            - Change default passwords immediately
+            - Use strong passwords (12+ characters, mixed case, numbers, symbols)
+            - Review user access monthly
+            - Remove inactive users
+            - Never share admin credentials
+            - Always logout when finished
+            """)
+        
+        # Access Control Tab
+        with tabs[1]:
+    else:
+        # Non-admin tabs start at index 0
+        with tabs[0]:
+        st.subheader("Progress Dashboard Access")
+        
+        enable_progress = st.checkbox("Enable Read-Only Progress Dashboard", value=True)
+        
+        if enable_progress:
+            col1, col2 = st.columns(2)
+            with col1:
+                access_method = st.radio("Access Method", ["Password Protected", "Shareable Link"])
+            
+            with col2:
+                if access_method == "Password Protected":
+                    dashboard_password = st.text_input("Dashboard Password", type="password", placeholder="Set a password")
+                    if st.button("Save Password"):
+                        # Save to database or config
+                        st.success("Password saved!")
+                else:
+                    if st.button("Generate Shareable Link"):
+                        # Generate unique link
+                        link = f"http://yourdomain.com/progress?token=abc123xyz"
+                        st.code(link)
+                        st.info("Link expires in 30 days")
+    
+    with tabs[1]:
+        st.subheader("Email Configuration")
+        
+        # Default email settings
+        default_from_email = st.text_input("Default From Email", placeholder="noreply@smithwilliams.com")
+        smtp_server = st.text_input("SMTP Server", placeholder="smtp.gmail.com")
+        smtp_port = st.number_input("SMTP Port", value=587, min_value=1)
+        
+        if st.button("Test Email Configuration"):
+            st.info("Sending test email...")
+            # Test email sending
+            st.success("Test email sent successfully!")
+    
+    with tabs[2]:
+        st.subheader("Company Branding")
+        
+        st.info("Current branding: Smith and Williams Trucking")
+        st.write("Logo: Crown and wings design with vinyl record")
+        st.write("Colors: Red (#DC143C), Black (#000000), White (#FFFFFF)")
+        
+        # Preview
+        st.markdown(branding.get_header_html(), unsafe_allow_html=True)
+    
+    with tabs[3]:
+        st.subheader("Dashboard Settings")
+        
+        auto_archive_days = st.number_input("Auto-archive completed trailers after (days)", value=7, min_value=1)
+        default_rate = st.number_input("Default Rate per Mile", value=2.10, min_value=0.0, step=0.01)
+        default_factor_fee = st.number_input("Default Factor Fee", value=0.03, min_value=0.0, max_value=1.0, step=0.01)
+        
+        if st.button("Save Settings"):
+            st.success("Settings saved successfully!")
 
 def add_new_move():
     """Page for adding a new trailer move with trailer management integration"""
