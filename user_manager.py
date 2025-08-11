@@ -39,6 +39,9 @@ def show_user_management():
     """Main user management interface for admins"""
     st.markdown("### 👥 User Management System")
     
+    # Add navigation hint
+    st.info("💡 **Navigation:** Click other tabs above to switch sections, or use the sidebar menu to leave System Admin")
+    
     # Check if user is owner or admin
     is_owner = st.session_state.get('is_owner', False)
     role = st.session_state.get('user_role', '')
@@ -223,3 +226,10 @@ def show_user_management():
                         st.error("Failed to remove user")
         else:
             st.info("No users available to remove")
+    
+    # Add a footer with navigation options
+    st.divider()
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("### 🎯 Quick Actions")
+        st.info("Use the **sidebar menu** to navigate to other sections or click the **tabs above** to access other System Admin features.")
