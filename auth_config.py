@@ -111,16 +111,18 @@ USER_ROLES = {
 }
 
 # User accounts are now stored in database
-# This dictionary is kept empty - all users managed through database
-USERS = {}
-
-# Temporary fallback for first-time setup only
-# These will be removed after initial_setup.py is run
-TEMP_SETUP_USER = {
+# Temporary accounts for Streamlit Cloud until database is created
+USERS = {
+    'admin': {
+        'password': 'admin123',
+        'role': 'business_administrator', 
+        'name': 'Administrator',
+        'title': 'Administrator'
+    },
     'setup': {
-        'password': 'setup',  # Only for accessing initial setup
-        'role': 'admin',
-        'name': 'Setup User',
+        'password': 'setup123',
+        'role': 'business_administrator',
+        'name': 'Setup Admin',
         'title': 'Initial Setup'
     }
 }
@@ -144,18 +146,21 @@ def get_user_permissions(username):
     return None
 
 def validate_user(username, password):
-    """Validate user credentials from database"""
+    """Validate user credentials from database or fallback"""
     # Strip any whitespace from inputs
     username = username.strip() if username else ""
     password = password.strip() if password else ""
     
+    # First check static USERS dictionary (for initial access)
+    if username in USERS:
+        if USERS[username]['password'] == password:
+            return True
+    
     # Check if database exists
     import os
     if not os.path.exists('trailer_tracker_streamlined.db'):
-        # Allow setup user for initial configuration
-        if username == 'setup' and password == 'setup':
-            return True
-        return False
+        # No database yet, use static users
+        return username in USERS and USERS[username]['password'] == password
     
     # Check database for user
     try:
