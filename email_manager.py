@@ -9,12 +9,14 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
+import api_config
+import signature_manager
 
 def show_email_center():
     """Main email management center"""
     st.title("✉️ Email Center")
     
-    tabs = st.tabs(["📤 Send Email", "📝 Templates", "👥 Recipients", "📜 History"])
+    tabs = st.tabs(["📤 Send Email", "📝 Templates", "✍️ Signatures", "👥 Recipients", "📜 History"])
     
     with tabs[0]:
         send_email_interface()
@@ -23,9 +25,12 @@ def show_email_center():
         manage_email_templates()
     
     with tabs[2]:
-        manage_recipients()
+        signature_manager.show_signature_manager()
     
     with tabs[3]:
+        manage_recipients()
+    
+    with tabs[4]:
         show_email_history()
 
 def send_email_interface():
@@ -33,13 +38,23 @@ def send_email_interface():
     st.subheader("📤 Send Email")
     
     # Display company email configuration
-    st.info("📧 Emails will be sent from: **Smithandwilliamstrucking@gmail.com**")
+    st.info("📧 Emails will be sent from: **dispatch@smithwilliamstrucking.com**")
+    
+    # Clear form button
+    col_clear, col_space = st.columns([1, 3])
+    with col_clear:
+        if st.button("🔄 Clear Form", use_container_width=True):
+            if 'email_form_counter' not in st.session_state:
+                st.session_state.email_form_counter = 0
+            st.session_state.email_form_counter += 1
+            st.rerun()
     
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        # Email composition form
-        with st.form("send_email_form"):
+        # Email composition form with dynamic key for clearing
+        form_key = f"send_email_form_{st.session_state.get('email_form_counter', 0)}"
+        with st.form(form_key):
             # Template selection
             templates = db.get_all_email_templates()
             template_options = ["Custom"] + (templates['template_name'].tolist() if not templates.empty else [])
@@ -97,14 +112,25 @@ def send_email_interface():
             st.markdown("**Attachments**")
             attachment_type = st.selectbox("Attach Document", ["None", "Contractor Invoice", "Driver Invoice", "Progress Report"])
             
-            # Signature
-            add_signature = st.checkbox("Add Company Signature", value=True)
+            # Signature options - using new signature manager
+            st.markdown("**Signature**")
+            add_signature = st.checkbox("Add Signature", value=True)
+            if add_signature:
+                signature_list = signature_manager.get_signature_list()
+                signature_type = st.selectbox(
+                    "Select Signature",
+                    signature_list,
+                    help="Choose the appropriate signature for your email (edit in Signatures tab)"
+                )
+            else:
+                signature_type = None
             
             if st.form_submit_button("📤 Send Email", type="primary", use_container_width=True):
                 if to_email and subject and body:
                     # Add signature if requested
-                    if add_signature:
-                        body += f"\n\n---\n{branding.COMPANY_NAME}\nTrailer Move Tracker System\n\nThis is an automated message."
+                    if add_signature and signature_type:
+                        signature = signature_manager.get_signature_for_email(signature_type)
+                        body += "\n\n---\n" + signature
                     
                     # Send email (placeholder for actual implementation)
                     success = send_email(to_email, subject, body, cc_email, bcc_email, attachment_type)
@@ -122,28 +148,75 @@ def send_email_interface():
                         )
                         st.success("✅ Email sent successfully!")
                         st.balloons()
+                        # Clear form after successful send
+                        if 'email_form_counter' not in st.session_state:
+                            st.session_state.email_form_counter = 0
+                        st.session_state.email_form_counter += 1
+                        st.rerun()
                     else:
                         st.error("Failed to send email. Please check your email configuration.")
                 else:
                     st.error("Please fill in all required fields (To, Subject, Message)")
     
     with col2:
-        # Email preview
+        # Email preview - show real-time preview
         st.subheader("📧 Preview")
-        if to_email and subject and body:
-            st.markdown(f"""
-            <div style="border: 1px solid #ddd; padding: 1rem; border-radius: 8px; background: #f9f9f9;">
-                <p><b>To:</b> {to_email}</p>
-                {"<p><b>CC:</b> " + cc_email + "</p>" if cc_email else ""}
-                {"<p><b>BCC:</b> " + bcc_email + "</p>" if bcc_email else ""}
-                <p><b>Subject:</b> {subject}</p>
-                <hr>
-                <p>{body.replace(chr(10), '<br>')}</p>
-                {"<hr><p><i>Attachment: " + attachment_type + "</i></p>" if attachment_type != "None" else ""}
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.info("Email preview will appear here")
+        
+        # Create a container for live preview
+        preview_container = st.container()
+        
+        with preview_container:
+            # Try to get values from the form inputs (they exist even before submit)
+            preview_to = to_email if 'to_email' in locals() and to_email else ""
+            preview_subject = subject if 'subject' in locals() and subject else ""
+            preview_body = body if 'body' in locals() and body else ""
+            
+            # If we have any content, show preview
+            if preview_to or preview_subject or preview_body:
+                # Build preview body with signature if selected
+                if 'add_signature' in locals() and add_signature and 'signature_type' in locals():
+                    try:
+                        signature = signature_manager.get_signature_for_email(signature_type)
+                        preview_body += "\n\n---\n" + signature
+                    except:
+                        pass
+                
+                # Format for HTML display
+                preview_html = f"""
+                <div style="border: 1px solid #ddd; padding: 1rem; border-radius: 8px; background: white;">
+                    <p><b>From:</b> dispatch@smithwilliamstrucking.com</p>
+                    <p><b>To:</b> {preview_to if preview_to else '<em>Enter recipient email</em>'}</p>
+                """
+                
+                if 'cc_email' in locals() and cc_email:
+                    preview_html += f"<p><b>CC:</b> {cc_email}</p>"
+                
+                if 'bcc_email' in locals() and bcc_email:
+                    preview_html += f"<p><b>BCC:</b> {bcc_email}</p>"
+                
+                preview_html += f"""
+                    <p><b>Subject:</b> {preview_subject if preview_subject else '<em>Enter subject</em>'}</p>
+                    <hr>
+                    <div style="white-space: pre-wrap; font-family: Arial, sans-serif; min-height: 100px;">
+                        {preview_body.replace('<', '&lt;').replace('>', '&gt;').replace(chr(10), '<br>') if preview_body else '<em>Start typing your message...</em>'}
+                    </div>
+                """
+                
+                if 'attachment_type' in locals() and attachment_type != "None":
+                    preview_html += f"<hr><p><i>📎 Attachment: {attachment_type}</i></p>"
+                
+                preview_html += "</div>"
+                
+                st.markdown(preview_html, unsafe_allow_html=True)
+            else:
+                # Show placeholder
+                st.markdown("""
+                <div style="border: 2px dashed #ddd; padding: 2rem; border-radius: 8px; background: #f9f9f9; text-align: center;">
+                    <h4 style="color: #666;">📧 Email Preview</h4>
+                    <p style="color: #999;">Your email will appear here as you compose it</p>
+                    <p style="color: #999; font-size: 0.9em;">Start filling in the form to see a live preview</p>
+                </div>
+                """, unsafe_allow_html=True)
 
 def manage_email_templates():
     """Manage email templates"""
@@ -305,37 +378,52 @@ def show_email_history():
         st.info("No email history found")
 
 def send_email(to_email, subject, body, cc=None, bcc=None, attachment_type=None):
-    """Send an email (placeholder function - implement with actual SMTP)"""
+    """Send an email using Gmail API"""
     try:
-        # This is a placeholder - implement actual email sending logic
-        # using SMTP configuration from settings
+        # Check if Gmail is configured
+        if not api_config.is_gmail_configured():
+            st.warning("Gmail API is not configured. Please update api_config.py with your Gmail credentials.")
+            return False
         
-        # For now, just return success
+        # Get Gmail credentials
+        gmail_config = api_config.get_gmail_credentials()
+        
+        # Create message
+        msg = MIMEMultipart()
+        msg['From'] = gmail_config['sender_email']
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        if cc:
+            msg['Cc'] = cc
+        if bcc:
+            msg['Bcc'] = bcc
+        
+        # Attach body
+        msg.attach(MIMEText(body, 'plain'))
+        
+        # Handle attachments if needed
+        if attachment_type and attachment_type != "None":
+            # TODO: Implement attachment logic based on attachment_type
+            # This would involve generating the appropriate report/invoice
+            # and attaching it to the email
+            pass
+        
+        # Send email via Gmail SMTP
+        server = smtplib.SMTP(gmail_config['smtp_server'], gmail_config['smtp_port'])
+        server.starttls()
+        server.login(gmail_config['sender_email'], gmail_config['app_password'])
+        
+        # Combine all recipients
+        all_recipients = [to_email]
+        if cc:
+            all_recipients.extend(cc.split(','))
+        if bcc:
+            all_recipients.extend(bcc.split(','))
+        
+        server.send_message(msg)
+        server.quit()
+        
         return True
-        
-        # Actual implementation would look like:
-        # msg = MIMEMultipart()
-        # msg['From'] = sender_email
-        # msg['To'] = to_email
-        # msg['Subject'] = subject
-        # if cc:
-        #     msg['Cc'] = cc
-        # if bcc:
-        #     msg['Bcc'] = bcc
-        # 
-        # msg.attach(MIMEText(body, 'plain'))
-        # 
-        # if attachment_type:
-        #     # Attach file
-        #     pass
-        # 
-        # server = smtplib.SMTP('smtp.gmail.com', 587)
-        # server.starttls()
-        # server.login(sender_email, password)
-        # server.send_message(msg)
-        # server.quit()
-        # 
-        # return True
         
     except Exception as e:
         st.error(f"Error sending email: {str(e)}")

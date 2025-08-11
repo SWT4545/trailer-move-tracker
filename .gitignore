@@ -23,58 +23,72 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
-venv/
-env/
-ENV/
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*_backup.py
+*_old.py
+app_*.py
+!app.py
+
+# Test files
+test_*.py
+
+# Credentials and sensitive data
+CREDENTIALS.txt
+SECURE_CREDENTIALS_PRIVATE.txt
+WORKING_CREDENTIALS.md
+*.credentials
+*.key
+.env
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
-.DS_Store
 
-# Streamlit
-.streamlit/secrets.toml
+# Logs
 *.log
-
-# Database
-data/*.db
-data/backup_*.db
-*.db-journal
-*.db-wal
-
-# Environment variables
-.env
-.env.local
-
-# Excel files (for privacy)
-*.xlsx
-*.xls
-!trailer_moves_template.xlsx
-
-# Backup files
-*.bak
-*.backup
-backup/
+vernon_it_log.txt
 
 # Temporary files
-tmp/
-temp/
 *.tmp
+*.temp
+~*
 
-# OS files
-Thumbs.db
-.DS_Store
+# Excel files
+*.xlsx
+*.xls
 
-# Jupyter Notebooks
-.ipynb_checkpoints/
-.streamlit/secrets.toml
-*.db
-*.pyc
-__pycache__/
-.env
+# Ngrok
 ngrok.exe
-ngrok.zip
+ngrok/
+
+# Batch files
+*.bat
+
+# Deployment files
+DEPLOY_COMMANDS.txt
+FIX_DEPLOYMENT.bat
+
+# Documentation drafts
+*_GUIDE.md
+*_SUMMARY.md
+!README.md
+
+# Data folder (we'll keep essential data separate)
+data/
+
+# Miscellaneous
+nul
+show_settings.py
+generate_*.py
+progress_*.py
+test_*.py
+*_demo_*.py
+luxury_*.py
+modern_*.py

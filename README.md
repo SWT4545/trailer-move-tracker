@@ -1,227 +1,169 @@
-# 🚛 Trailer Move Tracker
+# Smith & Williams Trucking - Trailer Swap Management System
 
-A comprehensive Streamlit web application for tracking trailer moves with automatic mileage calculation, driver management, and financial tracking.
+## 🚛 Overview
+A comprehensive web-based trailer swap management system designed for Smith & Williams Trucking operations. The system streamlines trailer swaps between Fleet Memphis and customer locations with role-based access, automated mileage calculation, and integrated payment processing.
 
 ## ✨ Features
 
-- **Password Protected Access**: Secure your data with built-in authentication
-- **Full CRUD Operations**: Create, Read, Update, and Delete all data
-- **Smart Mileage System**:
-  - Manual entry with caching for future use
-  - Google Maps Distance Matrix API integration
-  - Automatic round-trip calculations
-- **Dynamic Data Entry**:
-  - Add new locations on-the-fly during move entry
-  - Add new drivers without leaving the form
-  - Smart dropdowns with "Add New" options
-- **Excel Import/Export**:
-  - Import existing data from Excel files
-  - Export all data to formatted Excel workbooks
-  - Maintain full editability after import
-- **Dashboard Features**:
-  - Color-coded status (green for paid moves)
-  - Summary statistics and metrics
-  - Quick filters for unpaid, in-progress, and completed moves
-- **Mobile-Optimized**: Large touch targets and responsive design for use while driving
+### Core Functionality
+- **Trailer Swap Management**: Track NEW and OLD trailer swaps between locations
+- **Automated Mileage Calculation**: Google Maps integration for accurate distance tracking
+- **Multi-Photo POD Upload**: Up to 10 photos for NEW trailers, 2 for OLD trailers
+- **Payment Processing**: Complete workflow from client billing to driver payments
+- **Role-Based Access Control**: Business Administrator, Operations Coordinator, and Driver roles
+
+### Advanced Features
+- **Vernon IT Bot**: Automated system maintenance and monitoring
+- **Mobile-Friendly**: Responsive design for phones and tablets
+- **No-Login POD Upload**: Drivers can upload documentation via secure links
+- **Real-Time Driver Availability**: Track driver status and assignments
+- **Company Branding**: Customizable company information and signatures
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-
-- Python 3.8 or higher
-- pip (Python package manager)
+- Python 3.8+
+- Streamlit account (for deployment)
+- Google Maps API key (optional, for mileage calculation)
 
 ### Installation
 
-1. **Clone or download this repository**:
-   ```bash
-   git clone https://github.com/yourusername/trailer-move-tracker.git
-   cd trailer-move-tracker
-   ```
-
-2. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Configure secrets**:
-   - Edit `.streamlit/secrets.toml`
-   - Set your password: `password = "your_secure_password"`
-   - (Optional) Add Google Maps API key: `GOOGLE_MAPS_API_KEY = "your_api_key"`
-
-4. **Run the application**:
-   ```bash
-   streamlit run app.py
-   ```
-
-5. **Access the app**:
-   - Open your browser to `http://localhost:8501`
-   - Enter your password to access the application
-
-## 🔧 Configuration
-
-### Setting Up Password Protection
-
-Edit `.streamlit/secrets.toml`:
-```toml
-password = "your_secure_password_here"
-```
-
-### Google Maps API Setup (Optional)
-
-1. Get an API key from [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-2. Enable the **Distance Matrix API** for your project
-3. Add the key to `.streamlit/secrets.toml`:
-   ```toml
-   GOOGLE_MAPS_API_KEY = "your_api_key_here"
-   ```
-
-The app works perfectly without the API key - you'll just need to enter mileage manually.
-
-## 📁 Data Import
-
-### Importing from Excel
-
-1. Navigate to the **Import/Export** page
-2. Upload your Excel file with these sheets:
-   - **Trailer Move Tracker** or **Trailer Moves**: Main moves data
-   - **Locations**: Location names and addresses
-   - **Drivers**: Driver information
-
-### Expected Excel Columns
-
-**Trailer Moves Sheet**:
-- New Trailer, Pickup Location, Destination
-- Old Trailer, Old Pickup, Old Destination
-- Assigned Driver, Date Assigned, Completion Date
-- Received PPW, Processed, Paid
-- Miles, Rate, Factor Fee, Load Pay
-- Comments
-
-**Locations Sheet**:
-- Location Title, Location Address
-
-**Drivers Sheet**:
-- Driver Name, Truck Number, Company Name
-- Company Address, DOT, MC, Insurance
-
-## 🌐 Deployment Options
-
-### Option 1: Streamlit Community Cloud (Free)
-
-1. Push your code to GitHub (make sure `.streamlit/secrets.toml` is in `.gitignore`)
-2. Sign up at [share.streamlit.io](https://share.streamlit.io)
-3. Deploy your app from your GitHub repository
-4. Add secrets in Streamlit Cloud settings:
-   - `password = "your_password"`
-   - `GOOGLE_MAPS_API_KEY = "your_api_key"` (optional)
-
-### Option 2: Local Network Deployment
-
-Run on your local network for maximum privacy:
-
+1. Clone the repository:
 ```bash
-streamlit run app.py --server.address 0.0.0.0
+git clone https://github.com/yourusername/trailer-move-tracker.git
+cd trailer-move-tracker
 ```
 
-Access from any device on your network using your computer's IP address:
-`http://192.168.1.xxx:8501`
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-### Option 3: Secure Remote Access with ngrok
+3. Run the application:
+```bash
+streamlit run app.py
+```
 
-1. Install ngrok: [ngrok.com](https://ngrok.com)
-2. Run your Streamlit app: `streamlit run app.py`
-3. In another terminal: `ngrok http 8501`
-4. Access your app from anywhere using the ngrok URL
+## 🔐 Default Credentials
 
-## 📱 Mobile Usage Tips
+### Business Administrator
+- Username: `admin`
+- Password: `admin123`
+- Full system access including financial management
 
-- The app is optimized for mobile browsers
-- Use landscape mode for better table viewing
-- All forms have large touch targets
-- Quick-add options minimize typing
-- Mileage auto-calculation saves time on the road
+### Operations Coordinator
+- Username: `coordinator`
+- Password: `coord123`
+- Manage trailers, drivers, and moves
 
-## 🔒 Security & Privacy
+### Driver
+- Username: `driver1`
+- Password: `drive123`
+- View assignments and upload PODs
 
-- All data is stored locally in SQLite database
-- Password protection prevents unauthorized access
-- Use `.gitignore` to keep sensitive data out of version control
-- For maximum privacy, deploy locally or on your own server
-- Regular backups are recommended (see Import/Export → Backup/Restore)
+## 📱 Mobile POD Upload
 
-## 🛠️ Troubleshooting
+Drivers receive a unique link for each move that allows them to upload:
+- POD document (Bill of Lading)
+- NEW Trailer Photos (up to 10 total)
+  - 5 photos at pickup (Fleet Memphis)
+  - 5 photos at delivery (Customer location)
+- OLD Trailer Photos (up to 2 total)
+  - 1 photo at pickup (Customer location)
+  - 1 photo at delivery (Fleet Memphis)
 
-### Common Issues
+## 🤖 Vernon IT Bot
 
-**"Password incorrect" error**:
-- Check `.streamlit/secrets.toml` for the correct password
-- Ensure the file is properly formatted (TOML syntax)
+The system includes Vernon, an automated IT support specialist that:
+- Monitors system health in real-time
+- Automatically fixes common issues
+- Performs scheduled maintenance
+- Validates system after upgrades
+- Provides diagnostic reports
 
-**Google Maps not working**:
-- Verify your API key is correct
-- Check that Distance Matrix API is enabled in Google Cloud Console
-- Ensure you have billing enabled on your Google Cloud account
+Access Vernon through the IT Support menu (Admin only).
 
-**Import failing**:
-- Check that your Excel file has the expected column names
-- Download the sample template from Import/Export page
-- Ensure dates are in a recognizable format
+## 🛠️ Configuration
 
-**Database errors**:
-- Make sure the `data/` directory exists and is writable
-- Try creating a backup and starting fresh
+### Environment Variables
+```bash
+GOOGLE_MAPS_API_KEY=your_api_key_here
+```
 
-## 📊 Features Walkthrough
+### Company Settings
+Company information can be configured through the System Admin menu:
+- Company name, email, phone
+- DOT/MC numbers
+- Email signatures
+- Branding colors
 
-### Dashboard
-- View all moves with color coding (green = paid)
-- Filter by status, driver, and date range
-- Quick statistics overview
-- Inline editing capabilities
+## 📊 Database Schema
 
-### Add New Move
-- Smart location dropdowns with "Add New" option
-- Automatic mileage calculation or manual entry
-- Save routes for future use
-- Real-time load pay calculation
+The system uses SQLite with the following main tables:
+- `users`: System users and authentication
+- `trailers`: Trailer pair inventory
+- `drivers`: Driver information and status
+- `moves`: Trailer swap assignments
+- `locations`: Customer locations
+- `mileage_cache`: Cached distance calculations
+- `activity_log`: System activity tracking
 
-### Manage Locations
-- View all locations in editable table
-- Add new locations with addresses
-- Delete unused locations
+## 🚀 Deployment
 
-### Manage Drivers
-- Complete driver information management
-- Track company details, DOT, MC numbers
-- Easy addition during move entry
+### Streamlit Cloud
 
-### Manage Mileage
-- View and edit cached routes
-- Manual route addition
-- Automatic caching from move entries
+1. Push to GitHub:
+```bash
+git add .
+git commit -m "Deploy trailer management system"
+git push origin main
+```
 
-### Import/Export
-- Excel import with smart column mapping
-- Full data export to Excel
-- Database backup and restore
-- Sample template download
+2. Connect to Streamlit Cloud:
+   - Go to [share.streamlit.io](https://share.streamlit.io)
+   - Connect your GitHub repository
+   - Deploy the app
 
-## 🤝 Support
+### Local Deployment
 
-For issues or questions:
-1. Check the Troubleshooting section above
-2. Review the in-app help tooltips
-3. Create an issue on GitHub
+For local network deployment:
+```bash
+streamlit run app.py --server.address 0.0.0.0 --server.port 8501
+```
 
-## 📄 License
+## 📋 Workflow
 
-This project is provided as-is for personal and commercial use.
+1. **Admin/Coordinator**: Add trailer pairs to inventory
+2. **Coordinator**: Create moves and assign to drivers
+3. **System**: Generate unique POD upload link
+4. **Coordinator**: Send assignment message to driver
+5. **Driver**: Complete swap and upload POD/photos
+6. **Admin**: Process payments through factoring
+7. **System**: Track payment status and driver earnings
 
-## 🙏 Acknowledgments
+## 🔧 Maintenance
 
-Built with:
-- [Streamlit](https://streamlit.io) - The fastest way to build data apps
-- [Google Maps Platform](https://developers.google.com/maps) - For distance calculations
-- [SQLite](https://sqlite.org) - Reliable local database
-- [Pandas](https://pandas.pydata.org) - Data manipulation and analysis
+Vernon IT Bot automatically handles:
+- Database optimization
+- Session cleanup
+- File system checks
+- Dependency validation
+- Resource monitoring
+
+Manual maintenance available through IT Support panel.
+
+## 📝 License
+
+Proprietary software for Smith & Williams Trucking.
+
+## 📞 Support
+
+For technical support, contact:
+- Email: Dispatch@smithwilliamstrucking.com
+- Phone: (901) 555-SHIP
+
+---
+
+**"Your cargo. Our mission. Moving forward."**
+
+© 2024 Smith & Williams Trucking. All rights reserved.

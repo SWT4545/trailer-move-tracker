@@ -1,8 +1,27 @@
-# Smith and Williams Trucking Branding Configuration
+# Smith & Williams Trucking Branding Configuration
 
 # Company Information
-COMPANY_NAME = "Smith and Williams Trucking"
+COMPANY_NAME = "Smith & Williams Trucking Solutions, LLC"
+COMPANY_NAME_SHORT = "Smith & Williams Trucking"
 APP_NAME = "Trailer Move Tracker"
+COMPANY_MC = "MC#: 1276006"
+COMPANY_DOT = "DOT#: 3675217"
+COMPANY_CEO = "Brandon Smith"
+COMPANY_CEO_PHONE = "951.437.5474"
+COMPANY_CEO_EMAIL = "Brandon@smithwilliamstrucking.com"
+
+# Company Taglines
+PRIMARY_TAGLINE = "Your cargo. Our mission. Moving forward."
+SECONDARY_TAGLINE = "Your freight, our commitment"
+SHORT_TAGLINE = "Moving forward."  # For space-limited uses
+
+# Email Disclaimer
+EMAIL_DISCLAIMER = """
+CONFIDENTIALITY NOTICE: This email and any attachments contain confidential and proprietary information intended solely for the use of the intended recipient(s). If you are not the intended recipient, you are hereby notified that any reading, use, disclosure, copying, or distribution of this email or its attachments is strictly prohibited. If you have received this email in error, please notify the sender immediately by reply email and delete this email and all copies from your system. Thank you.
+"""
+
+# Short disclaimer for signatures
+SHORT_DISCLAIMER = "This email contains confidential information intended only for the addressee."
 
 # Brand Colors
 COLORS = {

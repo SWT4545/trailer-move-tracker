@@ -87,38 +87,60 @@ USER_ROLES = {
 # User accounts (in production, store hashed passwords in database)
 USERS = {
     'brandon_smith': {
-        'password': 'executive123',  # CHANGE THIS IMMEDIATELY!
+        'password': 'Williams123',  # CHANGE THIS IMMEDIATELY!
         'role': 'executive',
         'name': 'Brandon Smith',
         'title': 'CEO',
         'email': 'swtruckingceo@gmail.com'
     },
     'admin': {
-        'password': 'admin123',  # Change this!
+        'password': 'SmithWilliams2024Admin!',  # Changed!
         'role': 'admin',
-        'name': 'System Administrator'
+        'name': 'System Administrator',
+        'title': 'Administrator'
     },
-    'ops_coordinator': {
-        'password': 'coordinator123',  # Change this!
+    'coordinator': {
+        'password': 'SwCoordinator2024!',  # Changed!
         'role': 'operations_coordinator',
         'name': 'Operations Coordinator',
         'title': 'Operations Coordinator'
     },
-    'ops_specialist': {
-        'password': 'specialist123',  # Change this!
+    'ops_coordinator': {  # Alternative login for coordinator
+        'password': 'SwCoordinator2024!',  # Changed!
+        'role': 'operations_coordinator',
+        'name': 'Operations Coordinator',
+        'title': 'Operations Coordinator'
+    },
+    'specialist': {
+        'password': 'SwSpecialist2024!',  # Changed!
+        'role': 'operations_specialist',
+        'name': 'Operations Specialist',
+        'title': 'Operations Specialist'
+    },
+    'ops_specialist': {  # Alternative login for specialist
+        'password': 'SwSpecialist2024!',  # Changed!
         'role': 'operations_specialist',
         'name': 'Operations Specialist',
         'title': 'Operations Specialist'
     },
     'viewer': {
-        'password': 'view123',  # Change this!
+        'password': 'SwViewer2024!',  # Changed!
         'role': 'viewer',
-        'name': 'Read-Only User'
+        'name': 'Read-Only User',
+        'title': 'Viewer'
     },
     'client': {
-        'password': 'client123',  # Change this!
+        'password': 'SwClient2024!',  # Changed!
         'role': 'client',
-        'name': 'Client Access'
+        'name': 'Client Access',
+        'title': 'Client'
+    },
+    'demo': {
+        'password': 'demo',
+        'role': 'admin',
+        'name': 'Demo User',
+        'title': 'Demo Administrator',
+        'email': 'demo@smithwilliamstrucking.com'
     }
 }
 
@@ -187,3 +209,186 @@ def can_access_page(username, page):
         page_key = page_mapping.get(page, '')
         return page_key in permissions.get('access', [])
     return False
+
+# Database-based user management functions
+import sqlite3
+import hashlib
+import pandas as pd
+
+def hash_password(password):
+    """Hash a password for secure storage"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def get_all_users():
+    """Get all users from database"""
+    try:
+        conn = sqlite3.connect('trailer_tracker_streamlined.db')
+        query = "SELECT username, role, created_at FROM users"
+        df = pd.read_sql_query(query, conn)
+        conn.close()
+        
+        # Add name field if available
+        for _, row in df.iterrows():
+            if row['username'] in USERS:
+                df.loc[df['username'] == row['username'], 'name'] = USERS[row['username']].get('name', 'N/A')
+        
+        return df
+    except:
+        # Return static users if database not available
+        users_list = []
+        for username, info in USERS.items():
+            users_list.append({
+                'username': username,
+                'role': info['role'],
+                'name': info.get('name', 'N/A'),
+                'created_at': 'Static User'
+            })
+        return pd.DataFrame(users_list)
+
+def reset_user_password(username, new_password):
+    """Reset a user's password"""
+    try:
+        # For static users, update the dictionary
+        if username in USERS:
+            USERS[username]['password'] = new_password
+            return True
+        
+        # For database users
+        conn = sqlite3.connect('trailer_tracker_streamlined.db')
+        cursor = conn.cursor()
+        
+        hashed_pw = hash_password(new_password)
+        cursor.execute("""
+            UPDATE users 
+            SET password = ? 
+            WHERE username = ?
+        """, (hashed_pw, username))
+        
+        conn.commit()
+        success = cursor.rowcount > 0
+        conn.close()
+        return success
+    except:
+        return False
+
+def update_user_role(username, new_role):
+    """Update a user's role"""
+    try:
+        # For static users
+        if username in USERS:
+            USERS[username]['role'] = new_role
+            return True
+        
+        # For database users
+        conn = sqlite3.connect('trailer_tracker_streamlined.db')
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE users 
+            SET role = ? 
+            WHERE username = ?
+        """, (new_role, username))
+        
+        conn.commit()
+        success = cursor.rowcount > 0
+        conn.close()
+        return success
+    except:
+        return False
+
+def create_user(username, password, role='viewer', name=None, email=None, phone=None):
+    """Create a new user"""
+    try:
+        # Add to static users
+        USERS[username] = {
+            'password': password,
+            'role': role,
+            'name': name or username,
+            'email': email or '',
+            'phone': phone or ''
+        }
+        
+        # Try to add to database as well
+        try:
+            conn = sqlite3.connect('trailer_tracker_streamlined.db')
+            cursor = conn.cursor()
+            
+            # Create users table if it doesn't exist
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    name TEXT,
+                    email TEXT,
+                    phone TEXT,
+                    active BOOLEAN DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            hashed_pw = hash_password(password)
+            cursor.execute('''
+                INSERT INTO users (username, password, role, name, email, phone)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (username, hashed_pw, role, name, email, phone))
+            
+            conn.commit()
+            conn.close()
+        except:
+            pass  # Database might not be available, but user is added to static dict
+        
+        return True
+    except:
+        return False
+
+def deactivate_user(username):
+    """Deactivate a user"""
+    try:
+        # Remove from static users or mark as inactive
+        if username in USERS:
+            USERS[username]['active'] = False
+            return True
+        
+        # Update database
+        conn = sqlite3.connect('trailer_tracker_streamlined.db')
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE users 
+            SET active = 0 
+            WHERE username = ?
+        """, (username,))
+        
+        conn.commit()
+        success = cursor.rowcount > 0
+        conn.close()
+        return success
+    except:
+        return False
+
+def activate_user(username):
+    """Activate a user"""
+    try:
+        # Reactivate in static users
+        if username in USERS:
+            USERS[username]['active'] = True
+            return True
+        
+        # Update database
+        conn = sqlite3.connect('trailer_tracker_streamlined.db')
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE users 
+            SET active = 1 
+            WHERE username = ?
+        """, (username,))
+        
+        conn.commit()
+        success = cursor.rowcount > 0
+        conn.close()
+        return success
+    except:
+        return False

@@ -575,6 +575,33 @@ def show_user_credentials():
             'Email': user_data.get('email', 'N/A')
         })
     
+    if not credentials_data:
+        st.warning("No user credentials found in the system.")
+        return
+    
     # Display as dataframe
     df = pd.DataFrame(credentials_data)
-    st.dataframe(df, use_container_width=True, height=400)
+    
+    # Add a colored background to ensure visibility
+    st.markdown("""
+    <style>
+    div[data-testid="stDataFrame"] > div {
+        background-color: #ffffff !important;
+        border: 1px solid #e0e0e0 !important;
+        border-radius: 5px !important;
+        padding: 10px !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Display the dataframe
+    st.dataframe(df, use_container_width=True, height=400, hide_index=True)
+    
+    # Also provide download option
+    csv = df.to_csv(index=False)
+    st.download_button(
+        label="📥 Download Credentials as CSV",
+        data=csv,
+        file_name="user_credentials.csv",
+        mime="text/csv"
+    )

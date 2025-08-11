@@ -29,10 +29,23 @@ st.set_page_config(
 
 # Training modules for each role
 TRAINING_MODULES = {
+    'executive': {
+        'title': 'Executive Complete Training',
+        'modules': [
+            'login_basics',
+            'executive_responsibilities',
+            'dashboard_overview',
+            'financial_management',
+            'user_management',
+            'reports_exports',
+            'security_best_practices'
+        ]
+    },
     'admin': {
         'title': 'Administrator Complete Training',
         'modules': [
             'login_basics',
+            'admin_responsibilities',
             'dashboard_overview',
             'trailer_management',
             'add_moves',
@@ -43,16 +56,33 @@ TRAINING_MODULES = {
             'security_best_practices'
         ]
     },
-    'manager': {
-        'title': 'Manager Training Guide',
+    'operations_coordinator': {
+        'title': 'Operations Coordinator Training Guide',
         'modules': [
             'login_basics',
+            'coordinator_responsibilities',
+            'coordinator_how_to',
             'dashboard_overview',
             'trailer_management',
             'add_moves',
             'driver_management',
             'location_management',
+            'photo_documentation',
             'reports_exports',
+            'password_management'
+        ]
+    },
+    'operations_specialist': {
+        'title': 'Operations Specialist Training Guide',
+        'modules': [
+            'login_basics',
+            'specialist_responsibilities',
+            'specialist_how_to',
+            'dashboard_overview',
+            'trailer_management',
+            'add_moves',
+            'data_verification',
+            'location_counts',
             'password_management'
         ]
     },
@@ -60,6 +90,7 @@ TRAINING_MODULES = {
         'title': 'Viewer Training Guide',
         'modules': [
             'login_basics',
+            'viewer_responsibilities',
             'dashboard_overview',
             'progress_monitoring',
             'password_management'
@@ -69,6 +100,7 @@ TRAINING_MODULES = {
         'title': 'Client Access Guide',
         'modules': [
             'access_instructions',
+            'client_responsibilities',
             'progress_dashboard',
             'understanding_metrics'
         ]
@@ -77,6 +109,1138 @@ TRAINING_MODULES = {
 
 # Detailed content for each module
 MODULE_CONTENT = {
+    'executive_responsibilities': {
+        'title': '👔 Executive Role & Responsibilities',
+        'duration': '10 minutes',
+        'content': """
+        ### Your Role as Executive/CEO
+        
+        As the Executive, you have **COMPLETE CONTROL** over the entire system.
+        
+        #### 🎯 Primary Responsibilities:
+        
+        **1. Strategic Oversight**
+        - Monitor overall business performance
+        - Review financial metrics and profitability
+        - Make high-level decisions on operations
+        - Set company policies and procedures
+        
+        **2. System Administration**
+        - Override any user action or setting
+        - Access all areas of the system
+        - View sensitive financial data
+        - Manage user permissions and access
+        
+        **3. Financial Management**
+        - Approve large expenditures
+        - Review profit margins and costs
+        - Monitor accounts receivable
+        - Oversee factor fee negotiations
+        
+        **4. Quality Control**
+        - Ensure data accuracy and integrity
+        - Review operational efficiency
+        - Monitor customer satisfaction
+        - Oversee compliance and safety
+        
+        #### 🔑 Special Executive Powers:
+        
+        ✅ **Full Override Authority**
+        - Change any data entry
+        - Override system restrictions
+        - Access locked accounts
+        - Bypass approval workflows
+        
+        ✅ **Complete Visibility**
+        - View all passwords (only Executive can do this)
+        - See deleted records
+        - Access audit logs
+        - Monitor all user activity
+        
+        ✅ **System Control**
+        - Lock/unlock the entire system
+        - Perform emergency shutdowns
+        - Reset all user sessions
+        - Modify core configurations
+        
+        #### 📊 Key Metrics You Should Monitor:
+        
+        **Daily:**
+        - Total moves in progress
+        - Revenue generated
+        - Outstanding payments
+        - System issues or errors
+        
+        **Weekly:**
+        - Driver performance
+        - Location efficiency
+        - Customer satisfaction
+        - Cash flow status
+        
+        **Monthly:**
+        - Profitability analysis
+        - Growth trends
+        - Operational costs
+        - System usage statistics
+        """
+    },
+    'admin_responsibilities': {
+        'title': '👨‍💼 Administrator Role & Responsibilities',
+        'duration': '15 minutes',
+        'content': """
+        ### Your Role as Administrator
+        
+        As an Administrator, you manage the day-to-day system operations and user access.
+        
+        #### 🎯 Primary Responsibilities:
+        
+        **1. User Management**
+        - Create and manage user accounts
+        - Assign appropriate roles
+        - Reset passwords when needed
+        - Monitor user activity
+        - Deactivate terminated employees
+        
+        **2. System Maintenance**
+        - Perform daily backups
+        - Monitor system performance
+        - Troubleshoot user issues
+        - Maintain data integrity
+        - Update system configurations
+        
+        **3. Financial Operations**
+        - Generate invoices
+        - Process payments
+        - Manage factor fees
+        - Export financial reports
+        - Monitor accounts receivable
+        
+        **4. Data Management**
+        - Import/export data
+        - Maintain database
+        - Archive old records
+        - Ensure data accuracy
+        - Generate reports
+        
+        #### 📋 Daily Checklist:
+        
+        **Morning Tasks:**
+        - [ ] Check system status
+        - [ ] Review overnight errors
+        - [ ] Verify backup completed
+        - [ ] Check user access requests
+        - [ ] Review unpaid invoices
+        
+        **Throughout the Day:**
+        - [ ] Monitor active moves
+        - [ ] Assist users with issues
+        - [ ] Process new user requests
+        - [ ] Update trailer statuses
+        - [ ] Generate required reports
+        
+        **End of Day:**
+        - [ ] Review day's activities
+        - [ ] Ensure all data saved
+        - [ ] Check tomorrow's schedule
+        - [ ] Lock sensitive records
+        - [ ] Verify system backup
+        
+        #### ⚠️ Important Restrictions:
+        
+        Unlike the Executive, you CANNOT:
+        - View other users' passwords
+        - Override executive decisions
+        - Delete financial records without approval
+        - Modify system core settings
+        - Access executive-only reports
+        """
+    },
+    'coordinator_responsibilities': {
+        'title': '📋 Operations Coordinator Role & Responsibilities',
+        'duration': '20 minutes',
+        'content': """
+        ### Your Role as Operations Coordinator
+        
+        You are the backbone of daily operations, managing trailer movements and coordinating with drivers.
+        
+        #### 🎯 Primary Responsibilities:
+        
+        **1. Route Planning & Coordination**
+        - Plan efficient routes for drivers
+        - Prioritize pickups based on location counts
+        - Coordinate trailer swaps and deliveries
+        - Monitor route progress in real-time
+        - Adjust plans for delays or issues
+        
+        **2. Driver Management**
+        - Assign drivers to routes
+        - Communicate pickup/delivery instructions
+        - Monitor driver performance
+        - Handle driver questions and issues
+        - Ensure proper documentation
+        
+        **3. Location Management**
+        - Track trailer counts at each location
+        - Identify high-priority locations (5+ trailers)
+        - Coordinate with customers on pickups
+        - Update location information
+        - Monitor location capacity
+        
+        **4. Documentation & Compliance**
+        - Ensure drivers submit 12 photos per route
+        - Verify paperwork completion
+        - Track rate confirmations
+        - Monitor compliance with procedures
+        - Generate operational reports
+        
+        #### 📊 Priority Management System:
+        
+        **🔴 URGENT (Immediate Action)**
+        - Locations with 5+ old trailers
+        - Delayed deliveries
+        - Driver emergencies
+        - Customer complaints
+        
+        **🟡 HIGH (Within 24 Hours)**
+        - Locations with 3-4 old trailers
+        - Upcoming deliveries
+        - Driver scheduling conflicts
+        - Documentation issues
+        
+        **🟢 NORMAL (Within 48 Hours)**
+        - Locations with 1-2 old trailers
+        - Routine pickups
+        - Standard documentation
+        - Regular reports
+        
+        #### 🚚 Daily Workflow:
+        
+        **6:00 AM - Morning Setup**
+        1. Review overnight trailer arrivals
+        2. Check location trailer counts
+        3. Identify priority pickups
+        4. Plan day's routes
+        
+        **7:00 AM - Driver Dispatch**
+        1. Assign drivers to routes
+        2. Send route instructions
+        3. Provide special instructions
+        4. Confirm driver availability
+        
+        **8:00 AM - 5:00 PM - Active Monitoring**
+        1. Track driver progress
+        2. Handle customer calls
+        3. Adjust routes as needed
+        4. Verify photo submissions
+        5. Update trailer statuses
+        
+        **5:00 PM - End of Day**
+        1. Review completed routes
+        2. Check missing documentation
+        3. Plan next day's priorities
+        4. Generate daily report
+        
+        #### 📱 Communication Guidelines:
+        
+        **With Drivers:**
+        - Clear, concise instructions
+        - Include all addresses and contacts
+        - Specify photo requirements
+        - Provide backup contacts
+        
+        **With Customers:**
+        - Professional and courteous
+        - Confirm pickup/delivery times
+        - Address concerns promptly
+        - Document all interactions
+        
+        **With Management:**
+        - Daily status updates
+        - Flag urgent issues immediately
+        - Provide performance metrics
+        - Suggest improvements
+        """
+    },
+    'specialist_responsibilities': {
+        'title': '📝 Operations Specialist Role & Responsibilities',
+        'duration': '15 minutes',
+        'content': """
+        ### Your Role as Operations Specialist
+        
+        You ensure data accuracy and support the Operations Coordinator with administrative tasks.
+        
+        #### 🎯 Primary Responsibilities:
+        
+        **1. Data Entry & Management**
+        - Enter new trailer information accurately
+        - Update trailer locations and statuses
+        - Add driver assignments
+        - Input mileage and route data
+        - Maintain customer information
+        
+        **2. Quality Assurance**
+        - Verify data accuracy before saving
+        - Check for duplicate entries
+        - Validate trailer numbers (8 characters)
+        - Ensure all required fields completed
+        - Cross-reference with paperwork
+        
+        **3. Documentation Support**
+        - Organize submitted photos
+        - File rate confirmations
+        - Track paperwork status
+        - Scan and upload documents
+        - Maintain digital records
+        
+        **4. Location Tracking**
+        - Monitor trailer counts at locations
+        - Update location statuses
+        - Flag high-priority locations
+        - Track old trailer accumulation
+        - Report capacity issues
+        
+        #### ✅ Data Entry Standards:
+        
+        **Trailer Numbers:**
+        - Always 8 characters (e.g., 18V12345)
+        - Check for duplicates before adding
+        - Verify against paperwork
+        - Use correct prefix codes
+        
+        **Location Information:**
+        - Full address required
+        - Include contact details
+        - Note special instructions
+        - Update trailer counts
+        - Flag access restrictions
+        
+        **Driver Assignments:**
+        - Verify driver availability
+        - Check license status
+        - Confirm contact information
+        - Note any restrictions
+        - Track assignment history
+        
+        #### 🔍 Common Errors to Avoid:
+        
+        **❌ DON'T:**
+        - Enter partial trailer numbers
+        - Skip location details
+        - Forget to update counts
+        - Create duplicate entries
+        - Leave required fields blank
+        
+        **✅ DO:**
+        - Double-check all entries
+        - Verify with source documents
+        - Update in real-time
+        - Communicate discrepancies
+        - Maintain accurate records
+        
+        #### 📋 Daily Tasks:
+        
+        **Morning (8:00-10:00 AM)**
+        - [ ] Process overnight paperwork
+        - [ ] Enter new trailer arrivals
+        - [ ] Update location counts
+        - [ ] Verify yesterday's entries
+        
+        **Midday (10:00 AM-2:00 PM)**
+        - [ ] Enter active route data
+        - [ ] Process driver submissions
+        - [ ] Update trailer statuses
+        - [ ] File documentation
+        
+        **Afternoon (2:00-5:00 PM)**
+        - [ ] Complete day's data entry
+        - [ ] Run accuracy checks
+        - [ ] Prepare next day's forms
+        - [ ] Generate entry reports
+        
+        #### 💡 Pro Tips:
+        
+        1. **Use Templates:** Create standard entries for common routes
+        2. **Batch Process:** Group similar entries together
+        3. **Verify Twice:** Check before and after saving
+        4. **Ask Questions:** When in doubt, ask the Coordinator
+        5. **Document Issues:** Keep notes on problems encountered
+        """
+    },
+    'viewer_responsibilities': {
+        'title': '👁️ Viewer Role & Responsibilities',
+        'duration': '10 minutes',
+        'content': """
+        ### Your Role as Viewer
+        
+        You have read-only access to monitor operations and track progress.
+        
+        #### 🎯 Primary Responsibilities:
+        
+        **1. Monitoring Operations**
+        - View active trailer moves
+        - Track completion status
+        - Monitor driver assignments
+        - Review location statuses
+        
+        **2. Reporting Observations**
+        - Identify potential issues
+        - Note unusual patterns
+        - Report concerns to management
+        - Suggest improvements
+        
+        **3. Supporting Decision Making**
+        - Provide status updates
+        - Share dashboard views
+        - Export allowed reports
+        - Assist with data analysis
+        
+        #### 🚫 Access Limitations:
+        
+        You CANNOT:
+        - Edit any data
+        - Add new entries
+        - Delete records
+        - Access financial information
+        - Modify user settings
+        - Generate invoices
+        
+        You CAN:
+        - View all dashboards
+        - Export basic reports
+        - Monitor progress
+        - Track performance metrics
+        - View historical data
+        
+        #### 📊 Key Areas to Monitor:
+        
+        - Active moves dashboard
+        - Completion rates
+        - Location trailer counts
+        - Driver availability
+        - Route progress
+        - Performance trends
+        """
+    },
+    'client_responsibilities': {
+        'title': '🤝 Client Access & Expectations',
+        'duration': '5 minutes',
+        'content': """
+        ### Your Role as Client
+        
+        You have limited access to view progress on your shipments.
+        
+        #### 🎯 What You Can Access:
+        
+        **Progress Dashboard**
+        - View your active shipments
+        - Track completion status
+        - See estimated timelines
+        - Monitor delivery progress
+        
+        **Performance Metrics**
+        - On-time delivery rate
+        - Route completion times
+        - Service reliability
+        - Historical performance
+        
+        #### 🚫 Privacy & Security:
+        
+        You CANNOT see:
+        - Other clients' data
+        - Financial information
+        - Driver personal details
+        - Internal notes
+        - Pricing information
+        - System settings
+        
+        #### 📞 Getting Help:
+        
+        For assistance:
+        1. Contact your account manager
+        2. Use provided support email
+        3. Reference your client ID
+        4. Include shipment numbers
+        
+        #### 📊 Understanding Your Dashboard:
+        
+        - Green = On schedule
+        - Yellow = Minor delay
+        - Red = Attention needed
+        - Blue = Completed
+        """
+    },
+    'coordinator_how_to': {
+        'title': '🛠️ How-To Guide for Operations Coordinators',
+        'duration': '25 minutes',
+        'content': """
+        ### Complete How-To Guide for Daily Operations
+        
+        #### 📍 How to Prioritize Location Pickups
+        
+        **Step 1: Check Location Dashboard**
+        ```
+        Navigate to: Dashboard → Location Summary
+        Sort by: Old Trailer Count (Descending)
+        ```
+        
+        **Step 2: Apply Priority Rules**
+        - 🔴 5+ trailers = Schedule TODAY
+        - 🟡 3-4 trailers = Schedule within 24 hours
+        - 🟢 1-2 trailers = Normal scheduling
+        - ⚪ 0 trailers = No action needed
+        
+        **Step 3: Create Pickup Route**
+        1. Group nearby high-priority locations
+        2. Calculate optimal route sequence
+        3. Estimate time for each stop
+        4. Add buffer time for delays
+        
+        **Example Route Planning:**
+        ```
+        Morning Route (8 AM start):
+        1. Chicago (8 trailers) - 45 min
+        2. Joliet (5 trailers) - 30 min
+        3. Aurora (3 trailers) - 30 min
+        Return to Fleet - 60 min
+        Total: 2 hrs 45 min
+        ```
+        
+        #### 🚚 How to Assign Drivers Effectively
+        
+        **Step 1: Check Driver Availability**
+        - View Driver Dashboard
+        - Check current assignments
+        - Verify hours of service
+        - Review equipment status
+        
+        **Step 2: Match Driver to Route**
+        Consider:
+        - [ ] Driver location
+        - [ ] Experience level
+        - [ ] Equipment type needed
+        - [ ] Customer preferences
+        - [ ] Previous performance
+        
+        **Step 3: Send Assignment**
+        1. Click "Assign Driver"
+        2. Select driver from list
+        3. Add route details:
+           - Pickup locations
+           - Delivery destinations
+           - Special instructions
+           - Photo requirements (12 total)
+        4. Send via system notification
+        
+        #### 📸 How to Manage Photo Documentation
+        
+        **Required Photos (12 per route):**
+        1. **New Trailer Pickup (5 photos)**
+           - Front view
+           - Left side
+           - Right side
+           - Rear view
+           - VIN/ID plate
+        
+        2. **New Trailer Delivery (5 photos)**
+           - Delivery location
+           - Trailer positioned
+           - Customer signature
+           - Paperwork
+           - Final placement
+        
+        3. **Old Trailer Pickup (1 photo)**
+           - Loaded trailer at pickup
+        
+        4. **Old Trailer Return (1 photo)**
+           - Trailer at Fleet yard
+        
+        **Verification Process:**
+        1. Driver uploads photos
+        2. System timestamps each photo
+        3. You verify completeness
+        4. Flag any missing/unclear photos
+        5. Request retakes if needed
+        
+        #### 📞 How to Handle Common Situations
+        
+        **Situation: Driver Can't Find Trailer**
+        1. Verify trailer number with driver
+        2. Check last known location
+        3. Contact location manager
+        4. Update system if moved
+        5. Provide new directions
+        
+        **Situation: Location Has More Trailers Than Expected**
+        1. Get exact count from driver
+        2. Update location count immediately
+        3. Photo document all trailers
+        4. Arrange additional pickups if needed
+        5. Notify management of discrepancy
+        
+        **Situation: Customer Refuses Delivery**
+        1. Get reason from driver
+        2. Contact customer directly
+        3. Document refusal reason
+        4. Arrange alternative:
+           - Return to Fleet
+           - Deliver to alternate location
+           - Hold for next day
+        5. Update all parties
+        
+        **Situation: Equipment Breakdown**
+        1. Ensure driver safety
+        2. Get exact location
+        3. Arrange roadside assistance
+        4. Dispatch replacement driver
+        5. Update delivery schedules
+        6. Notify affected customers
+        
+        #### 📊 How to Generate Reports
+        
+        **Daily Operations Report:**
+        1. Go to Reports → Daily Summary
+        2. Select date range (usually today)
+        3. Include:
+           - [ ] Completed moves
+           - [ ] In-progress routes
+           - [ ] Location counts
+           - [ ] Driver performance
+        4. Export as PDF
+        5. Email to management
+        
+        **Weekly Performance Report:**
+        1. Reports → Weekly Analysis
+        2. Review metrics:
+           - Completion rate
+           - Average delivery time
+           - Photo compliance
+           - Customer feedback
+        3. Identify trends
+        4. Note improvements needed
+        5. Submit recommendations
+        """
+    },
+    'specialist_how_to': {
+        'title': '🛠️ How-To Guide for Operations Specialists',
+        'duration': '20 minutes',
+        'content': """
+        ### Complete How-To Guide for Data Management
+        
+        #### 📝 How to Add a New Trailer Move
+        
+        **Step 1: Gather Information**
+        Before starting, ensure you have:
+        - [ ] Trailer number(s)
+        - [ ] Pickup location and address
+        - [ ] Delivery destination
+        - [ ] Driver assignment
+        - [ ] Rate confirmation
+        
+        **Step 2: Navigate to Add Move**
+        ```
+        Main Menu → Add New Move
+        ```
+        
+        **Step 3: Enter Trailer Details**
+        
+        **New Trailer Section:**
+        1. Enter trailer number (8 characters)
+        2. Select/add pickup location
+        3. Select/add destination
+        4. Verify addresses are complete
+        
+        **Old Trailer Section (if applicable):**
+        1. Enter old trailer number
+        2. Select pickup location
+        3. Note current trailer count
+        4. Add to location count
+        
+        **Step 4: Assign Driver**
+        1. Select from dropdown
+        2. Or add new driver:
+           - Full name
+           - Phone number
+           - Email address
+           - License number
+        3. Set assignment date
+        
+        **Step 5: Calculate Mileage**
+        1. System auto-calculates if cached
+        2. Otherwise enter manually:
+           - One-way miles
+           - Round trip (usually 2x one-way)
+        3. Verify with Google Maps if needed
+        
+        **Step 6: Review and Save**
+        1. Check all fields for accuracy
+        2. Verify trailer numbers
+        3. Confirm addresses
+        4. Save the move
+        5. Note the generated Move ID
+        
+        #### 🔍 How to Verify Data Accuracy
+        
+        **Daily Verification Checklist:**
+        
+        **1. Trailer Number Validation**
+        ```
+        Correct: 18V12345 (8 characters)
+        Wrong: 18V1234 (too short)
+        Wrong: 18V123456 (too long)
+        ```
+        
+        **2. Check for Duplicates**
+        1. Search for trailer number
+        2. Review recent entries
+        3. Compare with paperwork
+        4. Flag any duplicates found
+        
+        **3. Location Verification**
+        - Full address present?
+        - ZIP code correct?
+        - Contact info included?
+        - Special instructions noted?
+        
+        **4. Cross-Reference Documents**
+        1. Compare with rate confirmation
+        2. Verify against BOL
+        3. Check driver paperwork
+        4. Match photo submissions
+        
+        #### 📍 How to Update Location Counts
+        
+        **When Adding Old Trailer:**
+        1. Select location from dropdown
+        2. System shows current count
+        3. Add trailer increases count by 1
+        4. Verify new count is correct
+        5. Flag if 5+ trailers (high priority)
+        
+        **When Removing Trailer:**
+        1. Find the trailer move
+        2. Mark as "Picked Up"
+        3. System decreases count by 1
+        4. Verify count accuracy
+        5. Update priority status
+        
+        **Manual Count Correction:**
+        1. Go to Location Management
+        2. Select location
+        3. Click "Adjust Count"
+        4. Enter correct number
+        5. Add note explaining discrepancy
+        6. Save and notify Coordinator
+        
+        #### 📊 How to Handle Data Issues
+        
+        **Missing Information:**
+        1. Flag incomplete entry
+        2. Contact source (driver/coordinator)
+        3. Get missing details
+        4. Update record
+        5. Document resolution
+        
+        **Incorrect Entry:**
+        1. Locate the wrong entry
+        2. Click Edit
+        3. Correct the information
+        4. Add note about correction
+        5. Save changes
+        6. Verify accuracy
+        
+        **System Errors:**
+        1. Screenshot error message
+        2. Note what you were doing
+        3. Try again in 5 minutes
+        4. If persists, contact admin
+        5. Document in error log
+        
+        #### 💡 Data Entry Best Practices
+        
+        **Speed + Accuracy Tips:**
+        
+        1. **Use Tab Key**
+           - Tab between fields
+           - Faster than clicking
+           - Maintains flow
+        
+        2. **Copy/Paste Carefully**
+           - Verify after pasting
+           - Check for extra spaces
+           - Ensure complete copy
+        
+        3. **Batch Similar Entries**
+           - Group by location
+           - Process same driver together
+           - Use previous as template
+        
+        4. **Regular Saves**
+           - Save every 5 entries
+           - Prevent data loss
+           - Allow for verification
+        
+        5. **End-of-Day Review**
+           - Check day's entries
+           - Run duplicate check
+           - Verify counts match
+           - Generate summary report
+        """
+    },
+    'photo_documentation': {
+        'title': '📸 Photo Documentation Requirements',
+        'duration': '15 minutes',
+        'content': """
+        ### Complete Photo Documentation Guide
+        
+        #### 📋 Why Photos Are Required
+        
+        Photos provide:
+        - Proof of delivery
+        - Condition documentation
+        - Location verification
+        - Damage protection
+        - Customer disputes resolution
+        - Insurance requirements
+        
+        #### 📸 Required Photos: 12 Per Route
+        
+        ### 1️⃣ New Trailer Pickup (5 Photos)
+        
+        **Photo 1: Front View**
+        - Entire front of trailer visible
+        - Trailer number clearly shown
+        - Include tractor if attached
+        - Check for damage
+        
+        **Photo 2: Driver Side**
+        - Full length of left side
+        - Include wheels and undercarriage
+        - Note any damage or markings
+        - Capture DOT numbers
+        
+        **Photo 3: Passenger Side**
+        - Full length of right side
+        - Check for damage
+        - Include any placards
+        - Verify door seals
+        
+        **Photo 4: Rear View**
+        - Doors closed and sealed
+        - License plate visible
+        - Note seal numbers
+        - Check door condition
+        
+        **Photo 5: VIN/ID Plate**
+        - Close-up of VIN plate
+        - Manufacturer's plate
+        - Model and year visible
+        - Serial number clear
+        
+        ### 2️⃣ New Trailer Delivery (5 Photos)
+        
+        **Photo 6: Delivery Location**
+        - Wide shot of delivery site
+        - Include building/landmarks
+        - Show access roads
+        - Capture address if visible
+        
+        **Photo 7: Trailer Positioned**
+        - Trailer in final position
+        - Show proper placement
+        - Include dock if applicable
+        - Verify correct location
+        
+        **Photo 8: Customer Signature**
+        - Signed paperwork
+        - Time stamp visible
+        - Name printed clearly
+        - Company representative
+        
+        **Photo 9: Completed Paperwork**
+        - BOL or delivery receipt
+        - All fields completed
+        - Stamps/seals visible
+        - Special instructions noted
+        
+        **Photo 10: Final Placement**
+        - Trailer unhitched
+        - Landing gear down
+        - Properly positioned
+        - Ready for customer use
+        
+        ### 3️⃣ Old Trailer Pickup (1 Photo)
+        
+        **Photo 11: Loaded Old Trailer**
+        - Shows loaded condition
+        - Trailer number visible
+        - Pickup location clear
+        - Sealed and secured
+        
+        ### 4️⃣ Old Trailer Return (1 Photo)
+        
+        **Photo 12: Fleet Yard Return**
+        - Trailer at Fleet location
+        - Final position
+        - Available for next use
+        - Inspection complete
+        
+        #### 📱 Photo Upload Process
+        
+        **For Drivers:**
+        1. Take all required photos
+        2. Check clarity before moving
+        3. Upload through driver app
+        4. Verify upload successful
+        5. Keep copies for 24 hours
+        
+        **For Coordinators:**
+        1. Receive photo notification
+        2. Review all 12 photos
+        3. Verify requirements met
+        4. Request retakes if needed
+        5. Approve and file
+        
+        #### ⚠️ Common Photo Issues
+        
+        **Problem: Blurry Photos**
+        - Solution: Clean camera lens
+        - Steady hand or rest phone
+        - Good lighting
+        - Retake immediately
+        
+        **Problem: Missing Information**
+        - Solution: Include all required elements
+        - Step back for wider shots
+        - Get closer for details
+        - Verify before leaving
+        
+        **Problem: Wrong Angle**
+        - Solution: Follow photo guide
+        - Straight-on shots
+        - Avoid extreme angles
+        - Include reference points
+        
+        #### ✅ Photo Quality Checklist
+        
+        Before submitting:
+        - [ ] All 12 photos taken
+        - [ ] Trailer numbers visible
+        - [ ] No blurry images
+        - [ ] Proper lighting
+        - [ ] Timestamps included
+        - [ ] Locations identifiable
+        - [ ] Paperwork legible
+        - [ ] Damage documented
+        """
+    },
+    'data_verification': {
+        'title': '🔍 Data Verification Process',
+        'duration': '15 minutes',
+        'content': """
+        ### Data Verification & Quality Control
+        
+        #### 🎯 Why Verification Matters
+        
+        **Impact of Errors:**
+        - Wrong location = Wasted fuel and time
+        - Wrong trailer = Driver can't find equipment
+        - Missing data = Delayed payments
+        - Duplicates = Confusion and double billing
+        
+        #### ✅ Verification Checklist
+        
+        **1. Trailer Number Format**
+        ```
+        Standard Format: XXY##### 
+        Example: 18V12345
+        
+        Where:
+        - XX = Year (18, 19, 20, etc.)
+        - Y = Type code (V, T, R, etc.)
+        - ##### = 5-digit sequence
+        
+        Total: ALWAYS 8 characters
+        ```
+        
+        **2. Required Fields Check**
+        - [ ] Trailer number (8 chars)
+        - [ ] Pickup location
+        - [ ] Destination
+        - [ ] Driver assigned
+        - [ ] Date assigned
+        - [ ] Mileage entered
+        
+        **3. Logical Validation**
+        - Dates make sense (not future/past)
+        - Miles reasonable for route
+        - Location exists in system
+        - Driver available for assignment
+        
+        #### 🔍 How to Find Errors
+        
+        **Step 1: Visual Scan**
+        - Look for obvious typos
+        - Check number patterns
+        - Verify complete entries
+        - Note missing data
+        
+        **Step 2: System Search**
+        ```sql
+        Search for duplicates:
+        - Enter trailer number
+        - Check last 7 days
+        - Review results
+        - Flag any matches
+        ```
+        
+        **Step 3: Cross-Reference**
+        - Compare with paperwork
+        - Check against photos
+        - Verify with dispatch notes
+        - Match driver reports
+        
+        #### 🛠️ Fixing Common Errors
+        
+        **Error: Duplicate Entry**
+        1. Find both entries
+        2. Determine which is correct
+        3. Delete duplicate
+        4. Merge any unique data
+        5. Note in comments
+        
+        **Error: Wrong Location**
+        1. Verify correct location
+        2. Edit the entry
+        3. Update address
+        4. Adjust trailer count
+        5. Notify coordinator
+        
+        **Error: Missing Information**
+        1. Identify what's missing
+        2. Check source documents
+        3. Contact driver if needed
+        4. Fill in missing data
+        5. Mark as verified
+        
+        #### 📊 Daily Verification Report
+        
+        **What to Include:**
+        - Total entries reviewed
+        - Errors found and fixed
+        - Duplicate entries removed
+        - Missing data completed
+        - Issues requiring follow-up
+        
+        **Format Example:**
+        ```
+        Date: [Today]
+        Reviewed: 45 entries
+        Errors Fixed: 3
+        - 2 duplicate trailers
+        - 1 wrong location
+        Pending: 1 (awaiting driver info)
+        Accuracy Rate: 93.3%
+        ```
+        """
+    },
+    'location_counts': {
+        'title': '📍 Managing Location Trailer Counts',
+        'duration': '10 minutes',
+        'content': """
+        ### Understanding Location Trailer Counts
+        
+        #### 🎯 Why Counts Matter
+        
+        Location counts help:
+        - Prioritize pickups
+        - Plan efficient routes
+        - Prevent overflow
+        - Reduce storage costs
+        - Improve customer service
+        
+        #### 📊 Priority System
+        
+        **🔴 CRITICAL (5+ trailers)**
+        - Schedule pickup TODAY
+        - May need multiple trucks
+        - Customer getting frustrated
+        - Storage fees accumulating
+        - Top priority assignment
+        
+        **🟡 HIGH (3-4 trailers)**
+        - Schedule within 24 hours
+        - Single truck sufficient
+        - Monitor closely
+        - Prevent escalation
+        - Plan route efficiently
+        
+        **🟢 NORMAL (1-2 trailers)**
+        - Regular scheduling
+        - Combine with other stops
+        - No immediate pressure
+        - Standard processing
+        - Routine pickup
+        
+        **⚪ CLEAR (0 trailers)**
+        - No action needed
+        - Location available
+        - Ready for deliveries
+        - Good standing
+        
+        #### 📈 Tracking Best Practices
+        
+        **Real-Time Updates:**
+        1. Update immediately when:
+           - Trailer delivered (count +1)
+           - Trailer picked up (count -1)
+           - Count corrected
+        
+        2. Verify counts daily:
+           - Morning check
+           - Afternoon review
+           - End-of-day reconciliation
+        
+        **Visual Monitoring:**
+        ```
+        Location Dashboard View:
+        
+        Chicago      [████████] 8 🔴
+        Detroit      [██████  ] 6 🔴
+        Indianapolis [████    ] 4 🟡
+        Memphis      [██      ] 2 🟢
+        St. Louis    [        ] 0 ⚪
+        ```
+        
+        #### 🚨 Alert Thresholds
+        
+        **Automatic Alerts Trigger When:**
+        - Location reaches 5 trailers
+        - No pickup in 48 hours at 3+
+        - Customer complaint logged
+        - Capacity exceeded
+        
+        **Response Protocol:**
+        1. Acknowledge alert
+        2. Assign priority status
+        3. Schedule immediate pickup
+        4. Notify coordinator
+        5. Update customer
+        
+        #### 📋 Monthly Analysis
+        
+        Track patterns:
+        - Which locations accumulate fastest?
+        - Seasonal variations?
+        - Customer delivery patterns?
+        - Optimization opportunities?
+        
+        Use insights to:
+        - Adjust pickup schedules
+        - Negotiate storage terms
+        - Plan resource allocation
+        - Improve efficiency
+        """
+    },
     'login_basics': {
         'title': '🔐 Login & Access',
         'duration': '5 minutes',
@@ -674,11 +1838,13 @@ def check_training_access():
     with col2:
         role = st.selectbox(
             "Select Your Role",
-            options=['', 'admin', 'manager', 'viewer', 'client'],
+            options=['', 'executive', 'admin', 'operations_coordinator', 'operations_specialist', 'viewer', 'client'],
             format_func=lambda x: {
                 '': '-- Select Role --',
+                'executive': '👔 Executive/CEO',
                 'admin': '👨‍💼 Administrator',
-                'manager': '👷 Manager',
+                'operations_coordinator': '📋 Operations Coordinator',
+                'operations_specialist': '📝 Operations Specialist',
                 'viewer': '👁️ Viewer',
                 'client': '🤝 Client'
             }.get(x, x)

@@ -75,7 +75,9 @@ def show_trailer_dashboard():
                 new_trailers = new_trailers[new_trailers['current_location'] == location_filter]
             
             # Calculate days available
-            new_trailers['days_available'] = (datetime.now() - pd.to_datetime(new_trailers['added_date'])).dt.days
+            new_trailers['added_date'] = pd.to_datetime(new_trailers['added_date'], errors='coerce')
+            new_trailers['days_available'] = (datetime.now() - new_trailers['added_date']).dt.days
+            new_trailers['days_available'] = new_trailers['days_available'].fillna(0).clip(lower=0)
             
             # Apply days filter
             if days_filter == "< 1 day":
@@ -128,7 +130,9 @@ def show_trailer_dashboard():
                 old_trailers = old_trailers[old_trailers['current_location'] == location_filter]
             
             # Calculate days available
-            old_trailers['days_available'] = (datetime.now() - pd.to_datetime(old_trailers['added_date'])).dt.days
+            old_trailers['added_date'] = pd.to_datetime(old_trailers['added_date'], errors='coerce')
+            old_trailers['days_available'] = (datetime.now() - old_trailers['added_date']).dt.days
+            old_trailers['days_available'] = old_trailers['days_available'].fillna(0).clip(lower=0)
             
             # Apply days filter
             if days_filter == "< 1 day":
