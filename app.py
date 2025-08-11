@@ -17,6 +17,7 @@ import sqlite3
 import walkthrough_guide
 import company_config
 import it_bot_vernon as vernon_it
+import rate_con_manager
 
 # Page configuration
 st.set_page_config(
@@ -1849,7 +1850,8 @@ def main():
             menu_items.extend([
                 "🚛 Trailers",
                 "➕ Create Move",
-                "👤 Drivers"
+                "👤 Drivers",
+                "📄 Rate Cons"
             ])
         
         if role == 'business_administrator':
@@ -1860,7 +1862,10 @@ def main():
             ])
         
         if role == 'driver':
-            menu_items.append("📸 Upload POD")
+            menu_items.extend([
+                "📸 Upload POD",
+                "💰 My Rate Cons"
+            ])
         
         # Add walkthrough for all roles
         menu_items.append("🎓 Walkthrough")
@@ -1906,6 +1911,10 @@ def main():
     elif page == "🤖 IT Support (Vernon)":
         vernon = vernon_it.get_vernon()
         vernon.show_control_panel()
+    elif page == "📄 Rate Cons":
+        rate_con_manager.show_rate_con_management()
+    elif page == "💰 My Rate Cons":
+        rate_con_manager.show_driver_rate_cons(st.session_state.get('user_name', 'Driver'))
 
 def show_login_page():
     """Premium login page with branding"""

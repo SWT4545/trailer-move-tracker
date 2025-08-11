@@ -72,7 +72,30 @@ def show_admin_walkthrough():
             """
         },
         {
-            "title": "4️⃣ Payment Processing",
+            "title": "4️⃣ Rate Confirmation Management",
+            "content": """
+            **Managing Rate Cons (NEW!):**
+            1. Go to **📄 Rate Cons**
+            2. **📥 Inbox** tab:
+               - Choose calculation method:
+                 • "Enter miles and rate" - if Rate Con shows miles
+                 • "Calculate from total amount" - if only gross pay shown
+               - MLBL number is OPTIONAL (can add/change later)
+               - Upload Rate Con and BOL documents
+               - System shows driver net pay (after 3% factoring)
+            3. **🔄 Match Rate Cons** tab:
+               - Match Rate Cons to completed moves
+               - Use pickup/delivery addresses to identify correct move
+               - Each move can have only ONE Rate Con
+            4. **✅ Verification** tab:
+               - Review mile deltas between client and calculated
+               - Flag discrepancies over 5%
+            
+            💡 **Tip:** Rate Cons can arrive after moves are completed - match them retroactively
+            """
+        },
+        {
+            "title": "5️⃣ Payment Processing",
             "content": """
             **To process payments:**
             1. Go to **💰 Payments**
@@ -90,7 +113,7 @@ def show_admin_walkthrough():
             """
         },
         {
-            "title": "5️⃣ Managing Drivers",
+            "title": "6️⃣ Managing Drivers",
             "content": """
             **Driver management:**
             1. Go to **👤 Drivers**
@@ -154,7 +177,24 @@ def show_coordinator_walkthrough():
             """
         },
         {
-            "title": "4️⃣ Managing Drivers",
+            "title": "4️⃣ Rate Con Management",
+            "content": """
+            **Managing Rate Confirmations:**
+            1. Go to **📄 Rate Cons**
+            2. Upload Rate Cons as they arrive:
+               - MLBL is optional (can add later)
+               - Enter client miles and rate
+               - Attach Rate Con and BOL files
+            3. Match to completed moves:
+               - Use addresses to identify correct move
+               - One Rate Con per move
+            4. System calculates driver net (minus 3% factoring)
+            
+            💡 **Tip:** Rate Cons often arrive after moves - that's normal!
+            """
+        },
+        {
+            "title": "5️⃣ Managing Drivers",
             "content": """
             **Driver coordination:**
             - Check driver availability before assigning
@@ -166,7 +206,7 @@ def show_coordinator_walkthrough():
             """
         },
         {
-            "title": "5️⃣ Manual POD Upload",
+            "title": "6️⃣ Manual POD Upload",
             "content": """
             **If driver can't upload:**
             1. Receive POD and photos via text/email
@@ -270,6 +310,21 @@ def show_driver_walkthrough():
             
             💡 **Tip:** Quick POD upload = Quick payment
             """
+        },
+        {
+            "title": "6️⃣ Your Rate Cons (NEW!)",
+            "content": """
+            **View your Rate Confirmations:**
+            1. Go to **💰 My Rate Cons**
+            2. See all your completed moves with Rate Cons
+            3. View your NET pay (after 3% factoring fee):
+               - Gross pay (what client pays)
+               - Minus 3% factoring fee
+               - = Your NET pay
+            4. Download Rate Con and BOL documents
+            
+            💡 **Example:** $1,000 gross = $970 net (you get $970)
+            """
         }
     ]
     
@@ -295,7 +350,9 @@ def show_general_walkthrough():
     - 📍 Automatic mileage calculation
     - 👤 Driver assignment and tracking
     - 📸 Mobile-friendly POD uploads
+    - 📄 Rate Confirmation management (NEW!)
     - 💰 Payment processing workflow
+    - 🔢 3% factoring fee calculations
     
     **Workflow:**
     1. **Setup:** Add trailer pairs and locations
