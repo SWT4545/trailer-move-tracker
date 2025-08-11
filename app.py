@@ -1950,21 +1950,41 @@ def show_login_page():
             password = st.text_input("Password", type="password")
             
             if st.form_submit_button("🔐 Login", type="primary", use_container_width=True):
-                # Check credentials (simplified for demo)
-                valid_users = {
-                    'admin': {'password': 'admin123', 'role': 'business_administrator', 'name': 'Administrator'},
-                    'coordinator': {'password': 'coord123', 'role': 'operations_coordinator', 'name': 'Coordinator'},
-                    'driver1': {'password': 'driver123', 'role': 'driver', 'name': 'John Smith'},
-                    'demo': {'password': 'demo', 'role': 'business_administrator', 'name': 'Demo User'}
-                }
-                
-                if username in valid_users and password == valid_users[username]['password']:
-                    st.session_state.authenticated = True
-                    st.session_state.username = username
-                    st.session_state.user_role = valid_users[username]['role']
-                    st.session_state.user_name = valid_users[username]['name']
-                    st.success(f"Welcome, {valid_users[username]['name']}!")
-                    st.rerun()
+                # Check credentials using database
+                if auth_config.validate_user(username, password):
+                    # Get user info from database
+                    import sqlite3
+                    conn = sqlite3.connect('trailer_tracker_streamlined.db')
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT role, name FROM users WHERE username = ?", (username,))
+                    user_info = cursor.fetchone()
+                    conn.close()
+                    
+                    if user_info:
+                        st.session_state.authenticated = True
+                        st.session_state.username = username
+                        st.session_state.user_role = user_info[0]
+                        st.session_state.user_name = user_info[1] if user_info[1] else username
+                        st.success(f"Welcome, {st.session_state.user_name}!")
+                        st.rerun()
+                    else:
+                        # Fallback to demo users
+                        valid_users = {
+                            'admin': {'password': 'admin123', 'role': 'business_administrator', 'name': 'Administrator'},
+                            'coordinator': {'password': 'coord123', 'role': 'operations_coordinator', 'name': 'Coordinator'},
+                            'driver1': {'password': 'driver123', 'role': 'driver', 'name': 'John Smith'},
+                            'demo': {'password': 'demo', 'role': 'business_administrator', 'name': 'Demo User'}
+                        }
+                        
+                        if username in valid_users and password == valid_users[username]['password']:
+                            st.session_state.authenticated = True
+                            st.session_state.username = username
+                            st.session_state.user_role = valid_users[username]['role']
+                            st.session_state.user_name = valid_users[username]['name']
+                            st.success(f"Welcome, {valid_users[username]['name']}!")
+                            st.rerun()
+                        else:
+                            st.error("Invalid credentials")
                 else:
                     st.error("Invalid credentials")
         
