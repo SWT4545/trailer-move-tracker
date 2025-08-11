@@ -1978,7 +1978,7 @@ def show_login_page():
                 except:
                     # Fallback to hardcoded users (including owner)
                     valid_users = {
-                        'Brandon': {'password': 'swt2024owner!', 'role': 'business_administrator', 'name': 'Brandon (Owner)'},
+                        'Brandon': {'password': 'owner123', 'role': 'business_administrator', 'name': 'Brandon (Owner)'},
                         'admin': {'password': 'admin123', 'role': 'business_administrator', 'name': 'Administrator'},
                         'coordinator': {'password': 'coord123', 'role': 'operations_coordinator', 'name': 'Coordinator'},
                         'driver1': {'password': 'driver123', 'role': 'driver', 'name': 'John Smith'},
@@ -1995,15 +1995,6 @@ def show_login_page():
                         st.rerun()
                     else:
                         st.error("Invalid credentials")
-        
-        with st.expander("📋 Demo Credentials"):
-            st.markdown("""
-            **Owner:** Brandon / swt2024owner!  
-            **Business Administrator:** admin / admin123  
-            **Operations Coordinator:** coordinator / coord123  
-            **Driver:** driver1 / driver123  
-            **Demo:** demo / demo
-            """)
 
 def show_pod_upload_page(move_id):
     """Public POD upload page - no login required"""
