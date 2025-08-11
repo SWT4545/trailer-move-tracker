@@ -44,6 +44,8 @@ WORKING_CREDENTIALS.md
 *.credentials
 *.key
 .env
+.streamlit/secrets.toml
+secrets.toml
 
 # IDE
 .vscode/
