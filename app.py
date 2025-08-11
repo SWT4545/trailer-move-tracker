@@ -18,6 +18,7 @@ import walkthrough_guide
 import company_config
 import it_bot_vernon as vernon_it
 import rate_con_manager
+import user_manager
 
 # Page configuration
 st.set_page_config(
@@ -1007,9 +1008,8 @@ def show_system_admin():
         company_config.show_company_settings()
     
     with tabs[1]:  # User Management
-        st.markdown("### 👥 User & Role Management")
-        
-        user_tabs = st.tabs(["Manage Users", "Reset Passwords", "Add New User"])
+        # Use the new user manager
+        user_manager.show_user_management()
         
         with user_tabs[0]:  # Manage Users
             st.markdown("#### Current Users")
@@ -1989,36 +1989,18 @@ def show_login_page():
             password = st.text_input("Password", type="password")
             
             if st.form_submit_button("🔐 Login", type="primary", use_container_width=True):
-                # Simple direct authentication with dual role support
-                valid_users = {
-                    # Owner account
-                    'Brandon': {'password': 'owner123', 'roles': ['business_administrator'], 'name': 'Brandon (Owner)'},
-                    
-                    # Admin accounts
-                    'admin': {'password': 'admin123', 'roles': ['business_administrator'], 'name': 'Administrator'},
-                    
-                    # Coordinator accounts
-                    'coordinator': {'password': 'coord123', 'roles': ['operations_coordinator'], 'name': 'Coordinator'},
-                    
-                    # Driver accounts (these will auto-add to driver list)
-                    'driver1': {'password': 'driver123', 'roles': ['driver'], 'name': 'John Smith'},
-                    'driver2': {'password': 'driver456', 'roles': ['driver'], 'name': 'Mike Johnson'},
-                    
-                    # Dual-role accounts (Driver + Coordinator)
-                    'sarah': {'password': 'sarah123', 'roles': ['driver', 'operations_coordinator'], 'name': 'Sarah Williams'},
-                    'tom': {'password': 'tom123', 'roles': ['driver', 'operations_coordinator'], 'name': 'Tom Davis'},
-                    
-                    # Viewer accounts (read-only access)
-                    'viewer': {'password': 'view123', 'roles': ['viewer'], 'name': 'Viewer Account'},
-                    'client1': {'password': 'client123', 'roles': ['viewer'], 'name': 'Client Viewer'},
-                    
-                    # New employees - start with single role, can be upgraded
-                    'newdriver': {'password': 'new123', 'roles': ['driver'], 'name': 'New Driver'},
-                    'trainee': {'password': 'trainee123', 'roles': ['viewer'], 'name': 'Trainee'},
-                    
-                    # Demo account
-                    'demo': {'password': 'demo', 'roles': ['business_administrator'], 'name': 'Demo User'}
-                }
+                # Load users from JSON file
+                try:
+                    with open('user_accounts.json', 'r') as f:
+                        user_data = json.load(f)
+                        valid_users = user_data['users']
+                except:
+                    # Fallback to basic accounts if file doesn't exist
+                    valid_users = {
+                        'Brandon': {'password': 'owner123', 'roles': ['business_administrator'], 'name': 'Brandon (Owner)', 'is_owner': True},
+                        'admin': {'password': 'admin123', 'roles': ['business_administrator'], 'name': 'Administrator', 'is_owner': False},
+                        'demo': {'password': 'demo', 'roles': ['business_administrator'], 'name': 'Demo User', 'is_owner': False}
+                    }
                 
                 if username in valid_users and password == valid_users[username]['password']:
                     st.session_state.authenticated = True
@@ -2026,7 +2008,7 @@ def show_login_page():
                     st.session_state.user_roles = valid_users[username]['roles']  # Store all roles
                     st.session_state.user_role = valid_users[username]['roles'][0]  # Set primary role
                     st.session_state.user_name = valid_users[username]['name']
-                    st.session_state.is_owner = (username == 'Brandon')  # Mark Brandon as owner
+                    st.session_state.is_owner = valid_users[username].get('is_owner', False)  # Get owner status from JSON
                     
                     # If user has driver role, ensure they're in the drivers table
                     if 'driver' in valid_users[username]['roles']:

@@ -1,0 +1,76 @@
+{
+  "users": {
+    "Brandon": {
+      "password": "owner123",
+      "roles": ["business_administrator"],
+      "name": "Brandon (Owner)",
+      "is_owner": true
+    },
+    "admin": {
+      "password": "admin123",
+      "roles": ["business_administrator"],
+      "name": "Administrator",
+      "is_owner": false
+    },
+    "coordinator": {
+      "password": "coord123",
+      "roles": ["operations_coordinator"],
+      "name": "Coordinator",
+      "is_owner": false
+    },
+    "driver1": {
+      "password": "driver123",
+      "roles": ["driver"],
+      "name": "John Smith",
+      "is_owner": false
+    },
+    "driver2": {
+      "password": "driver456",
+      "roles": ["driver"],
+      "name": "Mike Johnson",
+      "is_owner": false
+    },
+    "sarah": {
+      "password": "sarah123",
+      "roles": ["driver", "operations_coordinator"],
+      "name": "Sarah Williams",
+      "is_owner": false
+    },
+    "tom": {
+      "password": "tom123",
+      "roles": ["driver", "operations_coordinator"],
+      "name": "Tom Davis",
+      "is_owner": false
+    },
+    "viewer": {
+      "password": "view123",
+      "roles": ["viewer"],
+      "name": "Viewer Account",
+      "is_owner": false
+    },
+    "client1": {
+      "password": "client123",
+      "roles": ["viewer"],
+      "name": "Client Viewer",
+      "is_owner": false
+    },
+    "newdriver": {
+      "password": "new123",
+      "roles": ["driver"],
+      "name": "New Driver",
+      "is_owner": false
+    },
+    "trainee": {
+      "password": "trainee123",
+      "roles": ["viewer"],
+      "name": "Trainee",
+      "is_owner": false
+    },
+    "demo": {
+      "password": "demo",
+      "roles": ["business_administrator"],
+      "name": "Demo User",
+      "is_owner": false
+    }
+  }
+}
