@@ -10,7 +10,13 @@ def show_walkthrough():
     st.title("🎓 System Walkthrough")
     st.caption("Learn how to use the Trailer Swap Management System")
     
+    # Check for dual roles
+    user_roles = st.session_state.get('user_roles', [st.session_state.get('user_role', 'viewer')])
     role = st.session_state.get('user_role', 'viewer')
+    
+    # Show dual-role notice if applicable
+    if len(user_roles) > 1:
+        st.info(f"🔄 **Dual-Role User**: You have access to multiple roles: {', '.join([r.replace('_', ' ').title() for r in user_roles])}. Use the role switcher in the sidebar to change views.")
     
     # Role-specific walkthroughs
     if role == 'business_administrator':
@@ -137,6 +143,11 @@ def show_coordinator_walkthrough():
     """Operations Coordinator walkthrough"""
     st.markdown("## Operations Coordinator Guide")
     
+    # Check if user also has driver role
+    user_roles = st.session_state.get('user_roles', [])
+    if len(user_roles) > 1 and 'driver' in user_roles:
+        st.success("💡 **Dual Role**: You also have Driver access! Switch to Driver role in the sidebar to upload PODs and view your assignments.")
+    
     steps = [
         {
             "title": "1️⃣ Dashboard Overview",
@@ -237,6 +248,11 @@ def show_coordinator_walkthrough():
 def show_driver_walkthrough():
     """Driver walkthrough"""
     st.markdown("## Driver Guide")
+    
+    # Check if user also has coordinator role
+    user_roles = st.session_state.get('user_roles', [])
+    if len(user_roles) > 1 and 'operations_coordinator' in user_roles:
+        st.success("💡 **Dual Role**: You also have Coordinator access! Switch to Coordinator role in the sidebar to create moves and manage trailer assignments.")
     
     steps = [
         {
@@ -346,11 +362,12 @@ def show_general_walkthrough():
     
     **Key Features:**
     - 📊 Role-based dashboards
+    - 🔄 **Dual-role support (NEW!)** - Switch between Driver/Coordinator
     - 🚛 Trailer pair management
     - 📍 Automatic mileage calculation
     - 👤 Driver assignment and tracking
     - 📸 Mobile-friendly POD uploads
-    - 📄 Rate Confirmation management (NEW!)
+    - 📄 Rate Confirmation management
     - 💰 Payment processing workflow
     - 🔢 3% factoring fee calculations
     
