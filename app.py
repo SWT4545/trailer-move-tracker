@@ -1883,6 +1883,10 @@ def main():
                 "💰 My Rate Cons"
             ])
         
+        if role == 'viewer':
+            # Viewers get limited read-only access
+            menu_items.append("📈 Progress Dashboard")
+        
         # Add walkthrough for all roles
         menu_items.append("🎓 Walkthrough")
         
@@ -2003,6 +2007,14 @@ def show_login_page():
                     # Dual-role accounts (Driver + Coordinator)
                     'sarah': {'password': 'sarah123', 'roles': ['driver', 'operations_coordinator'], 'name': 'Sarah Williams'},
                     'tom': {'password': 'tom123', 'roles': ['driver', 'operations_coordinator'], 'name': 'Tom Davis'},
+                    
+                    # Viewer accounts (read-only access)
+                    'viewer': {'password': 'view123', 'roles': ['viewer'], 'name': 'Viewer Account'},
+                    'client1': {'password': 'client123', 'roles': ['viewer'], 'name': 'Client Viewer'},
+                    
+                    # New employees - start with single role, can be upgraded
+                    'newdriver': {'password': 'new123', 'roles': ['driver'], 'name': 'New Driver'},
+                    'trainee': {'password': 'trainee123', 'roles': ['viewer'], 'name': 'Trainee'},
                     
                     # Demo account
                     'demo': {'password': 'demo', 'roles': ['business_administrator'], 'name': 'Demo User'}
