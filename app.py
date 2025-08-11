@@ -13,6 +13,7 @@ import base_location_manager as base_mgr
 import uuid
 import json
 import time
+import sqlite3
 import walkthrough_guide
 import company_config
 import it_bot_vernon as vernon_it
@@ -1599,6 +1600,182 @@ def show_move_details(move):
     if move.get('notes'):
         st.write(f"**Notes:** {move['notes']}")
 
+def show_initial_setup():
+    """Show initial setup wizard within the main app"""
+    import sqlite3
+    import hashlib
+    
+    # Logo and branding
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        try:
+            st.image("swt_logo_white.png", width=200)
+        except:
+            st.markdown("# 🚛")
+    
+    st.title("Smith & Williams Trucking")
+    st.header("🔧 Initial System Setup")
+    st.info("Welcome! Let's set up your system with secure credentials.")
+    
+    with st.form("setup_form"):
+        st.subheader("👑 Owner Account Setup")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            owner_username = st.text_input(
+                "Owner Username *", 
+                value="brandon_smith",
+                help="Your login username"
+            )
+            owner_password = st.text_input(
+                "Owner Password *", 
+                type="password",
+                help="Choose a strong password (8+ characters)"
+            )
+            owner_password_confirm = st.text_input(
+                "Confirm Password *", 
+                type="password"
+            )
+        
+        with col2:
+            owner_name = st.text_input(
+                "Full Name *", 
+                value="Brandon Smith"
+            )
+            owner_email = st.text_input(
+                "Email", 
+                value="swtruckingceo@gmail.com"
+            )
+            owner_phone = st.text_input(
+                "Phone", 
+                value="(901) 555-0001"
+            )
+        
+        st.divider()
+        
+        st.subheader("👥 Quick Setup - Additional Accounts")
+        st.caption("Optional - You can add more users later")
+        
+        # Quick setup option
+        quick_setup = st.checkbox("Use quick setup with temporary passwords", value=True)
+        
+        if quick_setup:
+            st.info("Default accounts will be created with temporary passwords. Change them after first login!")
+            admin_password = "Admin2024!"
+            coord_password = "Coord2024!"
+            driver_password = "Drive2024!"
+        else:
+            with st.expander("Custom Account Setup"):
+                admin_password = st.text_input("Admin Password", type="password", value="")
+                coord_password = st.text_input("Coordinator Password", type="password", value="")
+                driver_password = st.text_input("Driver Password", type="password", value="")
+        
+        submitted = st.form_submit_button("🚀 Complete Setup", type="primary", use_container_width=True)
+        
+        if submitted:
+            errors = []
+            
+            # Validate owner account
+            if not owner_username:
+                errors.append("Owner username is required")
+            if not owner_password:
+                errors.append("Owner password is required")
+            elif len(owner_password) < 6:
+                errors.append("Password must be at least 6 characters")
+            elif owner_password != owner_password_confirm:
+                errors.append("Passwords do not match")
+            
+            if errors:
+                for error in errors:
+                    st.error(f"❌ {error}")
+            else:
+                try:
+                    # Initialize database
+                    db.init_db()
+                    
+                    # Create users table with owner flag
+                    conn = sqlite3.connect('trailer_tracker_streamlined.db')
+                    cursor = conn.cursor()
+                    
+                    # Ensure users table has all columns
+                    cursor.execute('''
+                        CREATE TABLE IF NOT EXISTS users (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            username TEXT UNIQUE NOT NULL,
+                            password TEXT NOT NULL,
+                            role TEXT NOT NULL,
+                            name TEXT,
+                            email TEXT,
+                            phone TEXT,
+                            active BOOLEAN DEFAULT 1,
+                            is_owner BOOLEAN DEFAULT 0,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    ''')
+                    
+                    # Add owner account
+                    hashed_owner_pw = hashlib.sha256(owner_password.encode()).hexdigest()
+                    cursor.execute('''
+                        INSERT INTO users (username, password, role, name, email, phone, is_owner)
+                        VALUES (?, ?, ?, ?, ?, ?, 1)
+                    ''', (owner_username, hashed_owner_pw, 'business_administrator', 
+                          owner_name, owner_email, owner_phone))
+                    
+                    # Add default accounts if quick setup
+                    if quick_setup:
+                        # Admin account
+                        cursor.execute('''
+                            INSERT INTO users (username, password, role, name)
+                            VALUES (?, ?, ?, ?)
+                        ''', ('admin', hashlib.sha256(admin_password.encode()).hexdigest(), 
+                              'business_administrator', 'Office Manager'))
+                        
+                        # Coordinator account
+                        cursor.execute('''
+                            INSERT INTO users (username, password, role, name)
+                            VALUES (?, ?, ?, ?)
+                        ''', ('coordinator', hashlib.sha256(coord_password.encode()).hexdigest(),
+                              'operations_coordinator', 'Dispatcher'))
+                        
+                        # Driver account
+                        cursor.execute('''
+                            INSERT INTO users (username, password, role, name)
+                            VALUES (?, ?, ?, ?)
+                        ''', ('driver1', hashlib.sha256(driver_password.encode()).hexdigest(),
+                              'driver', 'Driver 1'))
+                    
+                    conn.commit()
+                    conn.close()
+                    
+                    st.success("✅ Setup Complete!")
+                    st.balloons()
+                    
+                    # Show credentials
+                    st.markdown("### 📋 Your Login Credentials")
+                    st.success(f"""
+                    **Owner Account:**
+                    - Username: `{owner_username}`
+                    - Password: (the password you just set)
+                    """)
+                    
+                    if quick_setup:
+                        st.warning("""
+                        **Temporary Staff Accounts Created:**
+                        - Admin: `admin` / `Admin2024!`
+                        - Coordinator: `coordinator` / `Coord2024!`
+                        - Driver: `driver1` / `Drive2024!`
+                        
+                        ⚠️ Change these passwords immediately after login!
+                        """)
+                    
+                    st.info("🔄 **Click below to reload and login!**")
+                    if st.button("🚀 Go to Login", type="primary", use_container_width=True):
+                        st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"Setup failed: {str(e)}")
+                    st.info("Try refreshing the page and running setup again.")
+
 def main():
     """Main application"""
     apply_dark_theme()
@@ -1606,10 +1783,8 @@ def main():
     # Check if initial setup is needed
     import os
     if not os.path.exists('trailer_tracker_streamlined.db'):
-        st.warning("⚠️ Initial setup required!")
-        st.info("Please run the setup wizard first:")
-        st.code("streamlit run initial_setup.py")
-        st.stop()
+        show_initial_setup()
+        return
     
     # Initialize Vernon IT Bot
     vernon_it.initialize_vernon()
