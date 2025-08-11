@@ -320,8 +320,8 @@ def update_user_role(username, new_role):
     except:
         return False
 
-def create_user(username, password, role='viewer', name=None, email=None, phone=None):
-    """Create a new user"""
+def create_user(username, password, role='viewer', name=None, email=None, phone=None, is_owner=False):
+    """Create a new user with optional owner flag"""
     try:
         # Add to static users
         USERS[username] = {
@@ -329,7 +329,8 @@ def create_user(username, password, role='viewer', name=None, email=None, phone=
             'role': role,
             'name': name or username,
             'email': email or '',
-            'phone': phone or ''
+            'phone': phone or '',
+            'is_owner': is_owner
         }
         
         # Try to add to database as well
@@ -348,15 +349,16 @@ def create_user(username, password, role='viewer', name=None, email=None, phone=
                     email TEXT,
                     phone TEXT,
                     active BOOLEAN DEFAULT 1,
+                    is_owner BOOLEAN DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
             
             hashed_pw = hash_password(password)
             cursor.execute('''
-                INSERT INTO users (username, password, role, name, email, phone)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (username, hashed_pw, role, name, email, phone))
+                INSERT INTO users (username, password, role, name, email, phone, is_owner)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (username, hashed_pw, role, name, email, phone, 1 if is_owner else 0))
             
             conn.commit()
             conn.close()
@@ -416,3 +418,42 @@ def activate_user(username):
         return success
     except:
         return False
+
+def check_owner_exists():
+    """Check if an owner account already exists"""
+    try:
+        conn = sqlite3.connect('trailer_tracker_streamlined.db')
+        cursor = conn.cursor()
+        
+        # Check for owner in database
+        cursor.execute("SELECT COUNT(*) FROM users WHERE is_owner = 1")
+        count = cursor.fetchone()[0]
+        conn.close()
+        
+        return count > 0
+    except:
+        # Check static users for owner flag
+        for user_data in USERS.values():
+            if user_data.get('is_owner', False):
+                return True
+        return False
+
+def is_user_owner(username):
+    """Check if a specific user is the owner"""
+    try:
+        conn = sqlite3.connect('trailer_tracker_streamlined.db')
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT is_owner FROM users WHERE username = ?", (username,))
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result:
+            return result[0] == 1
+    except:
+        pass
+    
+    # Check static users
+    if username in USERS:
+        return USERS[username].get('is_owner', False)
+    return False

@@ -1039,7 +1039,10 @@ def show_system_admin():
                                         st.success(f"✅ Role updated for {user['username']}")
                                         st.rerun()
                             with col_b:
-                                if user.get('active', True):
+                                # Check if this is the owner account
+                                if auth_config.is_user_owner(user['username']):
+                                    st.info("👑 OWNER - Protected")
+                                elif user.get('active', True):
                                     if st.button("Deactivate", key=f"deactivate_{user['username']}", type="secondary"):
                                         if auth_config.deactivate_user(user['username']):
                                             st.warning(f"User {user['username']} deactivated")
@@ -1107,6 +1110,20 @@ def show_system_admin():
                     'driver',
                     'viewer'
                 ], format_func=lambda x: x.replace('_', ' ').title())
+                
+                # Owner override option - only show if NO owner exists yet
+                is_owner = False
+                if st.session_state.get('user_role') == 'business_administrator':
+                    # Check if an owner already exists
+                    if auth_config.check_owner_exists():
+                        st.info("👑 Owner account already exists. Only one owner allowed.")
+                    else:
+                        is_owner = st.checkbox(
+                            "🔑 Make this account the OWNER (Supreme Authority)", 
+                            value=False,
+                            help="⚠️ IMPORTANT: Only ONE owner account can exist. This cannot be undone!"
+                        )
+                
                 new_email = st.text_input("Email", help="Optional email address")
                 new_phone = st.text_input("Phone", help="Optional phone number")
                 
@@ -1118,8 +1135,11 @@ def show_system_admin():
                     elif len(new_password) < 6:
                         st.error("Password must be at least 6 characters long")
                     else:
-                        if auth_config.create_user(new_username, new_password, new_role, new_name, new_email, new_phone):
-                            st.success(f"✅ User {new_username} created successfully with {new_role.replace('_', ' ').title()} role")
+                        if auth_config.create_user(new_username, new_password, new_role, new_name, new_email, new_phone, is_owner):
+                            role_desc = "OWNER with Supreme Authority" if is_owner else new_role.replace('_', ' ').title()
+                            st.success(f"✅ User {new_username} created successfully as {role_desc}!")
+                            if is_owner:
+                                st.warning("⚠️ OWNER account created! This account has supreme control over the entire system.")
                             st.info(f"**Login Credentials:**\n\nUsername: {new_username}\nPassword: {new_password}")
                             
                             # Log the user creation
