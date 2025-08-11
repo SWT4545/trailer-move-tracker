@@ -1603,6 +1603,14 @@ def main():
     """Main application"""
     apply_dark_theme()
     
+    # Check if initial setup is needed
+    import os
+    if not os.path.exists('trailer_tracker_streamlined.db'):
+        st.warning("⚠️ Initial setup required!")
+        st.info("Please run the setup wizard first:")
+        st.code("streamlit run initial_setup.py")
+        st.stop()
+    
     # Initialize Vernon IT Bot
     vernon_it.initialize_vernon()
     vernon_it.run_background_monitoring()

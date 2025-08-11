@@ -4,6 +4,21 @@ Authentication and Access Control Configuration
 
 # User roles and their permissions
 USER_ROLES = {
+    'business_administrator': {
+        'description': 'Business Administrator - Complete system control',
+        'access': [
+            'dashboard', 'trailer_management', 'add_move', 'progress_dashboard',
+            'invoices', 'email_center', 'locations', 'drivers', 'mileage',
+            'import_export', 'settings', 'user_management', 'financial_reports',
+            'system_config', 'audit_logs'
+        ],
+        'can_edit': True,
+        'can_delete': True,
+        'can_export': True,
+        'view_financial': True,
+        'manage_users': True,
+        'override_all': True
+    },
     'executive': {
         'description': 'CEO/Executive - Complete system control',
         'access': [
@@ -62,6 +77,17 @@ USER_ROLES = {
         'can_generate_reports': False,
         'data_entry_only': True
     },
+    'driver': {
+        'description': 'Driver - View assignments and upload PODs',
+        'access': [
+            'dashboard', 'pod_upload', 'view_assignments'
+        ],
+        'can_edit': False,
+        'can_delete': False,
+        'can_export': False,
+        'view_financial': False,
+        'can_upload_pod': True
+    },
     'viewer': {
         'description': 'Read-only access to progress and basic info',
         'access': [
@@ -84,63 +110,18 @@ USER_ROLES = {
     }
 }
 
-# User accounts (in production, store hashed passwords in database)
-USERS = {
-    'brandon_smith': {
-        'password': 'Williams123',  # CHANGE THIS IMMEDIATELY!
-        'role': 'executive',
-        'name': 'Brandon Smith',
-        'title': 'CEO',
-        'email': 'swtruckingceo@gmail.com'
-    },
-    'admin': {
-        'password': 'SmithWilliams2024Admin!',  # Changed!
+# User accounts are now stored in database
+# This dictionary is kept empty - all users managed through database
+USERS = {}
+
+# Temporary fallback for first-time setup only
+# These will be removed after initial_setup.py is run
+TEMP_SETUP_USER = {
+    'setup': {
+        'password': 'setup',  # Only for accessing initial setup
         'role': 'admin',
-        'name': 'System Administrator',
-        'title': 'Administrator'
-    },
-    'coordinator': {
-        'password': 'SwCoordinator2024!',  # Changed!
-        'role': 'operations_coordinator',
-        'name': 'Operations Coordinator',
-        'title': 'Operations Coordinator'
-    },
-    'ops_coordinator': {  # Alternative login for coordinator
-        'password': 'SwCoordinator2024!',  # Changed!
-        'role': 'operations_coordinator',
-        'name': 'Operations Coordinator',
-        'title': 'Operations Coordinator'
-    },
-    'specialist': {
-        'password': 'SwSpecialist2024!',  # Changed!
-        'role': 'operations_specialist',
-        'name': 'Operations Specialist',
-        'title': 'Operations Specialist'
-    },
-    'ops_specialist': {  # Alternative login for specialist
-        'password': 'SwSpecialist2024!',  # Changed!
-        'role': 'operations_specialist',
-        'name': 'Operations Specialist',
-        'title': 'Operations Specialist'
-    },
-    'viewer': {
-        'password': 'SwViewer2024!',  # Changed!
-        'role': 'viewer',
-        'name': 'Read-Only User',
-        'title': 'Viewer'
-    },
-    'client': {
-        'password': 'SwClient2024!',  # Changed!
-        'role': 'client',
-        'name': 'Client Access',
-        'title': 'Client'
-    },
-    'demo': {
-        'password': 'demo',
-        'role': 'admin',
-        'name': 'Demo User',
-        'title': 'Demo Administrator',
-        'email': 'demo@smithwilliamstrucking.com'
+        'name': 'Setup User',
+        'title': 'Initial Setup'
     }
 }
 
@@ -163,16 +144,54 @@ def get_user_permissions(username):
     return None
 
 def validate_user(username, password):
-    """Validate user credentials"""
+    """Validate user credentials from database"""
     # Strip any whitespace from inputs
     username = username.strip() if username else ""
     password = password.strip() if password else ""
     
-    if username in USERS:
-        stored_password = USERS[username]['password']
-        if stored_password == password:
+    # Check if database exists
+    import os
+    if not os.path.exists('trailer_tracker_streamlined.db'):
+        # Allow setup user for initial configuration
+        if username == 'setup' and password == 'setup':
             return True
-    return False
+        return False
+    
+    # Check database for user
+    try:
+        import sqlite3
+        conn = sqlite3.connect('trailer_tracker_streamlined.db')
+        cursor = conn.cursor()
+        
+        # Hash the provided password
+        hashed_pw = hash_password(password)
+        
+        # Check credentials
+        cursor.execute("""
+            SELECT username, role, name 
+            FROM users 
+            WHERE username = ? AND password = ? AND active = 1
+        """, (username, hashed_pw))
+        
+        user = cursor.fetchone()
+        conn.close()
+        
+        if user:
+            # Store user info in USERS dict for session
+            USERS[username] = {
+                'role': user[1],
+                'name': user[2],
+                'password': hashed_pw  # Store hashed version
+            }
+            return True
+        
+        return False
+    except Exception as e:
+        print(f"Auth error: {e}")
+        # Fallback to setup user if database error
+        if username == 'setup' and password == 'setup':
+            return True
+        return False
 
 def validate_share_token(token):
     """Validate a shareable link token"""

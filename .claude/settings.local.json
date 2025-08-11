@@ -23,7 +23,9 @@
       "Bash(dir:*)",
       "Bash(copy app.py app_broken_backup.py)",
       "Bash(copy app.py app_backup_current.py)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(git rm:*)"
     ],
     "deny": []
   }
