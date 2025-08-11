@@ -1838,7 +1838,23 @@ def main():
         
         st.markdown(f"### {company_info['company_name']}")
         st.markdown(f"**{st.session_state.get('user_name', 'User')}**")
-        st.caption(f"Role: {st.session_state.get('user_role', '').replace('_', ' ').title()}")
+        
+        # Role switcher for dual-role users
+        user_roles = st.session_state.get('user_roles', [st.session_state.get('user_role', '')])
+        if len(user_roles) > 1:
+            current_role = st.selectbox(
+                "Active Role",
+                user_roles,
+                index=user_roles.index(st.session_state.get('user_role', user_roles[0])),
+                format_func=lambda x: x.replace('_', ' ').title(),
+                key="role_switcher"
+            )
+            if current_role != st.session_state.get('user_role'):
+                st.session_state.user_role = current_role
+                st.rerun()
+        else:
+            st.caption(f"Role: {st.session_state.get('user_role', '').replace('_', ' ').title()}")
+        
         st.divider()
         
         # Navigation based on role
@@ -1916,6 +1932,25 @@ def main():
     elif page == "💰 My Rate Cons":
         rate_con_manager.show_driver_rate_cons(st.session_state.get('user_name', 'Driver'))
 
+def ensure_driver_in_database(driver_name):
+    """Ensure a driver exists in the drivers table for assignment"""
+    try:
+        conn = sqlite3.connect('trailer_tracker_streamlined.db')
+        cursor = conn.cursor()
+        
+        # Check if driver exists
+        cursor.execute("SELECT id FROM drivers WHERE name = ?", (driver_name,))
+        if not cursor.fetchone():
+            # Add driver to database
+            cursor.execute("""
+                INSERT INTO drivers (name, phone, status, active, created_at)
+                VALUES (?, '', 'available', 1, datetime('now'))
+            """, (driver_name,))
+            conn.commit()
+        conn.close()
+    except:
+        pass  # Database might not exist yet
+
 def show_login_page():
     """Premium login page with branding"""
     company_info = company_config.get_company_info()
@@ -1950,21 +1985,41 @@ def show_login_page():
             password = st.text_input("Password", type="password")
             
             if st.form_submit_button("🔐 Login", type="primary", use_container_width=True):
-                # Simple direct authentication
+                # Simple direct authentication with dual role support
                 valid_users = {
-                    'Brandon': {'password': 'owner123', 'role': 'business_administrator', 'name': 'Brandon (Owner)'},
-                    'admin': {'password': 'admin123', 'role': 'business_administrator', 'name': 'Administrator'},
-                    'coordinator': {'password': 'coord123', 'role': 'operations_coordinator', 'name': 'Coordinator'},
-                    'driver1': {'password': 'driver123', 'role': 'driver', 'name': 'John Smith'},
-                    'demo': {'password': 'demo', 'role': 'business_administrator', 'name': 'Demo User'}
+                    # Owner account
+                    'Brandon': {'password': 'owner123', 'roles': ['business_administrator'], 'name': 'Brandon (Owner)'},
+                    
+                    # Admin accounts
+                    'admin': {'password': 'admin123', 'roles': ['business_administrator'], 'name': 'Administrator'},
+                    
+                    # Coordinator accounts
+                    'coordinator': {'password': 'coord123', 'roles': ['operations_coordinator'], 'name': 'Coordinator'},
+                    
+                    # Driver accounts (these will auto-add to driver list)
+                    'driver1': {'password': 'driver123', 'roles': ['driver'], 'name': 'John Smith'},
+                    'driver2': {'password': 'driver456', 'roles': ['driver'], 'name': 'Mike Johnson'},
+                    
+                    # Dual-role accounts (Driver + Coordinator)
+                    'sarah': {'password': 'sarah123', 'roles': ['driver', 'operations_coordinator'], 'name': 'Sarah Williams'},
+                    'tom': {'password': 'tom123', 'roles': ['driver', 'operations_coordinator'], 'name': 'Tom Davis'},
+                    
+                    # Demo account
+                    'demo': {'password': 'demo', 'roles': ['business_administrator'], 'name': 'Demo User'}
                 }
                 
                 if username in valid_users and password == valid_users[username]['password']:
                     st.session_state.authenticated = True
                     st.session_state.username = username
-                    st.session_state.user_role = valid_users[username]['role']
+                    st.session_state.user_roles = valid_users[username]['roles']  # Store all roles
+                    st.session_state.user_role = valid_users[username]['roles'][0]  # Set primary role
                     st.session_state.user_name = valid_users[username]['name']
                     st.session_state.is_owner = (username == 'Brandon')  # Mark Brandon as owner
+                    
+                    # If user has driver role, ensure they're in the drivers table
+                    if 'driver' in valid_users[username]['roles']:
+                        ensure_driver_in_database(valid_users[username]['name'])
+                    
                     st.success(f"Welcome, {valid_users[username]['name']}!")
                     time.sleep(0.5)  # Brief pause to show success message
                     st.rerun()
