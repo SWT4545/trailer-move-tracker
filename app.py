@@ -40,6 +40,34 @@ def apply_dark_theme():
             background-color: #0E0E0E;
         }
         
+        /* Dropdown/Selectbox styling - darker background with border */
+        div[data-baseweb="select"] > div {
+            background-color: #1a1a1a !important;
+            border: 1px solid #DC143C !important;
+        }
+        
+        /* Dropdown menu styling when opened */
+        div[data-baseweb="popover"] {
+            background-color: #2a2a2a !important;
+            border: 2px solid #DC143C !important;
+            box-shadow: 0 4px 6px rgba(220, 20, 60, 0.3) !important;
+        }
+        
+        /* Dropdown menu items */
+        ul[role="listbox"] {
+            background-color: #2a2a2a !important;
+        }
+        
+        /* Dropdown menu item hover */
+        li[role="option"]:hover {
+            background-color: #3a3a3a !important;
+        }
+        
+        /* Selected dropdown item */
+        li[aria-selected="true"] {
+            background-color: #DC143C !important;
+        }
+        
         /* Headers white with red accent */
         h1 {
             color: #FFFFFF;
