@@ -787,20 +787,22 @@ def show_create_move():
 def show_driver_management():
     """Manage drivers - integrated with user management"""
     st.title("👤 Driver Management")
-    st.info("💡 **Note:** Drivers must first be created as users in System Admin → User Management")
     
-    tabs = st.tabs(["📋 All Drivers", "📝 Driver Details", "🟢 Availability", "📞 Contact List"])
+    tabs = st.tabs(["📋 All Drivers", "➕ Create Driver", "📝 Update Driver", "🟢 Availability", "📞 Contact List"])
     
     with tabs[0]:
         show_all_drivers_enhanced()
     
     with tabs[1]:
-        show_add_driver()
+        show_create_new_driver()
     
     with tabs[2]:
-        show_driver_availability()
+        show_add_driver()
     
     with tabs[3]:
+        show_driver_availability()
+    
+    with tabs[4]:
         show_driver_contacts()
 
 def show_all_drivers_enhanced():
@@ -919,10 +921,186 @@ def show_all_drivers():
     else:
         st.info("No drivers in system")
 
+def show_create_new_driver():
+    """Create a new driver with all details in one place"""
+    st.markdown("### ➕ Create New Driver")
+    st.info("Create a complete driver profile including login credentials and details")
+    
+    with st.form("create_driver_complete", clear_on_submit=True):
+        st.markdown("#### 🔐 Login Credentials")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            username = st.text_input("Username*", help="Driver will use this to login")
+            password = st.text_input("Password*", type="password", value="driver123")
+            driver_name = st.text_input("Full Name*", help="Driver's full name")
+        
+        with col2:
+            # Driver type selection UPFRONT
+            driver_type = st.radio(
+                "Driver Type*",
+                ["Company Driver", "Contractor/Owner-Operator"],
+                help="Contractors require additional documentation"
+            )
+            
+        st.divider()
+        st.markdown("#### 📋 Driver Information")
+        
+        col3, col4 = st.columns(2)
+        
+        with col3:
+            st.markdown("**Basic Information**")
+            phone = st.text_input("Phone Number")
+            email = st.text_input("Email Address")
+            cdl_number = st.text_input("CDL Number")
+            cdl_expiry = st.date_input("CDL Expiry Date", value=None)
+        
+        with col4:
+            if driver_type == "Contractor/Owner-Operator":
+                st.markdown("**Contractor Information (Required)**")
+                company_name = st.text_input("Company Name*")
+                mc_number = st.text_input("MC Number*", placeholder="MC-123456")
+                dot_number = st.text_input("DOT Number*", placeholder="1234567")
+                insurance_company = st.text_input("Insurance Company*")
+                insurance_policy = st.text_input("Insurance Policy #*")
+                insurance_expiry = st.date_input("Insurance Expiry*", value=None)
+                
+                # Insurance document upload
+                st.markdown("**Insurance Documentation**")
+                insurance_doc = st.file_uploader(
+                    "Upload Insurance Certificate",
+                    type=['pdf', 'jpg', 'jpeg', 'png'],
+                    help="Upload COI or insurance documentation"
+                )
+            else:
+                st.info("✅ Company driver - No contractor information needed")
+                company_name = None
+                mc_number = None
+                dot_number = None
+                insurance_company = None
+                insurance_policy = None
+                insurance_expiry = None
+                insurance_doc = None
+        
+        if st.form_submit_button("🚀 Create Driver", type="primary", use_container_width=True):
+            # Validate required fields
+            if not username or not password or not driver_name:
+                st.error("Please fill in all required fields (Username, Password, Name)")
+            elif driver_type == "Contractor/Owner-Operator" and not all([company_name, mc_number, dot_number, insurance_company]):
+                st.error("Contractor drivers must provide all company information")
+            else:
+                try:
+                    # Step 1: Create user account
+                    user_data = user_manager.load_users()
+                    
+                    if username in user_data['users']:
+                        st.error(f"Username '{username}' already exists!")
+                    else:
+                        # Add user with driver role
+                        user_data['users'][username] = {
+                            'password': password,
+                            'roles': ['driver'],
+                            'name': driver_name,
+                            'email': email or '',
+                            'phone': phone or '',
+                            'is_owner': False,
+                            'active': True,
+                            'created_at': datetime.now().isoformat()
+                        }
+                        
+                        if user_manager.save_users(user_data):
+                            # Step 2: Add to drivers table
+                            conn = sqlite3.connect('trailer_tracker_streamlined.db')
+                            cursor = conn.cursor()
+                            
+                            # Create drivers table if needed
+                            cursor.execute('''
+                                CREATE TABLE IF NOT EXISTS drivers (
+                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    driver_name TEXT UNIQUE,
+                                    phone TEXT,
+                                    email TEXT,
+                                    status TEXT DEFAULT 'available',
+                                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                                )
+                            ''')
+                            
+                            # Add to main drivers table
+                            cursor.execute('''
+                                INSERT OR REPLACE INTO drivers (driver_name, phone, email, status)
+                                VALUES (?, ?, ?, 'available')
+                            ''', (driver_name, phone or '', email or ''))
+                            
+                            # Create extended table if needed
+                            cursor.execute('''
+                                CREATE TABLE IF NOT EXISTS drivers_extended (
+                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    driver_name TEXT UNIQUE,
+                                    driver_type TEXT DEFAULT 'company',
+                                    phone TEXT,
+                                    email TEXT,
+                                    cdl_number TEXT,
+                                    cdl_expiry DATE,
+                                    company_name TEXT,
+                                    mc_number TEXT,
+                                    dot_number TEXT,
+                                    insurance_company TEXT,
+                                    insurance_policy TEXT,
+                                    insurance_expiry DATE,
+                                    insurance_doc BLOB,
+                                    insurance_doc_name TEXT,
+                                    status TEXT DEFAULT 'available',
+                                    active BOOLEAN DEFAULT 1,
+                                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                                )
+                            ''')
+                            
+                            # Handle insurance document
+                            insurance_doc_data = None
+                            insurance_doc_name = None
+                            if insurance_doc:
+                                insurance_doc_data = insurance_doc.read()
+                                insurance_doc_name = insurance_doc.name
+                            
+                            # Add to extended drivers table
+                            cursor.execute('''
+                                INSERT OR REPLACE INTO drivers_extended 
+                                (driver_name, driver_type, phone, email, cdl_number, cdl_expiry,
+                                 company_name, mc_number, dot_number, 
+                                 insurance_company, insurance_policy, insurance_expiry,
+                                 insurance_doc, insurance_doc_name)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ''', (driver_name, 
+                                  'contractor' if driver_type == "Contractor/Owner-Operator" else 'company',
+                                  phone or '', email or '', cdl_number or '', cdl_expiry,
+                                  company_name, mc_number, dot_number,
+                                  insurance_company, insurance_policy, insurance_expiry,
+                                  insurance_doc_data, insurance_doc_name))
+                            
+                            conn.commit()
+                            conn.close()
+                            
+                            st.success(f"""
+                            ✅ **Driver Created Successfully!**
+                            
+                            **Name:** {driver_name}
+                            **Username:** {username}
+                            **Type:** {driver_type}
+                            **Status:** Available for assignments
+                            
+                            Driver can now login with username: **{username}**
+                            """)
+                            st.rerun()
+                        else:
+                            st.error("Failed to save user account")
+                            
+                except Exception as e:
+                    st.error(f"Error creating driver: {e}")
+
 def show_add_driver():
-    """Add or update driver information for existing users"""
-    st.markdown("### 📝 Add/Update Driver Details")
-    st.info("Select a driver user to add or update their information")
+    """Update existing driver information"""
+    st.markdown("### 📝 Update Driver Details")
+    st.info("Select an existing driver to update their information")
     
     # Get users with driver role
     user_data = user_manager.load_users()

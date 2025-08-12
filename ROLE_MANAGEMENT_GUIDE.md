@@ -56,31 +56,30 @@ Users can now be managed directly through the application interface by administr
 
 ### How to Create a Driver Account
 
-1. **First:** Create user account
-   - Go to **⚙️ System Admin** → **User Management**
-   - Add user with 'Driver' role
-   - Set username/password for their login
+**NEW: All-in-One Driver Creation!**
 
-2. **Then:** Add driver details
-   - Go to **👤 Drivers** → **📝 Driver Details**
-   - Select the driver user you created
-   - Choose driver type:
-     - **Company Driver:** Internal employee drivers
+1. **Go to:** **👤 Drivers** → **➕ Create Driver** tab
+2. **Fill in all details in one place:**
+   - **Login Credentials:** Username & Password
+   - **Driver Type:** Choose upfront:
+     - **Company Driver:** Your employee drivers
      - **Contractor/Owner-Operator:** Independent contractors
-   - Add basic info:
-     - Phone & Email
-     - CDL Number & Expiry Date
-   - For Contractors ONLY add:
-     - Company Name
-     - MC Number
-     - DOT Number  
-     - Insurance Company & Policy
-     - Insurance Expiry Date
+   - **Basic Info:** Phone, Email, CDL details
+   - **For Contractors ONLY:**
+     - Company Name (required)
+     - MC Number (required)
+     - DOT Number (required)
+     - Insurance details (required)
      - Upload Insurance Certificate (optional)
+3. **Click:** 🚀 Create Driver
+4. **Done!** Driver can immediately login with their credentials
 
-3. **Driver logs in** with the username/password from step 1
+**To Update Existing Drivers:**
+- Go to **👤 Drivers** → **📝 Update Driver** tab
+- Select driver and modify any information
+- Changes save immediately
 
-**Note:** Driver information can be updated at any time - not just during creation
+**Note:** No need to go to User Management first - everything is integrated!
 
 ### How to Upgrade a User to Dual Role (Through App)
 

@@ -138,16 +138,21 @@ def show_admin_walkthrough():
             - Dual-role support (Driver + Coordinator)
             - Owner account protected
             
-            **Driver Management:**
-            1. Go to **👤 Drivers** → **📝 Driver Details**
-            2. Select driver to add/update info
-            3. Choose driver type:
-               - Company Driver (no MC/DOT needed)
-               - Contractor (requires MC/DOT/Insurance)
-            4. Can update info at any time
-            5. Upload insurance docs for contractors
+            **Driver Management (NEW - All-in-One!):**
+            1. Go to **👤 Drivers** → **➕ Create Driver**
+            2. Fill EVERYTHING in one form:
+               - Login credentials (username/password)
+               - Driver type (Company vs Contractor)
+               - Contact info & CDL details
+               - Contractor info (if applicable)
+            3. Click 🚀 Create Driver - DONE!
             
-            💡 **Tip:** Driver info can be changed anytime, not just at creation
+            **No more switching between sections!**
+            - Everything created in one place
+            - Driver can login immediately
+            - Update anytime via Update Driver tab
+            
+            💡 **Tip:** Choose driver type FIRST to see required fields
             """
         },
         {
