@@ -11,6 +11,7 @@ from datetime import datetime, date
 import time
 import hashlib
 import pandas as pd
+import vernon_sidebar
 
 class EnhancedDriverManager:
     """Driver management with proper state handling and validation"""
@@ -575,10 +576,25 @@ class EnhancedDriverManager:
         """Display all drivers in an organized view"""
         st.markdown("### 📋 All Drivers")
         
-        drivers_df = self.get_all_drivers()
+        try:
+            drivers_df = self.get_all_drivers()
+        except Exception as e:
+            st.error(f"Error loading drivers: {e}")
+            # Fallback to basic query
+            try:
+                conn = sqlite3.connect(self.db_path)
+                drivers_df = pd.read_sql_query("SELECT * FROM drivers ORDER BY driver_name", conn)
+                conn.close()
+            except:
+                drivers_df = pd.DataFrame()
         
         if drivers_df.empty:
             st.info("No drivers registered yet.")
+            # Run Vernon sync check
+            st.info("Vernon is checking for driver sync issues...")
+            if st.button("Run Driver Sync"):
+                vernon_sidebar.VernonSidebar().fix_driver_sync()
+                st.rerun()
             return
         
         # Stats
@@ -592,11 +608,17 @@ class EnhancedDriverManager:
             st.metric("Available", available)
         
         with col3:
-            contractors = len(drivers_df[drivers_df['driver_type'] == 'contractor'])
+            if 'driver_type' in drivers_df.columns:
+                contractors = len(drivers_df[drivers_df['driver_type'] == 'contractor'])
+            else:
+                contractors = 0
             st.metric("Contractors", contractors)
         
         with col4:
-            company = len(drivers_df[drivers_df['driver_type'] == 'company'])
+            if 'driver_type' in drivers_df.columns:
+                company = len(drivers_df[drivers_df['driver_type'] == 'company'])
+            else:
+                company = len(drivers_df)
             st.metric("Company Drivers", company)
         
         st.divider()
@@ -624,7 +646,7 @@ class EnhancedDriverManager:
         # Apply filters
         filtered_df = drivers_df.copy()
         
-        if type_filter != "All":
+        if type_filter != "All" and 'driver_type' in filtered_df.columns:
             filter_val = 'contractor' if type_filter == "Contractor" else 'company'
             filtered_df = filtered_df[filtered_df['driver_type'] == filter_val]
         

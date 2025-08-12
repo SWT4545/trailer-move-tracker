@@ -108,6 +108,39 @@ class VernonSidebar:
         except Exception as e:
             st.error(f"Vernon encountered an error: {e}")
     
+    def identify_cross_page_fixes(self, current_issues):
+        """Identify fixes that can be applied from other pages"""
+        cross_page_fixes = []
+        
+        # Check if driver sync issue exists
+        for issue in current_issues:
+            if "Driver sync issue" in str(issue):
+                cross_page_fixes.append({
+                    'type': 'driver_sync',
+                    'description': 'Sync drivers from user accounts to database',
+                    'source_page': 'System Admin'
+                })
+        
+        st.session_state['vernon_cross_page_fixes'] = cross_page_fixes
+    
+    def apply_cross_page_fixes(self):
+        """Apply fixes identified from other pages"""
+        if 'vernon_cross_page_fixes' not in st.session_state:
+            return
+        
+        fixes = st.session_state['vernon_cross_page_fixes']
+        applied = 0
+        
+        for fix in fixes:
+            if fix['type'] == 'driver_sync':
+                if self.fix_driver_sync():
+                    applied += 1
+        
+        if applied > 0:
+            st.success(f"Vernon applied {applied} cross-page fixes!")
+            st.session_state['vernon_cross_page_fixes'] = []
+            st.rerun()
+    
     def check_driver_page(self):
         """Check for driver-related issues"""
         issues = []
@@ -329,34 +362,71 @@ class VernonSidebar:
     def fix_driver_sync(self):
         """Fix driver synchronization issues"""
         try:
-            # Import and run the sync function
-            exec(open('fix_driver_sync.py').read())
-            return True
-        except:
-            # Fallback sync
+            synced = 0
+            errors = 0
+            
+            # Load user accounts
+            with open('user_accounts.json', 'r') as f:
+                users = json.load(f)
+            
+            conn = sqlite3.connect('trailer_tracker_streamlined.db')
+            cursor = conn.cursor()
+            
+            # Ensure columns exist
             try:
-                with open('user_accounts.json', 'r') as f:
-                    users = json.load(f)
-                
-                conn = sqlite3.connect('trailer_tracker_streamlined.db')
-                cursor = conn.cursor()
-                
-                for username, info in users.get('users', {}).items():
-                    if 'driver' in info.get('roles', []):
-                        driver_name = info.get('name', username)
-                        
-                        cursor.execute('SELECT id FROM drivers WHERE driver_name = ?', (driver_name,))
-                        if not cursor.fetchone():
+                cursor.execute('ALTER TABLE drivers ADD COLUMN active BOOLEAN DEFAULT 1')
+                conn.commit()
+            except:
+                pass
+            
+            try:
+                cursor.execute('ALTER TABLE drivers ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
+                conn.commit()
+            except:
+                pass
+            
+            try:
+                cursor.execute('ALTER TABLE drivers ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
+                conn.commit()
+            except:
+                pass
+            
+            # Sync each driver
+            for username, info in users.get('users', {}).items():
+                if 'driver' in info.get('roles', []):
+                    driver_name = info.get('name', username)
+                    
+                    cursor.execute('SELECT id FROM drivers WHERE driver_name = ?', (driver_name,))
+                    if not cursor.fetchone():
+                        try:
+                            # Add to drivers table
                             cursor.execute('''
                                 INSERT INTO drivers (driver_name, phone, email, username, status, active)
                                 VALUES (?, ?, ?, ?, 'available', 1)
                             ''', (driver_name, info.get('phone', ''), info.get('email', ''), username))
-                
-                conn.commit()
-                conn.close()
-                return True
-            except:
-                return False
+                            
+                            # Also add to drivers_extended
+                            cursor.execute('''
+                                INSERT OR IGNORE INTO drivers_extended 
+                                (driver_name, driver_type, phone, email, status, active)
+                                VALUES (?, 'company', ?, ?, 'available', 1)
+                            ''', (driver_name, info.get('phone', ''), info.get('email', '')))
+                            
+                            synced += 1
+                        except Exception as e:
+                            errors += 1
+            
+            conn.commit()
+            conn.close()
+            
+            if synced > 0:
+                st.success(f"Vernon synced {synced} drivers to database!")
+            
+            return True
+            
+        except Exception as e:
+            st.error(f"Vernon sync error: {e}")
+            return False
     
     def fix_missing_columns(self, issue):
         """Fix missing database columns"""
