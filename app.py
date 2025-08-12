@@ -1836,7 +1836,16 @@ def main():
         # Add walkthrough for all roles
         menu_items.append("🎓 Walkthrough")
         
+        # Navigation with page tracking
         page = st.radio("Navigation", menu_items, label_visibility="collapsed")
+        
+        # Check if page changed
+        if 'current_page' not in st.session_state:
+            st.session_state.current_page = page
+        elif st.session_state.current_page != page:
+            st.session_state.current_page = page
+            # Force a clean page render by using empty container
+            st.empty()
         
         st.divider()
         
