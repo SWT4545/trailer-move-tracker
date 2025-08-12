@@ -825,45 +825,115 @@ def show_all_drivers():
         st.info("No drivers in system")
 
 def show_add_driver():
-    """Add new driver"""
-    with st.form("add_driver", clear_on_submit=True):
-        driver_name = st.text_input("Driver Name *")
-        phone = st.text_input("Phone Number")
-        email = st.text_input("Email")
+    """Add driver information for existing users"""
+    st.info("💡 Drivers must first be created as users in System Admin → User Management with 'Driver' role")
+    
+    # Get users with driver role
+    user_data = user_manager.load_users()
+    driver_users = {u: info for u, info in user_data['users'].items() 
+                   if 'driver' in info.get('roles', [])}
+    
+    if not driver_users:
+        st.warning("No users with Driver role found. Please create driver users first in User Management.")
+        return
+    
+    with st.form("add_driver_info", clear_on_submit=True):
+        st.markdown("### Add Driver Details")
         
-        # Create driver login credentials
-        st.markdown("### Driver Login Credentials")
-        username = st.text_input("Username *", value=driver_name.lower().replace(' ', '_') if driver_name else '')
-        password = st.text_input("Password *", type="password")
+        # Select from existing driver users
+        selected_user = st.selectbox(
+            "Select Driver User",
+            list(driver_users.keys()),
+            format_func=lambda x: f"{driver_users[x]['name']} ({x})"
+        )
         
-        if st.form_submit_button("Add Driver", type="primary", use_container_width=True):
-            if driver_name and username and password:
+        if selected_user:
+            driver_name = driver_users[selected_user]['name']
+            st.info(f"Adding details for: {driver_name}")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                phone = st.text_input("Phone Number", value=driver_users[selected_user].get('phone', ''))
+                email = st.text_input("Email", value=driver_users[selected_user].get('email', ''))
+                cdl_number = st.text_input("CDL Number")
+                cdl_expiry = st.date_input("CDL Expiry Date", value=None)
+            
+            with col2:
+                st.markdown("**Company Information (if owner-operator)**")
+                company_name = st.text_input("Company Name")
+                mc_number = st.text_input("MC Number", placeholder="MC-123456")
+                dot_number = st.text_input("DOT Number", placeholder="1234567")
+                insurance_company = st.text_input("Insurance Company")
+                insurance_policy = st.text_input("Insurance Policy #")
+                insurance_expiry = st.date_input("Insurance Expiry", value=None)
+        
+        if st.form_submit_button("💾 Save Driver Details", type="primary", use_container_width=True):
+            if selected_user:
                 try:
-                    # Add to database
+                    # Save to drivers table with extended info
+                    import sqlite3
+                    conn = sqlite3.connect('trailer_tracker_streamlined.db')
+                    cursor = conn.cursor()
+                    
+                    # Create extended drivers table if needed
+                    cursor.execute('''
+                        CREATE TABLE IF NOT EXISTS drivers_extended (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            driver_name TEXT UNIQUE,
+                            phone TEXT,
+                            email TEXT,
+                            cdl_number TEXT,
+                            cdl_expiry DATE,
+                            company_name TEXT,
+                            mc_number TEXT,
+                            dot_number TEXT,
+                            insurance_company TEXT,
+                            insurance_policy TEXT,
+                            insurance_expiry DATE,
+                            status TEXT DEFAULT 'available',
+                            active BOOLEAN DEFAULT 1,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    ''')
+                    
+                    # Insert or update driver info
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO drivers_extended 
+                        (driver_name, phone, email, cdl_number, cdl_expiry,
+                         company_name, mc_number, dot_number, 
+                         insurance_company, insurance_policy, insurance_expiry)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (driver_name, phone, email, cdl_number, 
+                          cdl_expiry if cdl_expiry else None,
+                          company_name, mc_number, dot_number,
+                          insurance_company, insurance_policy,
+                          insurance_expiry if insurance_expiry else None))
+                    
+                    conn.commit()
+                    conn.close()
+                    
+                    # Also ensure driver exists in main drivers table
                     driver_id = db.add_driver({
                         'driver_name': driver_name,
                         'phone': phone,
                         'email': email,
-                        'status': 'available',
-                        'username': username
+                        'status': 'available'
                     })
                     
-                    # Add to auth config (in production, this would be database)
-                    # For now, just show success
                     st.success(f"""
-                    ✅ Driver added successfully!
+                    ✅ Driver details saved successfully!
                     
-                    **Login Credentials:**
-                    - Username: {username}
-                    - Password: {password}
+                    **Driver:** {driver_name}
+                    **Phone:** {phone or 'Not set'}
+                    **Email:** {email or 'Not set'}
                     
-                    Share these credentials with the driver.
+                    Driver can login with their existing user credentials.
                     """)
+                    st.rerun()
                     
                 except Exception as e:
-                    st.error(f"Error: {e}")
-            else:
-                st.error("Please fill all required fields")
+                    st.error(f"Error saving driver details: {e}")
 
 def show_driver_availability():
     """Driver availability dashboard"""
