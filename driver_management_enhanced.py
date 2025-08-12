@@ -315,15 +315,29 @@ class EnhancedDriverManager:
         """Get all drivers with their information"""
         try:
             conn = sqlite3.connect(self.db_path)
-            query = '''
-                SELECT d.*, de.driver_type, de.company_name, de.mc_number,
-                       de.insurance_company, de.insurance_expiry
-                FROM drivers d
-                LEFT JOIN drivers_extended de ON d.driver_name = de.driver_name
-                WHERE d.active = 1
-                ORDER BY d.driver_name
-            '''
-            df = pd.read_sql_query(query, conn)
+            
+            # First try with active column
+            try:
+                query = '''
+                    SELECT d.*, de.driver_type, de.company_name, de.mc_number,
+                           de.insurance_company, de.insurance_expiry
+                    FROM drivers d
+                    LEFT JOIN drivers_extended de ON d.driver_name = de.driver_name
+                    WHERE d.active = 1
+                    ORDER BY d.driver_name
+                '''
+                df = pd.read_sql_query(query, conn)
+            except sqlite3.OperationalError:
+                # Fallback without active column
+                query = '''
+                    SELECT d.*, de.driver_type, de.company_name, de.mc_number,
+                           de.insurance_company, de.insurance_expiry
+                    FROM drivers d
+                    LEFT JOIN drivers_extended de ON d.driver_name = de.driver_name
+                    ORDER BY d.driver_name
+                '''
+                df = pd.read_sql_query(query, conn)
+            
             conn.close()
             return df
         except Exception as e:
