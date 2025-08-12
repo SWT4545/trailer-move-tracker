@@ -85,7 +85,7 @@ def show_user_management():
     with tabs[1]:  # Add User
         st.markdown("#### Add New User")
         
-        with st.form("add_user_form"):
+        with st.form("add_user_form", clear_on_submit=True):
             col1, col2 = st.columns(2)
             
             with col1:
@@ -145,7 +145,7 @@ def show_user_management():
                 current_info = editable_users[selected_user]
                 st.info(f"Current roles: {', '.join(current_info['roles'])}")
                 
-                with st.form("edit_roles_form"):
+                with st.form("edit_roles_form", clear_on_submit=True):
                     st.markdown("**Update Roles:**")
                     new_roles = []
                     
@@ -181,7 +181,7 @@ def show_user_management():
         )
         
         if reset_user:
-            with st.form("reset_password_form"):
+            with st.form("reset_password_form", clear_on_submit=True):
                 new_password = st.text_input("New Password", type="password")
                 confirm_password = st.text_input("Confirm Password", type="password")
                 

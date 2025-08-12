@@ -296,7 +296,7 @@ def show_rate_con_inbox():
                                ["Enter miles and rate", "Calculate from total amount"],
                                help="If miles aren't on Rate Con, calculate from total")
         
-        with st.form("rate_con_entry"):
+        with st.form("rate_con_entry", clear_on_submit=True):
             mlbl = st.text_input("MLBL Number (Optional)", placeholder="MLBL-58064 or leave blank", help="Master Load Bill Number - can be added/changed later")
             
             col_a, col_b = st.columns(2)

@@ -574,7 +574,7 @@ def show_location_management():
             st.session_state.show_add_location = True
     
     if st.session_state.get('show_add_location', False):
-        with st.form("add_location"):
+        with st.form("add_location", clear_on_submit=True):
             st.markdown("### Add New Location")
             location_name = st.text_input("Location Name *")
             street = st.text_input("Street Address *")
@@ -637,7 +637,7 @@ def show_create_move():
         st.write(f"Available OLD trailers: {len(available_old)}")
         return
     
-    with st.form("create_move"):
+    with st.form("create_move", clear_on_submit=True):
         st.markdown("### 🔄 Select Trailers for Swap")
         
         col1, col2 = st.columns(2)
@@ -965,7 +965,7 @@ def show_factoring_submission():
             st.divider()
             
             # Submission form
-            with st.form("submit_factoring"):
+            with st.form("submit_factoring", clear_on_submit=True):
                 st.markdown("### 📧 Factoring Company Submission")
                 
                 # Email preview
@@ -1110,7 +1110,7 @@ def show_system_admin():
         st.dataframe(df, use_container_width=True, hide_index=True)
         
         st.markdown("#### Modify Permissions")
-        with st.form("modify_permissions"):
+        with st.form("modify_permissions", clear_on_submit=True):
             role_to_modify = st.selectbox("Select Role", ['operations_coordinator', 'driver', 'viewer'])
             st.multiselect(
                 "Grant Access To:",
@@ -1200,7 +1200,7 @@ def show_system_admin():
         
         with col1:
             st.markdown("#### Business Settings")
-            with st.form("business_settings"):
+            with st.form("business_settings", clear_on_submit=True):
                 new_company_name = st.text_input(
                     "Company Name", 
                     value=st.session_state.get('company_name', "Smith & Williams Trucking"),
@@ -1225,7 +1225,7 @@ def show_system_admin():
         
         with col2:
             st.markdown("#### Email & API Configuration")
-            with st.form("api_settings"):
+            with st.form("api_settings", clear_on_submit=True):
                 st.markdown("**Google Workspace Settings**")
                 google_workspace_enabled = st.checkbox(
                     "Enable Google Workspace Integration",
@@ -1279,7 +1279,7 @@ def show_system_admin():
         
         st.markdown("#### Cleanup Operations")
         
-        with st.form("cleanup_operations"):
+        with st.form("cleanup_operations", clear_on_submit=True):
             st.markdown("**Select items to clean:**")
             
             clean_old_moves = st.checkbox("Archive moves older than 90 days")
@@ -1837,15 +1837,14 @@ def main():
         menu_items.append("🎓 Walkthrough")
         
         # Navigation with page tracking
-        page = st.radio("Navigation", menu_items, label_visibility="collapsed")
+        page = st.radio("Navigation", menu_items, label_visibility="collapsed", key="main_nav")
         
-        # Check if page changed
+        # Check if page changed and force rerun to start at top
         if 'current_page' not in st.session_state:
             st.session_state.current_page = page
         elif st.session_state.current_page != page:
             st.session_state.current_page = page
-            # Force a clean page render by using empty container
-            st.empty()
+            st.rerun()
         
         st.divider()
         
