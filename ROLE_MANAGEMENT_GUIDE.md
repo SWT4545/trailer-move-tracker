@@ -62,18 +62,25 @@ Users can now be managed directly through the application interface by administr
    - Set username/password for their login
 
 2. **Then:** Add driver details
-   - Go to **👤 Drivers** → **➕ Add Driver**
+   - Go to **👤 Drivers** → **📝 Driver Details**
    - Select the driver user you created
-   - Add:
+   - Choose driver type:
+     - **Company Driver:** Internal employee drivers
+     - **Contractor/Owner-Operator:** Independent contractors
+   - Add basic info:
      - Phone & Email
      - CDL Number & Expiry Date
-     - Company Name (if owner-operator)
+   - For Contractors ONLY add:
+     - Company Name
      - MC Number
      - DOT Number  
      - Insurance Company & Policy
      - Insurance Expiry Date
+     - Upload Insurance Certificate (optional)
 
 3. **Driver logs in** with the username/password from step 1
+
+**Note:** Driver information can be updated at any time - not just during creation
 
 ### How to Upgrade a User to Dual Role (Through App)
 

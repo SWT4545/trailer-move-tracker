@@ -139,11 +139,15 @@ def show_admin_walkthrough():
             - Owner account protected
             
             **Driver Management:**
-            1. Go to **👤 Drivers** for availability
-            2. Drivers auto-added when they login
-            3. Monitor driver status
+            1. Go to **👤 Drivers** → **📝 Driver Details**
+            2. Select driver to add/update info
+            3. Choose driver type:
+               - Company Driver (no MC/DOT needed)
+               - Contractor (requires MC/DOT/Insurance)
+            4. Can update info at any time
+            5. Upload insurance docs for contractors
             
-            💡 **Tip:** Users with driver role automatically appear in assignment list
+            💡 **Tip:** Driver info can be changed anytime, not just at creation
             """
         },
         {

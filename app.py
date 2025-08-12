@@ -809,9 +809,9 @@ def show_all_drivers_enhanced():
         # Get driver info from extended table
         conn = sqlite3.connect('trailer_tracker_streamlined.db')
         query = """
-            SELECT d.*, de.cdl_number, de.cdl_expiry, de.company_name, 
+            SELECT d.*, de.driver_type, de.cdl_number, de.cdl_expiry, de.company_name, 
                    de.mc_number, de.dot_number, de.insurance_company,
-                   de.insurance_policy, de.insurance_expiry
+                   de.insurance_policy, de.insurance_expiry, de.insurance_doc_name
             FROM drivers d
             LEFT JOIN drivers_extended de ON d.driver_name = de.driver_name
             ORDER BY d.driver_name
@@ -822,7 +822,10 @@ def show_all_drivers_enhanced():
         if not drivers_df.empty:
             for _, driver in drivers_df.iterrows():
                 status_icon = "🟢" if driver.get('status') == 'available' else "🔴"
-                with st.expander(f"{status_icon} {driver['driver_name']}"):
+                driver_type = driver.get('driver_type', 'company')
+                type_badge = "🏢 Company" if driver_type == 'company' else "🚛 Contractor"
+                
+                with st.expander(f"{status_icon} {driver['driver_name']} - {type_badge}"):
                     col1, col2, col3 = st.columns(3)
                     
                     with col1:
@@ -830,6 +833,7 @@ def show_all_drivers_enhanced():
                         st.write(f"📱 {driver.get('phone', 'Not set')}")
                         st.write(f"📧 {driver.get('email', 'Not set')}")
                         st.write(f"Status: {driver.get('status', 'available').title()}")
+                        st.write(f"Type: {type_badge}")
                     
                     with col2:
                         st.markdown("**CDL Info:**")
@@ -838,19 +842,21 @@ def show_all_drivers_enhanced():
                             st.write(f"Expires: {driver['cdl_expiry']}")
                     
                     with col3:
-                        if driver.get('company_name'):
-                            st.markdown("**Company Info:**")
+                        if driver_type == 'contractor' and driver.get('company_name'):
+                            st.markdown("**Contractor Info:**")
                             st.write(f"Company: {driver['company_name']}")
                             st.write(f"MC: {driver.get('mc_number', 'N/A')}")
                             st.write(f"DOT: {driver.get('dot_number', 'N/A')}")
                     
                     # Insurance info if available
-                    if driver.get('insurance_company'):
+                    if driver_type == 'contractor' and driver.get('insurance_company'):
                         st.divider()
                         st.markdown("**Insurance:**")
                         st.write(f"{driver['insurance_company']} - Policy: {driver.get('insurance_policy', 'N/A')}")
                         if driver.get('insurance_expiry'):
                             st.write(f"Expires: {driver['insurance_expiry']}")
+                        if driver.get('insurance_doc_name'):
+                            st.success(f"📎 Document on file: {driver['insurance_doc_name']}")
                     
                     # Quick actions
                     st.divider()
@@ -928,37 +934,121 @@ def show_add_driver():
         st.info("Go to: **⚙️ System Admin** → **User Management** → **Add User** → Check 'Driver' role")
         return
     
-    with st.form("add_driver_info", clear_on_submit=False):
-        # Select from existing driver users
-        selected_user = st.selectbox(
-            "Select Driver",
-            list(driver_users.keys()),
-            format_func=lambda x: f"{driver_users[x]['name']} ({x})"
-        )
+    # Select driver OUTSIDE the form to allow dynamic loading
+    selected_user = st.selectbox(
+        "Select Driver to View/Edit",
+        list(driver_users.keys()),
+        format_func=lambda x: f"{driver_users[x]['name']} ({x})"
+    )
+    
+    if selected_user:
+        driver_name = driver_users[selected_user]['name']
         
-        if selected_user:
-            driver_name = driver_users[selected_user]['name']
-            st.info(f"Adding details for: {driver_name}")
+        # Load existing driver info if available
+        existing_info = {}
+        try:
+            conn = sqlite3.connect('trailer_tracker_streamlined.db')
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT driver_type, phone, email, cdl_number, cdl_expiry,
+                       company_name, mc_number, dot_number, 
+                       insurance_company, insurance_policy, insurance_expiry,
+                       insurance_doc_name
+                FROM drivers_extended 
+                WHERE driver_name = ?
+            """, (driver_name,))
+            result = cursor.fetchone()
+            if result:
+                existing_info = {
+                    'driver_type': result[0] or 'company',
+                    'phone': result[1] or driver_users[selected_user].get('phone', ''),
+                    'email': result[2] or driver_users[selected_user].get('email', ''),
+                    'cdl_number': result[3] or '',
+                    'cdl_expiry': result[4],
+                    'company_name': result[5] or '',
+                    'mc_number': result[6] or '',
+                    'dot_number': result[7] or '',
+                    'insurance_company': result[8] or '',
+                    'insurance_policy': result[9] or '',
+                    'insurance_expiry': result[10],
+                    'insurance_doc_name': result[11]
+                }
+            else:
+                existing_info = {
+                    'driver_type': 'company',
+                    'phone': driver_users[selected_user].get('phone', ''),
+                    'email': driver_users[selected_user].get('email', ''),
+                    'cdl_number': '',
+                    'cdl_expiry': None,
+                    'company_name': '',
+                    'mc_number': '',
+                    'dot_number': '',
+                    'insurance_company': '',
+                    'insurance_policy': '',
+                    'insurance_expiry': None,
+                    'insurance_doc_name': None
+                }
+            conn.close()
+        except:
+            existing_info = {
+                'driver_type': 'company',
+                'phone': driver_users[selected_user].get('phone', ''),
+                'email': driver_users[selected_user].get('email', '')
+            }
+        
+        st.success(f"Editing: {driver_name}")
+        if existing_info.get('insurance_doc_name'):
+            st.info(f"📎 Insurance document on file: {existing_info['insurance_doc_name']}")
+        
+        with st.form("add_driver_info", clear_on_submit=False):
+            # Driver type selection
+            driver_type_index = 0 if existing_info.get('driver_type', 'company') == 'company' else 1
+            driver_type = st.radio(
+                "Driver Type",
+                ["Company Driver", "Contractor/Owner-Operator"],
+                index=driver_type_index,
+                help="Contractor drivers require MC, DOT, and insurance information"
+            )
+            
+            st.divider()
             
             col1, col2 = st.columns(2)
             
             with col1:
-                phone = st.text_input("Phone Number", value=driver_users[selected_user].get('phone', ''))
-                email = st.text_input("Email", value=driver_users[selected_user].get('email', ''))
-                cdl_number = st.text_input("CDL Number")
-                cdl_expiry = st.date_input("CDL Expiry Date", value=None)
+                st.markdown("**Basic Information**")
+                phone = st.text_input("Phone Number", value=existing_info.get('phone', ''))
+                email = st.text_input("Email", value=existing_info.get('email', ''))
+                cdl_number = st.text_input("CDL Number", value=existing_info.get('cdl_number', ''))
+                cdl_expiry = st.date_input("CDL Expiry Date", value=existing_info.get('cdl_expiry'))
             
             with col2:
-                st.markdown("**Company Information (if owner-operator)**")
-                company_name = st.text_input("Company Name")
-                mc_number = st.text_input("MC Number", placeholder="MC-123456")
-                dot_number = st.text_input("DOT Number", placeholder="1234567")
-                insurance_company = st.text_input("Insurance Company")
-                insurance_policy = st.text_input("Insurance Policy #")
-                insurance_expiry = st.date_input("Insurance Expiry", value=None)
-        
-        if st.form_submit_button("💾 Save Driver Details", type="primary", use_container_width=True):
-            if selected_user:
+                if driver_type == "Contractor/Owner-Operator":
+                    st.markdown("**Contractor Information (Required)**")
+                    company_name = st.text_input("Company Name*", value=existing_info.get('company_name', ''))
+                    mc_number = st.text_input("MC Number*", placeholder="MC-123456", value=existing_info.get('mc_number', ''))
+                    dot_number = st.text_input("DOT Number*", placeholder="1234567", value=existing_info.get('dot_number', ''))
+                    insurance_company = st.text_input("Insurance Company*", value=existing_info.get('insurance_company', ''))
+                    insurance_policy = st.text_input("Insurance Policy #*", value=existing_info.get('insurance_policy', ''))
+                    insurance_expiry = st.date_input("Insurance Expiry*", value=existing_info.get('insurance_expiry'))
+                    
+                    # Insurance document upload
+                    st.markdown("**Insurance Documentation**")
+                    insurance_doc = st.file_uploader(
+                        "Upload Insurance Certificate (Optional)",
+                        type=['pdf', 'jpg', 'jpeg', 'png'],
+                        help="Upload COI or insurance documentation"
+                    )
+                else:
+                    st.info("✅ Company driver - No contractor information needed")
+                    company_name = None
+                    mc_number = None
+                    dot_number = None
+                    insurance_company = None
+                    insurance_policy = None
+                    insurance_expiry = None
+                    insurance_doc = None
+            
+            if st.form_submit_button("💾 Save Driver Details", type="primary", use_container_width=True):
                 try:
                     # Save to drivers table with extended info
                     import sqlite3
@@ -970,6 +1060,7 @@ def show_add_driver():
                         CREATE TABLE IF NOT EXISTS drivers_extended (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             driver_name TEXT UNIQUE,
+                            driver_type TEXT DEFAULT 'company',
                             phone TEXT,
                             email TEXT,
                             cdl_number TEXT,
@@ -980,24 +1071,65 @@ def show_add_driver():
                             insurance_company TEXT,
                             insurance_policy TEXT,
                             insurance_expiry DATE,
+                            insurance_doc BLOB,
+                            insurance_doc_name TEXT,
                             status TEXT DEFAULT 'available',
                             active BOOLEAN DEFAULT 1,
                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                         )
                     ''')
                     
-                    # Insert or update driver info
-                    cursor.execute('''
-                        INSERT OR REPLACE INTO drivers_extended 
-                        (driver_name, phone, email, cdl_number, cdl_expiry,
-                         company_name, mc_number, dot_number, 
-                         insurance_company, insurance_policy, insurance_expiry)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (driver_name, phone, email, cdl_number, 
-                          cdl_expiry if cdl_expiry else None,
-                          company_name, mc_number, dot_number,
-                          insurance_company, insurance_policy,
-                          insurance_expiry if insurance_expiry else None))
+                    # Check if driver exists
+                    cursor.execute("SELECT id FROM drivers_extended WHERE driver_name = ?", (driver_name,))
+                    existing = cursor.fetchone()
+                    
+                    # Handle insurance document
+                    insurance_doc_data = None
+                    insurance_doc_name = None
+                    if insurance_doc:
+                        insurance_doc_data = insurance_doc.read()
+                        insurance_doc_name = insurance_doc.name
+                    
+                    if existing:
+                        # Update existing driver
+                        if insurance_doc:
+                            cursor.execute('''
+                                UPDATE drivers_extended 
+                                SET driver_type = ?, phone = ?, email = ?, cdl_number = ?, cdl_expiry = ?,
+                                    company_name = ?, mc_number = ?, dot_number = ?, 
+                                    insurance_company = ?, insurance_policy = ?, insurance_expiry = ?,
+                                    insurance_doc = ?, insurance_doc_name = ?
+                                WHERE driver_name = ?
+                            ''', ('contractor' if driver_type == "Contractor/Owner-Operator" else 'company', 
+                                  phone, email, cdl_number, cdl_expiry,
+                                  company_name, mc_number, dot_number,
+                                  insurance_company, insurance_policy, insurance_expiry,
+                                  insurance_doc_data, insurance_doc_name, driver_name))
+                        else:
+                            cursor.execute('''
+                                UPDATE drivers_extended 
+                                SET driver_type = ?, phone = ?, email = ?, cdl_number = ?, cdl_expiry = ?,
+                                    company_name = ?, mc_number = ?, dot_number = ?, 
+                                    insurance_company = ?, insurance_policy = ?, insurance_expiry = ?
+                                WHERE driver_name = ?
+                            ''', ('contractor' if driver_type == "Contractor/Owner-Operator" else 'company', 
+                                  phone, email, cdl_number, cdl_expiry,
+                                  company_name, mc_number, dot_number,
+                                  insurance_company, insurance_policy, insurance_expiry, driver_name))
+                    else:
+                        # Insert new driver
+                        cursor.execute('''
+                            INSERT INTO drivers_extended 
+                            (driver_name, driver_type, phone, email, cdl_number, cdl_expiry,
+                             company_name, mc_number, dot_number, 
+                             insurance_company, insurance_policy, insurance_expiry,
+                             insurance_doc, insurance_doc_name)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (driver_name, 'contractor' if driver_type == "Contractor/Owner-Operator" else 'company', 
+                              phone, email, cdl_number, cdl_expiry,
+                              company_name, mc_number, dot_number,
+                              insurance_company, insurance_policy, insurance_expiry,
+                              insurance_doc_data, insurance_doc_name))
                     
                     conn.commit()
                     conn.close()
