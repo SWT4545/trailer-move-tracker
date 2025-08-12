@@ -94,7 +94,8 @@ def init_database():
         rate_confirmation_sent BOOLEAN DEFAULT 0,
         submitted_to_factoring TIMESTAMP,
         factoring_confirmed TIMESTAMP,
-        payment_received TIMESTAMP,
+        payment_received REAL DEFAULT 0,
+        client_actual_payment REAL,
         driver_paid TIMESTAMP,
         
         -- Document references
@@ -453,3 +454,8 @@ def get_summary_stats():
 def get_email_history(limit=10):
     """Get email history (placeholder)"""
     return pd.DataFrame()  # Empty for now
+
+# Alias for compatibility
+def init_db():
+    """Alias for init_database()"""
+    return init_database()

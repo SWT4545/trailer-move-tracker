@@ -25,6 +25,7 @@ import user_manager
 import client_portal
 import enhanced_user_manager
 import enhanced_data_management
+from payment_receipt_system import show_payment_receipt_interface
 
 # Import enhanced modules for fixes
 import ui_responsiveness_fix as ui_fix
@@ -1374,7 +1375,7 @@ def show_payment_tracking():
     
     st.title("💰 Payment Tracking")
     
-    tabs = st.tabs(["📤 Submit to Factoring", "⏳ Pending Payments", "✅ Payment History"])
+    tabs = st.tabs(["📤 Submit to Factoring", "⏳ Pending Payments", "✅ Payment History", "🧾 Payment Receipts"])
     
     with tabs[0]:
         show_factoring_submission()
@@ -1384,6 +1385,9 @@ def show_payment_tracking():
     
     with tabs[2]:
         show_payment_history()
+    
+    with tabs[3]:
+        show_payment_receipt_interface()
 
 def show_factoring_submission():
     """Submit completed moves to factoring company"""
