@@ -16,6 +16,7 @@ import time
 import sqlite3
 import walkthrough_guide
 import walkthrough_guide_enhanced
+import walkthrough_practical
 import company_config
 import it_bot_vernon as vernon_it
 import vernon_sidebar
@@ -2349,8 +2350,8 @@ def main():
     elif page == "⚙️ System Admin":
         show_system_admin()
     elif page == "🎓 Walkthrough":
-        # Use enhanced walkthrough with all fixes documented
-        walkthrough_guide_enhanced.show_walkthrough()
+        # Use practical walkthrough focused on usage
+        walkthrough_practical.show_walkthrough()
     elif page == "🤖 IT Support (Vernon)":
         # Use enhanced Vernon with configurable validation
         vernon_enhanced.show_vernon_enhanced()
