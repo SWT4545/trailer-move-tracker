@@ -57,6 +57,103 @@ class VernonITBot:
         ]
         return greetings[datetime.now().second % 3]
     
+    def check_client_portal_health(self):
+        """Vernon checks on the client portal like a friendly IT guy"""
+        report = {
+            'status': 'OK',
+            'client_users': 0,
+            'document_uploads': 0,
+            'audit_entries': 0,
+            'issues_found': [],
+            'issues_fixed': [],
+            'vernon_says': "👋 Hey there! Let me check on your client portal..."
+        }
+        
+        try:
+            conn = sqlite3.connect('trailer_tracker_streamlined.db')
+            cursor = conn.cursor()
+            
+            # Check client_company field in users table
+            cursor.execute("PRAGMA table_info(users)")
+            columns = [col[1] for col in cursor.fetchall()]
+            
+            if 'client_company' not in columns:
+                report['issues_found'].append('Missing client_company field')
+                try:
+                    cursor.execute("ALTER TABLE users ADD COLUMN client_company TEXT")
+                    conn.commit()
+                    report['issues_fixed'].append('Added client_company field')
+                    self.issues_fixed += 1
+                except:
+                    pass
+            
+            # Count client users
+            try:
+                cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'client_viewer'")
+                report['client_users'] = cursor.fetchone()[0]
+            except:
+                pass
+            
+            # Check document uploads table
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='document_uploads'")
+            if cursor.fetchone():
+                cursor.execute("SELECT COUNT(*) FROM document_uploads")
+                report['document_uploads'] = cursor.fetchone()[0]
+                
+                # Check for stuck documents
+                cursor.execute("""
+                    SELECT COUNT(*) FROM document_uploads 
+                    WHERE status = 'pending' 
+                    AND julianday('now') - julianday(upload_time) > 7
+                """)
+                stuck = cursor.fetchone()[0]
+                if stuck > 0:
+                    report['issues_found'].append(f'{stuck} stuck document uploads')
+            
+            # Check audit log
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='client_audit_log'")
+            if cursor.fetchone():
+                cursor.execute("SELECT COUNT(*) FROM client_audit_log")
+                report['audit_entries'] = cursor.fetchone()[0]
+                
+                # Check for suspicious activity
+                cursor.execute("""
+                    SELECT username, COUNT(*) as attempts 
+                    FROM client_audit_log 
+                    WHERE action = 'UNAUTHORIZED_ACCESS_ATTEMPT'
+                    AND julianday('now') - julianday(timestamp) < 1
+                    GROUP BY username
+                    HAVING attempts > 5
+                """)
+                suspicious = cursor.fetchall()
+                if suspicious:
+                    for user, attempts in suspicious:
+                        report['issues_found'].append(f'Suspicious activity: {user} ({attempts} attempts)')
+            
+            conn.close()
+            
+            # Vernon's friendly assessment
+            if report['issues_found']:
+                report['status'] = 'WARNING'
+                if report['issues_fixed']:
+                    report['vernon_says'] = f"🔧 Fixed {len(report['issues_fixed'])} issues! But I found {len(report['issues_found'])} more that need attention."
+                else:
+                    report['vernon_says'] = f"🤔 Found {len(report['issues_found'])} issues. Let me help you fix those!"
+            elif report['issues_fixed']:
+                report['vernon_says'] = f"✨ All fixed! Took care of {len(report['issues_fixed'])} issues for you."
+            else:
+                if report['client_users'] > 0:
+                    report['vernon_says'] = f"✅ Everything's running smooth! You have {report['client_users']} happy clients using the portal."
+                else:
+                    report['vernon_says'] = "💡 Portal is ready! No clients set up yet - want me to help you add some?"
+                
+        except Exception as e:
+            report['status'] = 'ERROR'
+            report['issues_found'].append(f'Portal check failed: {str(e)}')
+            report['vernon_says'] = "😅 Oops, ran into a snag checking the portal. Let me try a different approach..."
+        
+        return report
+    
     def run_diagnostic(self, verbose=True):
         """Run complete system diagnostic"""
         self.total_checks += 1
@@ -66,7 +163,8 @@ class VernonITBot:
             'issues_found': [],
             'issues_fixed': [],
             'warnings': [],
-            'recommendations': []
+            'recommendations': [],
+            'client_portal': self.check_client_portal_health()
         }
         
         if verbose:
@@ -138,10 +236,11 @@ class VernonITBot:
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             
-            # Check required tables
+            # Check required tables including client portal tables
             required_tables = [
                 'users', 'trailers', 'locations', 'drivers', 
-                'moves', 'mileage_cache', 'activity_log', 'archived_moves'
+                'moves', 'mileage_cache', 'activity_log', 'archived_moves',
+                'document_uploads', 'client_audit_log'
             ]
             
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
@@ -508,8 +607,36 @@ gatherUsageStats = false
             st.write(f"• APIs: {report.get('apis', {}).get('status', 'Unknown')}")
     
     def auto_fix_common_issues(self):
-        """Automatically fix common issues"""
+        """Vernon automatically fixes common issues"""
         fixes_applied = []
+        
+        # Check and fix client portal issues first
+        try:
+            conn = sqlite3.connect('trailer_tracker_streamlined.db')
+            cursor = conn.cursor()
+            
+            # Fix stuck documents
+            cursor.execute("""
+                UPDATE document_uploads 
+                SET status = 'review_needed'
+                WHERE status = 'pending' 
+                AND julianday('now') - julianday(upload_time) > 7
+            """)
+            if cursor.rowcount > 0:
+                fixes_applied.append(f"📄 Flagged {cursor.rowcount} stuck documents")
+            
+            # Clean old audit logs (keep 30 days)
+            cursor.execute("""
+                DELETE FROM client_audit_log 
+                WHERE julianday('now') - julianday(timestamp) > 30
+            """)
+            if cursor.rowcount > 0:
+                fixes_applied.append(f"🧹 Cleaned {cursor.rowcount} old audit logs")
+            
+            conn.commit()
+            conn.close()
+        except:
+            pass
         
         # Fix 1: Clear stale session data
         if st.session_state.get('last_activity'):
@@ -690,7 +817,7 @@ gatherUsageStats = false
         st.divider()
         
         # Control buttons
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
             if st.button("🔍 Run Full Diagnostic", use_container_width=True):
@@ -709,6 +836,45 @@ gatherUsageStats = false
         with col3:
             if st.button("✅ Validate System", use_container_width=True):
                 self.validate_after_upgrade()
+        
+        with col4:
+            if st.button("👥 Check Client Portal", use_container_width=True):
+                with st.spinner("Vernon is checking the client portal..."):
+                    portal_health = self.check_client_portal_health()
+                
+                # Vernon speaks first
+                if portal_health['status'] == 'OK':
+                    st.success(f"**Vernon says:** {portal_health['vernon_says']}")
+                elif portal_health['status'] == 'WARNING':
+                    st.warning(f"**Vernon says:** {portal_health['vernon_says']}")
+                else:
+                    st.error(f"**Vernon says:** {portal_health['vernon_says']}")
+                
+                # Show stats in a friendly way
+                with st.expander("📊 Portal Statistics", expanded=True):
+                    stat_col1, stat_col2, stat_col3 = st.columns(3)
+                    with stat_col1:
+                        st.metric("Client Accounts", portal_health['client_users'], 
+                                 help="Number of client viewer accounts")
+                    with stat_col2:
+                        st.metric("Documents", portal_health['document_uploads'],
+                                 help="Total documents uploaded by clients")
+                    with stat_col3:
+                        st.metric("Activity Logs", portal_health['audit_entries'],
+                                 help="Client actions being tracked")
+                
+                # Show issues in Vernon's friendly style
+                if portal_health['issues_found']:
+                    with st.expander("🔍 What Vernon Found", expanded=True):
+                        for issue in portal_health['issues_found']:
+                            st.write(f"• {issue}")
+                        st.info("💡 **Vernon's tip:** Click 'Auto-Fix Issues' to resolve these!")
+                
+                if portal_health['issues_fixed']:
+                    with st.expander("✅ What Vernon Fixed", expanded=True):
+                        for fix in portal_health['issues_fixed']:
+                            st.write(f"• {fix}")
+                        st.success("🎉 Vernon handled these automatically!")
         
         # Maintenance schedule
         st.divider()
