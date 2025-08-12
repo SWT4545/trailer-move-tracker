@@ -19,6 +19,7 @@ import company_config
 import it_bot_vernon as vernon_it
 import rate_con_manager
 import user_manager
+import client_portal
 
 # Page configuration
 st.set_page_config(
@@ -150,6 +151,8 @@ def show_dashboard():
         show_coordinator_dashboard(moves_df)
     elif role == 'driver':
         show_driver_dashboard()
+    elif role == 'client_viewer':
+        show_client_dashboard()
 
 def show_admin_dashboard(moves_df):
     """Business Administrator specific dashboard - includes coordinator functions"""
@@ -328,6 +331,59 @@ def show_driver_dashboard():
             st.info("No moves assigned yet")
     else:
         st.info("No moves in system")
+
+def show_client_dashboard():
+    """Client viewer dashboard - production ready with full error handling"""
+    # Use the production-ready client portal
+    portal = client_portal.ClientPortal()
+    portal.show_client_dashboard()
+
+def show_viewer_dashboard():
+    """Viewer dashboard - read-only overview"""
+    st.title("📈 Progress Dashboard")
+    st.caption("Read-only view")
+    
+    # Get all moves
+    moves_df = db.get_all_trailer_moves()
+    
+    if not moves_df.empty:
+        # Overall metrics
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            total = len(moves_df)
+            st.metric("Total Moves", total)
+        
+        with col2:
+            active = len(moves_df[moves_df['status'].isin(['assigned', 'in_progress'])])
+            st.metric("Active", active)
+        
+        with col3:
+            today = len(moves_df[pd.to_datetime(moves_df['move_date']).dt.date == date.today()])
+            st.metric("Today", today)
+        
+        with col4:
+            completed = len(moves_df[moves_df['status'] == 'completed'])
+            completion_rate = (completed / total * 100) if total > 0 else 0
+            st.metric("Completion Rate", f"{completion_rate:.1f}%")
+        
+        st.divider()
+        
+        # Recent activity
+        st.markdown("### 📊 Recent Activity")
+        recent_moves = moves_df.nlargest(10, 'created_at')
+        
+        for _, move in recent_moves.iterrows():
+            status_color = {
+                'assigned': '🟡',
+                'in_progress': '🔵',
+                'completed': '✅',
+                'awaiting_pod': '📸'
+            }.get(move['status'], '⏳')
+            
+            st.write(f"{status_color} Move #{move['id']} - {move.get('delivery_location', 'N/A')} - {move['status'].title()}")
+    else:
+        st.info("No moves to display")
 
 def show_trailer_management():
     """Trailer management - add individual trailers and view inventory"""
@@ -1773,6 +1829,10 @@ def main():
             # Viewers get limited read-only access
             menu_items.append("📈 Progress Dashboard")
         
+        if role == 'client_viewer':
+            # Client viewers see their moves
+            menu_items.append("📋 Move Status")
+        
         # Add walkthrough for all roles
         menu_items.append("🎓 Walkthrough")
         
@@ -1821,6 +1881,10 @@ def main():
         rate_con_manager.show_rate_con_management()
     elif page == "💰 My Rate Cons":
         rate_con_manager.show_driver_rate_cons(st.session_state.get('user_name', 'Driver'))
+    elif page == "📋 Move Status":
+        show_client_dashboard()
+    elif page == "📈 Progress Dashboard":
+        show_viewer_dashboard()
 
 def ensure_driver_in_database(driver_name):
     """Ensure a driver exists in the drivers table for assignment"""

@@ -25,6 +25,8 @@ def show_walkthrough():
         show_coordinator_walkthrough()
     elif role == 'driver':
         show_driver_walkthrough()
+    elif role == 'viewer':
+        show_viewer_walkthrough()
     else:
         show_general_walkthrough()
 
@@ -119,15 +121,27 @@ def show_admin_walkthrough():
             """
         },
         {
-            "title": "6️⃣ Managing Drivers",
+            "title": "6️⃣ User & Driver Management",
             "content": """
-            **Driver management:**
-            1. Go to **👤 Drivers**
-            2. Add new drivers with login credentials
-            3. Monitor driver availability
-            4. Toggle driver status as needed
+            **User Management (NEW!):**
+            1. Go to **⚙️ System Admin** → **User Management** tab
+            2. **Add Users:** Create accounts with single or dual roles
+            3. **Edit Roles:** Upgrade users (e.g., driver to coordinator)
+            4. **Reset Passwords:** Change any user's password
+            5. **Remove Users:** Delete accounts (except owner)
             
-            💡 **Tip:** Drivers can self-toggle availability
+            **Key Features:**
+            - No code editing required!
+            - Changes saved to user_accounts.json
+            - Dual-role support (Driver + Coordinator)
+            - Owner account protected
+            
+            **Driver Management:**
+            1. Go to **👤 Drivers** for availability
+            2. Drivers auto-added when they login
+            3. Monitor driver status
+            
+            💡 **Tip:** Users with driver role automatically appear in assignment list
             """
         }
     ]
@@ -192,16 +206,20 @@ def show_coordinator_walkthrough():
             "content": """
             **Managing Rate Confirmations:**
             1. Go to **📄 Rate Cons**
-            2. Upload Rate Cons as they arrive:
-               - MLBL is optional (can add later)
-               - Enter client miles and rate
-               - Attach Rate Con and BOL files
-            3. Match to completed moves:
-               - Use addresses to identify correct move
-               - One Rate Con per move
-            4. System calculates driver net (minus 3% factoring)
+            2. **📥 Inbox:** Upload Rate Cons and BOLs
+               - MLBL is optional (can add/edit later)
+               - Choose calculation method:
+                 • Enter miles and rate (if shown on Rate Con)
+                 • Calculate from total (if only gross amount shown)
+               - Attach both Rate Con and BOL (one each per move)
+            3. **🔄 Match:** Link Rate Cons to moves
+               - Use pickup/delivery addresses to identify
+               - One Rate Con + One BOL per move
+            4. **✅ Verify:** Check mile deltas
+               - System shows driver net (minus 3% factoring)
+               - Flag discrepancies over 5%
             
-            💡 **Tip:** Rate Cons often arrive after moves - that's normal!
+            💡 **Tip:** Rate Cons often arrive after moves - match them retroactively!
             """
         },
         {
@@ -337,9 +355,11 @@ def show_driver_walkthrough():
                - Gross pay (what client pays)
                - Minus 3% factoring fee
                - = Your NET pay
-            4. Download Rate Con and BOL documents
+            4. Download both Rate Con and BOL documents
+            5. Payment summary shows total net earnings
             
             💡 **Example:** $1,000 gross = $970 net (you get $970)
+            💡 **Dual-Role Users:** Switch to Coordinator to upload Rate Cons yourself
             """
         }
     ]
@@ -350,6 +370,73 @@ def show_driver_walkthrough():
     
     st.divider()
     st.warning("⚠️ **Remember:** No login needed for POD upload - just use the link!")
+
+def show_viewer_walkthrough():
+    """Viewer role walkthrough"""
+    st.markdown("## Viewer Guide (Read-Only Access)")
+    
+    st.info("👁️ **Your Role:** View-only access to monitor operations without making changes")
+    
+    steps = [
+        {
+            "title": "1️⃣ Dashboard Access",
+            "content": """
+            **What you can see:**
+            - Overall system metrics
+            - Active moves in progress
+            - Completed moves summary
+            - Driver availability status
+            
+            💡 **Tip:** Perfect for clients or trainees learning the system
+            """
+        },
+        {
+            "title": "2️⃣ Progress Dashboard",
+            "content": """
+            **Monitor operations:**
+            - Track move progress in real-time
+            - View completion status
+            - See POD upload status
+            - Monitor overall workflow
+            
+            💡 **Tip:** Refresh page to see latest updates
+            """
+        },
+        {
+            "title": "3️⃣ Limited Access",
+            "content": """
+            **What you CANNOT do:**
+            - Create or edit moves
+            - Modify trailer information
+            - Change driver assignments
+            - Access payment information
+            - Edit system settings
+            
+            💡 **Note:** Contact an administrator if you need edit access
+            """
+        },
+        {
+            "title": "4️⃣ Upgrading Your Access",
+            "content": """
+            **To get more access:**
+            1. Contact your administrator
+            2. Request role upgrade
+            3. Admin can upgrade you to:
+               - Driver (upload PODs)
+               - Coordinator (manage moves)
+               - Dual-role (both abilities)
+            
+            💡 **Tip:** No system restart needed for role changes!
+            """
+        }
+    ]
+    
+    for step in steps:
+        with st.expander(step["title"], expanded=False):
+            st.markdown(step["content"])
+    
+    st.divider()
+    st.success("📚 **Your Purpose:** Learn the system and monitor operations")
 
 def show_general_walkthrough():
     """General system overview"""
@@ -362,12 +449,13 @@ def show_general_walkthrough():
     
     **Key Features:**
     - 📊 Role-based dashboards
-    - 🔄 **Dual-role support (NEW!)** - Switch between Driver/Coordinator
+    - 🔄 **Dual-role support** - Switch between Driver/Coordinator
+    - 👥 **In-app user management** - Add/edit users without code
     - 🚛 Trailer pair management
     - 📍 Automatic mileage calculation
     - 👤 Driver assignment and tracking
     - 📸 Mobile-friendly POD uploads
-    - 📄 Rate Confirmation management
+    - 📄 Rate Confirmation management (1:1 with moves)
     - 💰 Payment processing workflow
     - 🔢 3% factoring fee calculations
     
@@ -396,9 +484,10 @@ def show_quick_tips():
     
     if role == 'business_administrator':
         tips = [
+            "Use System Admin → User Management to add/edit users",
             "Submit to factoring before 1 PM EST for same-day payment",
-            "Check bank account after factoring confirmation",
-            "Keep rate confirmations organized by date",
+            "Rate Cons can be uploaded without MLBL numbers",
+            "Users with dual roles can switch in the sidebar",
             "Archive old moves monthly to keep system fast"
         ]
     elif role == 'operations_coordinator':
