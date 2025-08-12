@@ -516,20 +516,19 @@ def show_client_walkthrough():
             """
         },
         {
-            "title": "6️⃣ What You Can See",
+            "title": "6️⃣ Your Portal Features",
             "content": """
-            **Your portal shows:**
-            - Only YOUR company's moves
-            - Move status and progress
-            - Trailer numbers
-            - Pickup/delivery locations
-            - Document status
-            
-            **What's hidden (for security):**
-            - Driver names/contact info
-            - Internal costs and pricing
-            - Other clients' information
-            - System administration
+            **What you can do:**
+            - View all your company's moves
+            - Track real-time status updates
+            - See trailer numbers and locations
+            - Monitor pickup and delivery progress
+            - Upload Rate Confirmations
+            - Upload Bills of Lading
+            - Filter moves by status
+            - View document status
+            - Check pending actions
+            - See completion percentages
             
             🔒 **Your data is private and secure**
             """
@@ -616,30 +615,17 @@ def show_viewer_walkthrough():
             """
         },
         {
-            "title": "3️⃣ Limited Access",
+            "title": "3️⃣ Your Viewing Capabilities",
             "content": """
-            **What you CANNOT do:**
-            - Create or edit moves
-            - Modify trailer information
-            - Change driver assignments
-            - Access payment information
-            - Edit system settings
+            **What you can monitor:**
+            - All active moves
+            - Driver assignments
+            - Completion rates
+            - System performance
+            - Real-time updates
+            - Historical data
             
-            💡 **Note:** Contact an administrator if you need edit access
-            """
-        },
-        {
-            "title": "4️⃣ Upgrading Your Access",
-            "content": """
-            **To get more access:**
-            1. Contact your administrator
-            2. Request role upgrade
-            3. Admin can upgrade you to:
-               - Driver (upload PODs)
-               - Coordinator (manage moves)
-               - Dual-role (both abilities)
-            
-            💡 **Tip:** No system restart needed for role changes!
+            💡 **Perfect for:** Training, oversight, and learning the system
             """
         }
     ]
