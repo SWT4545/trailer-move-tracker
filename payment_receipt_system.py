@@ -42,76 +42,76 @@ class PaymentReceiptSystem:
             conn = sqlite3.connect(db_name)
             cursor = conn.cursor()
         
-        # Payment receipts table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS payment_receipts (
-                receipt_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                driver_name TEXT NOT NULL,
-                load_number TEXT NOT NULL,
-                payment_date TEXT NOT NULL,
-                period_start TEXT NOT NULL,
-                period_end TEXT NOT NULL,
-                gross_amount REAL NOT NULL,
-                deductions REAL DEFAULT 0,
-                net_amount REAL NOT NULL,
-                rate_per_mile REAL NOT NULL,
-                total_miles REAL NOT NULL,
-                payment_method TEXT,
-                check_number TEXT,
-                notes TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                created_by TEXT,
-                pdf_path TEXT
-            )
-        """)
-        
-        # 1099 tracking table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS contractor_1099 (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                driver_name TEXT NOT NULL,
-                tax_year INTEGER NOT NULL,
-                ein_ssn TEXT,
-                total_payments REAL NOT NULL,
-                form_1099_sent INTEGER DEFAULT 0,
-                sent_date TEXT,
-                filing_status TEXT,
-                business_name TEXT,
-                business_address TEXT,
-                notes TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(driver_name, tax_year)
-            )
-        """)
-        
-        # Document storage table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS tax_documents (
-                doc_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                driver_name TEXT NOT NULL,
-                document_type TEXT NOT NULL,
-                document_name TEXT NOT NULL,
-                file_path TEXT NOT NULL,
-                tax_year INTEGER,
-                upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                uploaded_by TEXT,
-                notes TEXT
-            )
-        """)
-        
-        # Payment breakdown details
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS payment_details (
-                detail_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                receipt_id INTEGER,
-                description TEXT NOT NULL,
-                amount REAL NOT NULL,
-                type TEXT NOT NULL,
-                FOREIGN KEY (receipt_id) REFERENCES payment_receipts(receipt_id)
-            )
-        """)
-        
+            # Payment receipts table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS payment_receipts (
+                    receipt_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    driver_name TEXT NOT NULL,
+                    load_number TEXT NOT NULL,
+                    payment_date TEXT NOT NULL,
+                    period_start TEXT NOT NULL,
+                    period_end TEXT NOT NULL,
+                    gross_amount REAL NOT NULL,
+                    deductions REAL DEFAULT 0,
+                    net_amount REAL NOT NULL,
+                    rate_per_mile REAL NOT NULL,
+                    total_miles REAL NOT NULL,
+                    payment_method TEXT,
+                    check_number TEXT,
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_by TEXT,
+                    pdf_path TEXT
+                )
+            """)
+            
+            # 1099 tracking table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS contractor_1099 (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    driver_name TEXT NOT NULL,
+                    tax_year INTEGER NOT NULL,
+                    ein_ssn TEXT,
+                    total_payments REAL NOT NULL,
+                    form_1099_sent INTEGER DEFAULT 0,
+                    sent_date TEXT,
+                    filing_status TEXT,
+                    business_name TEXT,
+                    business_address TEXT,
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(driver_name, tax_year)
+                )
+            """)
+            
+            # Document storage table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tax_documents (
+                    doc_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    driver_name TEXT NOT NULL,
+                    document_type TEXT NOT NULL,
+                    document_name TEXT NOT NULL,
+                    file_path TEXT NOT NULL,
+                    tax_year INTEGER,
+                    upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    uploaded_by TEXT,
+                    notes TEXT
+                )
+            """)
+            
+            # Payment breakdown details
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS payment_details (
+                    detail_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    receipt_id INTEGER,
+                    description TEXT NOT NULL,
+                    amount REAL NOT NULL,
+                    type TEXT NOT NULL,
+                    FOREIGN KEY (receipt_id) REFERENCES payment_receipts(receipt_id)
+                )
+            """)
+            
             conn.commit()
             conn.close()
     
