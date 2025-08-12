@@ -41,8 +41,20 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Initialize database
+# Initialize database and run migration
 db.init_database()
+
+# Run migration to ensure data safety
+try:
+    import database_migration
+    if 'migration_done' not in st.session_state:
+        migration = database_migration.DatabaseMigration()
+        # Only run migration once per session
+        migration.run_safe_migration()
+        st.session_state.migration_done = True
+except Exception as e:
+    # Silent fail - migration is optional safety feature
+    pass
 
 def apply_dark_theme():
     """Apply dark theme with red accents - Smith & Williams branding"""

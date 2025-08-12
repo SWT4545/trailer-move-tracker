@@ -113,24 +113,34 @@ class DataManager:
         cursor.execute("PRAGMA table_info(drivers)")
         existing_columns = [col[1] for col in cursor.fetchall()]
         
-        # Required columns
+        # Required columns - SAFE VERSION with defaults
         required_columns = {
-            'active': 'INTEGER DEFAULT 1',
-            'created_at': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
-            'updated_at': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
-            'username': 'TEXT',
-            'home_address': 'TEXT',
-            'business_address': 'TEXT',
-            'is_owner': 'INTEGER DEFAULT 0'
+            'active': ('INTEGER', 1),
+            'created_at': ('TIMESTAMP', 'CURRENT_TIMESTAMP'),
+            'updated_at': ('TIMESTAMP', 'CURRENT_TIMESTAMP'),
+            'username': ('TEXT', "''"),
+            'home_address': ('TEXT', "''"),
+            'business_address': ('TEXT', "''"),
+            'is_owner': ('INTEGER', 0)
         }
         
-        for col_name, col_def in required_columns.items():
+        for col_name, (col_type, default_val) in required_columns.items():
             if col_name not in existing_columns:
                 try:
-                    cursor.execute(f"ALTER TABLE drivers ADD COLUMN {col_name} {col_def}")
+                    # Build ALTER TABLE statement with proper default
+                    if isinstance(default_val, str) and default_val not in ['CURRENT_TIMESTAMP']:
+                        default_clause = f" DEFAULT {default_val}"
+                    elif default_val == 'CURRENT_TIMESTAMP':
+                        default_clause = f" DEFAULT {default_val}"
+                    else:
+                        default_clause = f" DEFAULT {default_val}"
+                    
+                    cursor.execute(f"ALTER TABLE drivers ADD COLUMN {col_name} {col_type}{default_clause}")
                     conn.commit()
-                except:
-                    pass
+                except Exception as e:
+                    # Silently continue if column exists
+                    if "duplicate column" not in str(e).lower():
+                        pass
     
     def remove_driver(self, driver_name):
         """Remove a driver from the system"""
