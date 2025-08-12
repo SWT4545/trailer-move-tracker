@@ -20,6 +20,7 @@ import it_bot_vernon as vernon_it
 import rate_con_manager
 import user_manager
 import client_portal
+import enhanced_user_manager
 
 # Page configuration
 st.set_page_config(
@@ -784,22 +785,110 @@ def show_create_move():
             st.error("Please select all required fields (NEW trailer, OLD trailer, and Driver)")
 
 def show_driver_management():
-    """Manage drivers"""
+    """Manage drivers - integrated with user management"""
     st.title("👤 Driver Management")
+    st.info("💡 **Note:** Drivers must first be created as users in System Admin → User Management")
     
-    tabs = st.tabs(["📋 All Drivers", "➕ Add Driver", "🟢 Availability"])
+    tabs = st.tabs(["📋 All Drivers", "📝 Driver Details", "🟢 Availability", "📞 Contact List"])
     
     with tabs[0]:
-        show_all_drivers()
+        show_all_drivers_enhanced()
     
     with tabs[1]:
         show_add_driver()
     
     with tabs[2]:
         show_driver_availability()
+    
+    with tabs[3]:
+        show_driver_contacts()
+
+def show_all_drivers_enhanced():
+    """Display all drivers with extended information"""
+    try:
+        # Get driver info from extended table
+        conn = sqlite3.connect('trailer_tracker_streamlined.db')
+        query = """
+            SELECT d.*, de.cdl_number, de.cdl_expiry, de.company_name, 
+                   de.mc_number, de.dot_number, de.insurance_company,
+                   de.insurance_policy, de.insurance_expiry
+            FROM drivers d
+            LEFT JOIN drivers_extended de ON d.driver_name = de.driver_name
+            ORDER BY d.driver_name
+        """
+        drivers_df = pd.read_sql_query(query, conn)
+        conn.close()
+        
+        if not drivers_df.empty:
+            for _, driver in drivers_df.iterrows():
+                status_icon = "🟢" if driver.get('status') == 'available' else "🔴"
+                with st.expander(f"{status_icon} {driver['driver_name']}"):
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.markdown("**Contact Info:**")
+                        st.write(f"📱 {driver.get('phone', 'Not set')}")
+                        st.write(f"📧 {driver.get('email', 'Not set')}")
+                        st.write(f"Status: {driver.get('status', 'available').title()}")
+                    
+                    with col2:
+                        st.markdown("**CDL Info:**")
+                        st.write(f"CDL #: {driver.get('cdl_number', 'Not set')}")
+                        if driver.get('cdl_expiry'):
+                            st.write(f"Expires: {driver['cdl_expiry']}")
+                    
+                    with col3:
+                        if driver.get('company_name'):
+                            st.markdown("**Company Info:**")
+                            st.write(f"Company: {driver['company_name']}")
+                            st.write(f"MC: {driver.get('mc_number', 'N/A')}")
+                            st.write(f"DOT: {driver.get('dot_number', 'N/A')}")
+                    
+                    # Insurance info if available
+                    if driver.get('insurance_company'):
+                        st.divider()
+                        st.markdown("**Insurance:**")
+                        st.write(f"{driver['insurance_company']} - Policy: {driver.get('insurance_policy', 'N/A')}")
+                        if driver.get('insurance_expiry'):
+                            st.write(f"Expires: {driver['insurance_expiry']}")
+                    
+                    # Quick actions
+                    st.divider()
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        new_status = 'busy' if driver.get('status') == 'available' else 'available'
+                        if st.button(f"Mark as {new_status.title()}", key=f"toggle_{driver.get('id', driver['driver_name'])}"):
+                            db.update_driver_status(driver['driver_name'], new_status)
+                            st.rerun()
+        else:
+            st.info("No drivers found. Create driver users in System Admin → User Management")
+    except Exception as e:
+        # Fallback to basic display
+        show_all_drivers()
+
+def show_driver_contacts():
+    """Show driver contact list"""
+    st.markdown("### 📞 Driver Contact List")
+    
+    drivers_df = db.get_all_drivers()
+    if not drivers_df.empty:
+        for _, driver in drivers_df.iterrows():
+            if driver.get('status') == 'available':
+                icon = "🟢"
+            else:
+                icon = "🔴"
+            
+            st.markdown(f"""
+            {icon} **{driver['driver_name']}**  
+            📱 {driver.get('phone', 'No phone')}  
+            📧 {driver.get('email', 'No email')}
+            """)
+            st.divider()
+    else:
+        st.info("No drivers in system")
 
 def show_all_drivers():
-    """Display all drivers"""
+    """Display all drivers - basic version"""
     drivers_df = db.get_all_drivers()
     
     if not drivers_df.empty:
@@ -825,8 +914,9 @@ def show_all_drivers():
         st.info("No drivers in system")
 
 def show_add_driver():
-    """Add driver information for existing users"""
-    st.info("💡 Drivers must first be created as users in System Admin → User Management with 'Driver' role")
+    """Add or update driver information for existing users"""
+    st.markdown("### 📝 Add/Update Driver Details")
+    st.info("Select a driver user to add or update their information")
     
     # Get users with driver role
     user_data = user_manager.load_users()
@@ -835,14 +925,13 @@ def show_add_driver():
     
     if not driver_users:
         st.warning("No users with Driver role found. Please create driver users first in User Management.")
+        st.info("Go to: **⚙️ System Admin** → **User Management** → **Add User** → Check 'Driver' role")
         return
     
-    with st.form("add_driver_info", clear_on_submit=True):
-        st.markdown("### Add Driver Details")
-        
+    with st.form("add_driver_info", clear_on_submit=False):
         # Select from existing driver users
         selected_user = st.selectbox(
-            "Select Driver User",
+            "Select Driver",
             list(driver_users.keys()),
             format_func=lambda x: f"{driver_users[x]['name']} ({x})"
         )
@@ -1162,8 +1251,8 @@ def show_system_admin():
         company_config.show_company_settings()
     
     with tabs[1]:  # User Management
-        # Use the new user manager
-        user_manager.show_user_management()
+        # Use the enhanced user manager with driver info
+        enhanced_user_manager.show_enhanced_user_management()
     
     with tabs[2]:  # Role Permissions
         st.markdown("### 🔐 Role Permission Matrix")
