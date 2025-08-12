@@ -72,12 +72,12 @@ class EnhancedDriverManager:
                     insurance_company TEXT,
                     insurance_policy TEXT,
                     insurance_expiry DATE,
-                    insurance_doc_path TEXT,
+                    insurance_doc BLOB,
+                    insurance_doc_name TEXT,
                     status TEXT DEFAULT 'available',
                     active BOOLEAN DEFAULT 1,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (driver_name) REFERENCES drivers(driver_name) ON UPDATE CASCADE
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
             
@@ -149,21 +149,38 @@ class EnhancedDriverManager:
             cursor = conn.cursor()
             
             try:
-                # Insert into main drivers table
-                cursor.execute('''
-                    INSERT INTO drivers (driver_name, phone, email, status, active)
-                    VALUES (?, ?, ?, 'available', 1)
-                ''', (driver_data['driver_name'], 
-                      driver_data.get('phone', ''), 
-                      driver_data.get('email', '')))
+                # Insert into main drivers table (handle both column variations)
+                try:
+                    cursor.execute('''
+                        INSERT INTO drivers (driver_name, phone, email, status, active, created_at)
+                        VALUES (?, ?, ?, 'available', 1, CURRENT_TIMESTAMP)
+                    ''', (driver_data['driver_name'], 
+                          driver_data.get('phone', ''), 
+                          driver_data.get('email', '')))
+                except sqlite3.OperationalError:
+                    # Fallback if columns don't exist
+                    cursor.execute('''
+                        INSERT INTO drivers (driver_name, phone, email, status)
+                        VALUES (?, ?, ?, 'available')
+                    ''', (driver_data['driver_name'], 
+                          driver_data.get('phone', ''), 
+                          driver_data.get('email', '')))
+                
+                # Handle insurance document if provided
+                insurance_doc_data = None
+                insurance_doc_name = None
+                if driver_data.get('insurance_doc'):
+                    insurance_doc_data = driver_data['insurance_doc'].read()
+                    insurance_doc_name = driver_data['insurance_doc'].name
                 
                 # Insert into extended table
                 cursor.execute('''
                     INSERT INTO drivers_extended 
                     (driver_name, driver_type, phone, email, cdl_number, cdl_expiry,
                      company_name, mc_number, dot_number, 
-                     insurance_company, insurance_policy, insurance_expiry)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     insurance_company, insurance_policy, insurance_expiry,
+                     insurance_doc, insurance_doc_name)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     driver_data['driver_name'],
                     driver_data['driver_type'],
@@ -176,7 +193,9 @@ class EnhancedDriverManager:
                     driver_data.get('dot_number', ''),
                     driver_data.get('insurance_company', ''),
                     driver_data.get('insurance_policy', ''),
-                    driver_data.get('insurance_expiry')
+                    driver_data.get('insurance_expiry'),
+                    insurance_doc_data,
+                    insurance_doc_name
                 ))
                 
                 conn.commit()
@@ -364,6 +383,15 @@ class EnhancedDriverManager:
                     insurance_company = st.text_input("Insurance Company*")
                     insurance_policy = st.text_input("Policy Number*")
                     insurance_expiry = st.date_input("Insurance Expiry*", value=None)
+                    
+                    # Insurance document upload
+                    st.markdown("**📄 Insurance Documentation**")
+                    insurance_doc = st.file_uploader(
+                        "Upload Insurance Certificate",
+                        type=['pdf', 'jpg', 'jpeg', 'png'],
+                        help="Upload COI or insurance documentation",
+                        key="insurance_doc_upload"
+                    )
                 else:
                     st.success("✅ Company Driver - No additional info needed")
                     company_name = None
@@ -372,6 +400,7 @@ class EnhancedDriverManager:
                     insurance_company = None
                     insurance_policy = None
                     insurance_expiry = None
+                    insurance_doc = None
             
             # Submit button with debounce
             submit_col1, submit_col2, submit_col3 = st.columns([2, 1, 2])
@@ -420,7 +449,8 @@ class EnhancedDriverManager:
                         'dot_number': dot_number,
                         'insurance_company': insurance_company,
                         'insurance_policy': insurance_policy,
-                        'insurance_expiry': insurance_expiry
+                        'insurance_expiry': insurance_expiry,
+                        'insurance_doc': insurance_doc if st.session_state.driver_type_selected == 'contractor' else None
                     }
                     
                     user_credentials = {

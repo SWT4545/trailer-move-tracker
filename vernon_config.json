@@ -1,0 +1,21 @@
+{
+  "enabled_checks": {
+    "database": true,
+    "files": true,
+    "users": true,
+    "drivers": true,
+    "trailers": true,
+    "moves": true,
+    "session": true,
+    "performance": true
+  },
+  "auto_fix": true,
+  "check_frequency": "on_demand",
+  "custom_checks": [],
+  "thresholds": {
+    "orphaned_records": 5,
+    "stuck_moves": 3,
+    "inactive_days": 30,
+    "performance_ms": 5000
+  }
+}
