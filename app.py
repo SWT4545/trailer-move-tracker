@@ -650,12 +650,21 @@ def show_create_move():
     st.title("➕ Create Move")
     st.info("Select NEW and OLD trailers to create a swap assignment")
     
-    trailers_df = db.get_all_trailers()
-    
-    if trailers_df.empty:
-        st.warning("No trailers in system. Please add trailers first.")
-        if st.button("Go to Trailer Management"):
-            st.session_state.page = "🚛 Trailers"
+    try:
+        # Auto-sync drivers before loading
+        db.sync_drivers_from_users()
+        
+        trailers_df = db.get_all_trailers()
+        
+        if trailers_df.empty:
+            st.warning("No trailers in system. Please add trailers first.")
+            if st.button("Go to Trailer Management"):
+                st.session_state.page = "🚛 Trailers"
+                st.rerun()
+            return
+    except Exception as e:
+        st.error(f"Database error. Click refresh to retry.")
+        if st.button("🔄 Refresh Page"):
             st.rerun()
         return
     

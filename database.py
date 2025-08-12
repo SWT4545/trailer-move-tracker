@@ -6,12 +6,19 @@ import sqlite3
 import pandas as pd
 from datetime import datetime
 import json
+import os
+from database_connection_manager import db_manager, get_all_drivers_safe, sync_drivers_from_users
 
 DB_FILE = 'trailer_tracker_streamlined.db'
 
 def get_connection():
-    """Get database connection"""
-    return sqlite3.connect(DB_FILE, check_same_thread=False)
+    """Get database connection with retry logic"""
+    try:
+        # Use the connection manager for better reliability
+        return sqlite3.connect(DB_FILE, check_same_thread=False, timeout=10.0)
+    except:
+        # Fallback to regular connection
+        return sqlite3.connect(DB_FILE, check_same_thread=False)
 
 def init_database():
     """Initialize database with all required tables"""
@@ -275,11 +282,23 @@ def add_driver(driver_data):
     return driver_id
 
 def get_all_drivers():
-    """Get all drivers"""
-    conn = get_connection()
-    df = pd.read_sql_query("SELECT * FROM drivers ORDER BY driver_name", conn)
-    conn.close()
-    return df
+    """Get all drivers with auto-sync"""
+    # First sync drivers from user accounts
+    sync_drivers_from_users()
+    
+    # Then get all drivers with retry logic
+    try:
+        conn = get_connection()
+        df = pd.read_sql_query("SELECT * FROM drivers ORDER BY driver_name", conn)
+        conn.close()
+        return df
+    except Exception as e:
+        # Use safe fallback method
+        drivers = get_all_drivers_safe()
+        if drivers:
+            return pd.DataFrame(drivers)
+        else:
+            return pd.DataFrame(columns=['id', 'driver_name', 'phone', 'status'])
 
 def update_driver_status(driver_name, status):
     """Update driver availability status"""

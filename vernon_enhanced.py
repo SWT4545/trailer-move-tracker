@@ -790,7 +790,36 @@ def show_vernon_enhanced():
     st.title(f"🤖 {vernon.name} - IT Support")
     st.info(f"👋 Hi! I'm {vernon.name}, your IT specialist. I can validate and fix system issues.")
     
-    tabs = st.tabs(["🔍 System Check", "⚙️ Configuration", "📊 History"])
+    # Add master refresh button at the top
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.warning("⚠️ **Master System Controls**")
+        if st.button("🔄 MASTER REFRESH - Fix All Connection Issues", type="primary", use_container_width=True):
+            with st.spinner("Refreshing entire system..."):
+                try:
+                    # Import the connection manager
+                    from database_connection_manager import refresh_all_connections
+                    
+                    # Clear all caches
+                    st.cache_data.clear()
+                    st.cache_resource.clear()
+                    
+                    # Refresh database connections
+                    refresh_all_connections()
+                    
+                    # Clear session state issues
+                    if 'vernon_state' in st.session_state:
+                        st.session_state.vernon_state['issues_found'] = []
+                    
+                    st.success("✅ System refresh complete! All connections reset.")
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Refresh failed: {e}")
+    
+    st.divider()
+    
+    tabs = st.tabs(["🔍 System Check", "⚙️ Configuration", "📊 History", "🛠️ Advanced Tools"])
     
     with tabs[0]:
         st.markdown("### System Validation")
@@ -798,7 +827,7 @@ def show_vernon_enhanced():
         col1, col2, col3 = st.columns([1, 2, 1])
         
         with col2:
-            if st.button("🚀 Run System Check", type="primary", use_container_width=True):
+            if st.button("🚀 Run System Check", type="secondary", use_container_width=True):
                 with st.spinner("Running validation..."):
                     report = vernon.run_system_check(verbose=True)
                     vernon.show_validation_results(report)
@@ -834,6 +863,46 @@ def show_vernon_enhanced():
             )
         else:
             st.info("No check history yet. Run a system check to start tracking.")
+    
+    with tabs[3]:  # Advanced Tools
+        st.markdown("### 🛠️ Advanced Recovery Tools")
+        st.warning("Use these tools when experiencing persistent issues")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### Database Tools")
+            if st.button("🔧 Repair Database Connections"):
+                with st.spinner("Repairing..."):
+                    try:
+                        from database_connection_manager import db_manager
+                        db_manager.ensure_tables()
+                        st.success("Database connections repaired")
+                    except Exception as e:
+                        st.error(f"Repair failed: {e}")
+            
+            if st.button("🔄 Sync All Drivers"):
+                with st.spinner("Syncing drivers..."):
+                    try:
+                        from database_connection_manager import sync_drivers_from_users
+                        count = sync_drivers_from_users()
+                        st.success(f"Synced {count} drivers")
+                    except Exception as e:
+                        st.error(f"Sync failed: {e}")
+        
+        with col2:
+            st.markdown("#### Cache Tools")
+            if st.button("🗑️ Clear All Caches"):
+                st.cache_data.clear()
+                st.cache_resource.clear()
+                st.success("All caches cleared")
+            
+            if st.button("🔄 Reset Session State"):
+                for key in list(st.session_state.keys()):
+                    if key not in ['authenticated', 'user_name', 'user_role']:
+                        del st.session_state[key]
+                st.success("Session state reset")
+                st.rerun()
 
 # Export for use in main app
 __all__ = ['VernonEnhanced', 'show_vernon_enhanced']
