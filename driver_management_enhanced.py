@@ -153,11 +153,13 @@ class EnhancedDriverManager:
                 # Insert into main drivers table (handle both column variations)
                 try:
                     cursor.execute('''
-                        INSERT INTO drivers (driver_name, phone, email, status, active, created_at)
-                        VALUES (?, ?, ?, 'available', 1, CURRENT_TIMESTAMP)
+                        INSERT INTO drivers (driver_name, phone, email, home_address, company_address, status, active, created_at)
+                        VALUES (?, ?, ?, ?, ?, 'available', 1, CURRENT_TIMESTAMP)
                     ''', (driver_data['driver_name'], 
                           driver_data.get('phone', ''), 
-                          driver_data.get('email', '')))
+                          driver_data.get('email', ''),
+                          driver_data.get('home_address', ''),
+                          driver_data.get('company_address', '')))
                 except sqlite3.OperationalError:
                     # Fallback if columns don't exist
                     cursor.execute('''
@@ -177,16 +179,18 @@ class EnhancedDriverManager:
                 # Insert into extended table
                 cursor.execute('''
                     INSERT INTO drivers_extended 
-                    (driver_name, driver_type, phone, email, cdl_number, cdl_expiry,
-                     company_name, mc_number, dot_number, 
+                    (driver_name, driver_type, phone, email, home_address, company_address,
+                     cdl_number, cdl_expiry, company_name, mc_number, dot_number, 
                      insurance_company, insurance_policy, insurance_expiry,
                      insurance_doc, insurance_doc_name)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     driver_data['driver_name'],
                     driver_data['driver_type'],
                     driver_data.get('phone', ''),
                     driver_data.get('email', ''),
+                    driver_data.get('home_address', ''),
+                    driver_data.get('company_address', ''),
                     driver_data.get('cdl_number', ''),
                     driver_data.get('cdl_expiry'),
                     driver_data.get('company_name', ''),
@@ -381,6 +385,20 @@ class EnhancedDriverManager:
                 email = st.text_input("Email Address")
                 
             st.divider()
+            st.markdown("#### 📍 Address Information")
+            
+            if st.session_state.driver_type_selected == 'contractor':
+                company_address = st.text_area("Company Address*", 
+                    placeholder="Enter full company address including street, city, state, ZIP",
+                    help="Business address for 1099 and correspondence")
+                home_address = ""  # Empty for contractors
+            else:
+                home_address = st.text_area("Home Address", 
+                    placeholder="Enter home address including street, city, state, ZIP",
+                    help="Driver's home address")
+                company_address = ""  # Empty for company drivers
+            
+            st.divider()
             st.markdown("#### 📋 Driver Details")
             
             col3, col4 = st.columns(2)
@@ -440,6 +458,8 @@ class EnhancedDriverManager:
                 if st.session_state.driver_type_selected == 'contractor':
                     if not company_name:
                         errors.append("Company name is required for contractors")
+                    if not company_address:
+                        errors.append("Company address is required for contractors")
                     if not mc_number:
                         errors.append("MC number is required for contractors")
                     if not dot_number:
@@ -457,6 +477,8 @@ class EnhancedDriverManager:
                         'driver_type': st.session_state.driver_type_selected,
                         'phone': phone,
                         'email': email,
+                        'home_address': home_address if 'home_address' in locals() else '',
+                        'company_address': company_address if 'company_address' in locals() else '',
                         'cdl_number': cdl_number,
                         'cdl_expiry': cdl_expiry,
                         'company_name': company_name,

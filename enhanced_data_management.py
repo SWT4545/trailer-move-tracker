@@ -280,7 +280,7 @@ def show_driver_management_with_sync():
     col1, col2, col3, col4, col5, col6 = st.columns(6)
     
     with col1:
-        if st.button("🔄 Sync", use_container_width=True, key="sync_drivers_admin", help="Sync with user accounts"):
+        if st.button("🔄 Sync", use_container_width=True, key=f"sync_drivers_admin_{datetime.now().strftime('%Y%m%d')}", help="Sync with user accounts"):
             success, message = manager.sync_drivers()
             if success:
                 st.success(message)
@@ -289,35 +289,35 @@ def show_driver_management_with_sync():
                 st.error(message)
     
     with col2:
-        if st.button("📊 View", use_container_width=True, key="view_drivers_admin"):
+        if st.button("📊 View", use_container_width=True, key=f"view_drivers_admin_{datetime.now().strftime('%Y%m%d')}"):
             st.session_state.show_drivers = True
             st.session_state.show_edit_driver = False
             st.session_state.show_remove_driver = False
             st.session_state.show_add_owner = False
     
     with col3:
-        if st.button("➕ Add", use_container_width=True, key="add_driver_admin"):
+        if st.button("➕ Add", use_container_width=True, key=f"add_driver_admin_{datetime.now().strftime('%Y%m%d')}"):
             st.session_state.show_add_driver = True
             st.session_state.show_edit_driver = False
             st.session_state.show_remove_driver = False
             st.session_state.show_add_owner = False
     
     with col4:
-        if st.button("👑 Add Me", use_container_width=True, key="add_owner_admin", help="Add yourself as owner/driver"):
+        if st.button("👑 Add Me", use_container_width=True, key=f"add_owner_admin_{datetime.now().strftime('%Y%m%d')}", help="Add yourself as owner/driver"):
             st.session_state.show_add_owner = True
             st.session_state.show_add_driver = False
             st.session_state.show_edit_driver = False
             st.session_state.show_remove_driver = False
     
     with col5:
-        if st.button("✏️ Edit", use_container_width=True, key="edit_driver_admin"):
+        if st.button("✏️ Edit", use_container_width=True, key=f"edit_driver_admin_{datetime.now().strftime('%Y%m%d')}"):
             st.session_state.show_edit_driver = True
             st.session_state.show_drivers = False
             st.session_state.show_remove_driver = False
             st.session_state.show_add_owner = False
     
     with col6:
-        if st.button("🗑️ Remove", use_container_width=True, key="remove_driver_admin"):
+        if st.button("🗑️ Remove", use_container_width=True, key=f"remove_driver_admin_{datetime.now().strftime('%Y%m%d')}"):
             st.session_state.show_remove_driver = True
             st.session_state.show_drivers = False
             st.session_state.show_edit_driver = False

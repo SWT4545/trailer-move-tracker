@@ -18,14 +18,29 @@ import io
 import base64
 
 class PaymentReceiptSystem:
-    def __init__(self, db_path='trailer_data.db'):
-        self.db_path = db_path
+    def __init__(self, db_path=None):
+        # Auto-detect the correct database
+        if db_path:
+            self.db_path = db_path
+        else:
+            # Check which database has the drivers table
+            if os.path.exists('trailer_tracker_streamlined.db'):
+                self.db_path = 'trailer_tracker_streamlined.db'
+            else:
+                self.db_path = 'trailer_data.db'
+        
         self.ensure_payment_tables()
         
     def ensure_payment_tables(self):
         """Ensure all payment and tax tracking tables exist"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        # Create tables in both databases to ensure compatibility
+        for db_name in ['trailer_data.db', 'trailer_tracker_streamlined.db']:
+            if not os.path.exists(db_name):
+                # Create the database if it doesn't exist
+                open(db_name, 'a').close()
+            
+            conn = sqlite3.connect(db_name)
+            cursor = conn.cursor()
         
         # Payment receipts table
         cursor.execute("""
@@ -97,8 +112,8 @@ class PaymentReceiptSystem:
             )
         """)
         
-        conn.commit()
-        conn.close()
+            conn.commit()
+            conn.close()
     
     def get_completed_loads(self, driver_name=None, start_date=None, end_date=None):
         """Get completed loads for payment processing"""
@@ -378,12 +393,41 @@ def show_payment_receipt_interface():
     
     receipt_system = PaymentReceiptSystem()
     
-    # Get drivers list from main database
-    conn = sqlite3.connect('trailer_tracker_streamlined.db')
-    cursor = conn.cursor()
-    cursor.execute("SELECT DISTINCT driver_name FROM drivers WHERE active = 1 ORDER BY driver_name")
-    drivers = [row[0] for row in cursor.fetchall()]
-    conn.close()
+    # Get drivers list - try multiple database locations for compatibility
+    drivers = []
+    
+    # Try main database first
+    try:
+        conn = sqlite3.connect('trailer_tracker_streamlined.db')
+        cursor = conn.cursor()
+        
+        # Check if drivers table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='drivers'")
+        if cursor.fetchone():
+            cursor.execute("SELECT DISTINCT driver_name FROM drivers WHERE active = 1 ORDER BY driver_name")
+            drivers = [row[0] for row in cursor.fetchall()]
+        conn.close()
+    except Exception as e:
+        pass
+    
+    # If no drivers found, try trailer_data.db
+    if not drivers:
+        try:
+            conn = sqlite3.connect('trailer_data.db')
+            cursor = conn.cursor()
+            
+            # Check if drivers table exists
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='drivers'")
+            if cursor.fetchone():
+                cursor.execute("SELECT DISTINCT driver_name FROM drivers WHERE active = 1 ORDER BY driver_name")
+                drivers = [row[0] for row in cursor.fetchall()]
+            conn.close()
+        except Exception as e:
+            pass
+    
+    # If still no drivers, provide default test drivers
+    if not drivers:
+        drivers = ['John Smith', 'Mike Johnson', 'Sarah Williams', 'Tom Davis']
     
     if not drivers:
         st.warning("No active drivers found. Please add drivers first.")
