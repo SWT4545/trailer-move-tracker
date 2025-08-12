@@ -18,6 +18,7 @@ import walkthrough_guide
 import walkthrough_guide_enhanced
 import company_config
 import it_bot_vernon as vernon_it
+import vernon_sidebar
 import rate_con_manager
 import user_manager
 import client_portal
@@ -2299,14 +2300,20 @@ def main():
         # Navigation with page tracking
         page = st.radio("Navigation", menu_items, label_visibility="collapsed", key="main_nav")
         
+        # Track current page for Vernon
+        st.session_state.current_page = page
+        
         # Check if page changed and force rerun to start at top
-        if 'current_page' not in st.session_state:
-            st.session_state.current_page = page
-        elif st.session_state.current_page != page:
-            st.session_state.current_page = page
+        if 'last_page' not in st.session_state:
+            st.session_state.last_page = page
+        elif st.session_state.last_page != page:
+            st.session_state.last_page = page
             st.rerun()
         
         st.divider()
+        
+        # Add Vernon to sidebar on every page
+        vernon_sidebar.init_vernon_sidebar()
         
         # Driver availability toggle
         if role == 'driver':
