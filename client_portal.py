@@ -30,15 +30,35 @@ class ClientPortal:
             conn = sqlite3.connect('trailer_tracker_streamlined.db')
             cursor = conn.cursor()
             
-            # Add client_company field to users table if not exists
+            # First ensure users table exists
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    name TEXT,
+                    email TEXT,
+                    phone TEXT,
+                    client_company TEXT,
+                    active BOOLEAN DEFAULT 1,
+                    is_owner BOOLEAN DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Check if client_company field exists (for existing databases)
             cursor.execute("PRAGMA table_info(users)")
             columns = [col[1] for col in cursor.fetchall()]
             
             if 'client_company' not in columns:
-                cursor.execute("""
-                    ALTER TABLE users 
-                    ADD COLUMN client_company TEXT
-                """)
+                try:
+                    cursor.execute("""
+                        ALTER TABLE users 
+                        ADD COLUMN client_company TEXT
+                    """)
+                except:
+                    pass  # Column might already exist
             
             # Create document uploads table
             cursor.execute("""
