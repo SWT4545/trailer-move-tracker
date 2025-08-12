@@ -331,22 +331,27 @@ def show_rate_con_inbox():
                                                   help="Standard rate to calculate miles")
                 
                 with col_b:
-                    # Auto-calculate miles
+                    # Auto-calculate miles with live preview
+                    st.markdown("**📊 Live Preview**")
                     if client_total > 0 and client_rate > 0:
                         client_miles = client_total / client_rate
-                        st.markdown(f"**Calculated Miles**")
-                        st.markdown(f"<p style='font-size: 1.2rem; margin: 0;'>{client_miles:.1f}</p>", unsafe_allow_html=True)
-                        st.markdown(f"<p style='font-size: 0.8rem; color: #888;'>(Total ÷ Rate)</p>", unsafe_allow_html=True)
-                    else:
-                        client_miles = 0.0
-                        st.markdown(f"**Calculated Miles**")
-                        st.markdown(f"<p style='font-size: 1.2rem; margin: 0;'>0</p>", unsafe_allow_html=True)
-                    
-                    # Show factoring calculation
-                    if client_total > 0:
+                        # Enhanced preview box
+                        st.info(f"""
+                        **Calculated Miles:** {client_miles:.1f} miles
+                        
+                        **Calculation:** ${client_total:.2f} ÷ ${client_rate:.2f}/mile
+                        """)
+                        
+                        # Show factoring calculation
                         factoring_fee = client_total * 0.03
                         driver_net = client_total - factoring_fee
-                        st.markdown(f"<p style='font-size: 0.9rem; color: #4CAF50; margin-top: 10px;'>Driver Net: ${driver_net:.2f}<br>(After 3% factoring)</p>", unsafe_allow_html=True)
+                        st.success(f"""
+                        **Driver Net:** ${driver_net:.2f}
+                        **Factoring (3%):** -${factoring_fee:.2f}
+                        """)
+                    else:
+                        client_miles = 0.0
+                        st.info("Enter amount and rate to see preview")
             
             # File uploads
             st.markdown("**📎 Attach Documents**")

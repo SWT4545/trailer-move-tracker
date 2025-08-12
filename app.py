@@ -33,13 +33,21 @@ import driver_management_enhanced
 import vernon_enhanced
 import trailer_swap_enhanced
 
-# Page configuration
-st.set_page_config(
-    page_title="Smith & Williams Trucking",
-    page_icon="🚛",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Page configuration with cache fix
+try:
+    st.set_page_config(
+        page_title="Smith & Williams Trucking",
+        page_icon="🚛",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+    # Clear cache on startup to prevent module errors
+    if 'cache_cleared' not in st.session_state:
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.session_state.cache_cleared = True
+except:
+    pass
 
 # Initialize database and run migration
 db.init_database()
@@ -1385,6 +1393,15 @@ def show_payment_tracking():
         st.error("Access restricted to Business Administrator")
         return
     
+    # Add error handling for database connection
+    try:
+        db_path = 'trailer_tracker_streamlined.db' if os.path.exists('trailer_tracker_streamlined.db') else 'trailer_data.db'
+        test_conn = sqlite3.connect(db_path)
+        test_conn.close()
+    except Exception as e:
+        st.error(f"Database connection error. Please refresh the page.")
+        return
+    
     st.title("💰 Payment Tracking")
     
     tabs = st.tabs(["📤 Submit to Factoring", "⏳ Pending Payments", "✅ Payment History", "🧾 Payment Receipts"])
@@ -1399,7 +1416,12 @@ def show_payment_tracking():
         show_payment_history()
     
     with tabs[3]:
-        show_payment_receipt_interface()
+        try:
+            show_payment_receipt_interface()
+        except Exception as e:
+            st.error(f"Error loading payment receipt system. Please refresh the page.")
+            if st.button("🔄 Retry Payment System"):
+                st.rerun()
 
 def show_factoring_submission():
     """Submit completed moves to factoring company"""
@@ -1557,6 +1579,17 @@ def show_system_admin():
     st.title("⚙️ System Administration")
     st.warning("⚠️ **CAUTION:** Changes here affect the entire system")
     
+    # Add error handling for database connection
+    try:
+        db_path = 'trailer_tracker_streamlined.db' if os.path.exists('trailer_tracker_streamlined.db') else 'trailer_data.db'
+        test_conn = sqlite3.connect(db_path)
+        test_conn.close()
+    except Exception as e:
+        st.error(f"Database connection error. Please refresh the page.")
+        if st.button("🔄 Retry Connection"):
+            st.rerun()
+        return
+    
     tabs = st.tabs([
         "🏢 Company Settings",
         "👥 User Management", 
@@ -1571,14 +1604,23 @@ def show_system_admin():
     ])
     
     with tabs[0]:  # Company Settings
-        company_config.show_company_settings()
+        try:
+            company_config.show_company_settings()
+        except Exception as e:
+            st.error(f"Error loading company settings: {e}")
     
     with tabs[1]:  # User Management
-        # Use the enhanced user manager with driver info
-        enhanced_user_manager.show_enhanced_user_management()
+        try:
+            # Use the enhanced user manager with driver info
+            enhanced_user_manager.show_enhanced_user_management()
+        except Exception as e:
+            st.error(f"Error loading user management: {e}")
     
     with tabs[2]:  # Driver Management
-        enhanced_data_management.show_driver_management_with_sync()
+        try:
+            enhanced_data_management.show_driver_management_with_sync()
+        except Exception as e:
+            st.error(f"Error loading driver management: {e}")
     
     with tabs[3]:  # Trailer Management
         enhanced_data_management.show_trailer_management_with_remove()
