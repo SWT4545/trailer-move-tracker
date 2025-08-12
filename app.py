@@ -15,12 +15,19 @@ import json
 import time
 import sqlite3
 import walkthrough_guide
+import walkthrough_guide_enhanced
 import company_config
 import it_bot_vernon as vernon_it
 import rate_con_manager
 import user_manager
 import client_portal
 import enhanced_user_manager
+
+# Import enhanced modules for fixes
+import ui_responsiveness_fix as ui_fix
+import driver_management_enhanced
+import vernon_enhanced
+import trailer_swap_enhanced
 
 # Page configuration
 st.set_page_config(
@@ -785,25 +792,9 @@ def show_create_move():
             st.error("Please select all required fields (NEW trailer, OLD trailer, and Driver)")
 
 def show_driver_management():
-    """Manage drivers - integrated with user management"""
-    st.title("👤 Driver Management")
-    
-    tabs = st.tabs(["📋 All Drivers", "➕ Create Driver", "📝 Update Driver", "🟢 Availability", "📞 Contact List"])
-    
-    with tabs[0]:
-        show_all_drivers_enhanced()
-    
-    with tabs[1]:
-        show_create_new_driver()
-    
-    with tabs[2]:
-        show_add_driver()
-    
-    with tabs[3]:
-        show_driver_availability()
-    
-    with tabs[4]:
-        show_driver_contacts()
+    """Manage drivers - using enhanced driver management with UI fixes"""
+    # Use the enhanced driver management module with all fixes
+    driver_management_enhanced.show_enhanced_driver_management()
 
 def show_all_drivers_enhanced():
     """Display all drivers with extended information"""
@@ -2340,7 +2331,8 @@ def main():
     elif page == "🚛 Trailers":
         show_trailer_management()
     elif page == "➕ Create Move":
-        show_create_move()
+        # Use enhanced trailer swap management
+        trailer_swap_enhanced.show_enhanced_trailer_swap()
     elif page == "👤 Drivers":
         show_driver_management()
     elif page == "💰 Payments":
@@ -2350,10 +2342,11 @@ def main():
     elif page == "⚙️ System Admin":
         show_system_admin()
     elif page == "🎓 Walkthrough":
-        walkthrough_guide.show_walkthrough()
+        # Use enhanced walkthrough with all fixes documented
+        walkthrough_guide_enhanced.show_walkthrough()
     elif page == "🤖 IT Support (Vernon)":
-        vernon = vernon_it.get_vernon()
-        vernon.show_control_panel()
+        # Use enhanced Vernon with configurable validation
+        vernon_enhanced.show_vernon_enhanced()
     elif page == "📄 Rate Cons":
         rate_con_manager.show_rate_con_management()
     elif page == "💰 My Rate Cons":
