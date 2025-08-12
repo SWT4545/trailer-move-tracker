@@ -27,6 +27,8 @@ def show_walkthrough():
         show_driver_walkthrough()
     elif role == 'viewer':
         show_viewer_walkthrough()
+    elif role == 'client_viewer':
+        show_client_walkthrough()
     else:
         show_general_walkthrough()
 
@@ -123,7 +125,7 @@ def show_admin_walkthrough():
         {
             "title": "6️⃣ User & Driver Management",
             "content": """
-            **User Management (NEW!):**
+            **User Management:**
             1. Go to **⚙️ System Admin** → **User Management** tab
             2. **Add Users:** Create accounts with single or dual roles
             3. **Edit Roles:** Upgrade users (e.g., driver to coordinator)
@@ -142,6 +144,59 @@ def show_admin_walkthrough():
             3. Monitor driver status
             
             💡 **Tip:** Users with driver role automatically appear in assignment list
+            """
+        },
+        {
+            "title": "7️⃣ Client Portal Setup (NEW!)",
+            "content": """
+            **Setting up client access:**
+            1. Go to **⚙️ System Admin** → **User Management**
+            2. Click **➕ Add User** tab
+            3. Create client account:
+               - Username: `client_[companyname]`
+               - Role: Select **client_viewer**
+               - Password: Something secure
+               - Name: Client company name
+            
+            **What clients can do:**
+            - View only their moves (filtered by company)
+            - Upload Rate Cons and BOLs (optional)
+            - Track real-time status
+            - See progress indicators
+            
+            **What clients CAN'T see:**
+            - Driver names or contact info
+            - Internal costs/pricing
+            - Other clients' data
+            - System administration
+            
+            💡 **Tip:** Clients can still email docs - portal upload is optional!
+            """
+        },
+        {
+            "title": "8️⃣ Vernon IT Support",
+            "content": """
+            **Using Vernon for maintenance:**
+            1. Go to **🤖 IT Support (Vernon)**
+            2. Vernon monitors automatically:
+               - Database health
+               - Client portal status
+               - Document uploads
+               - System performance
+            
+            **Vernon's control panel:**
+            - 🔍 **Run Full Diagnostic** - Complete system check
+            - 🔧 **Auto-Fix Issues** - Fixes common problems
+            - ✅ **Validate System** - Verifies everything works
+            - 👥 **Check Client Portal** - Monitor client features
+            
+            **Vernon fixes automatically:**
+            - Stuck documents (pending > 7 days)
+            - Old audit logs cleanup
+            - Missing database tables
+            - Session issues
+            
+            💡 **Vernon speaks friendly messages to keep you informed!**
             """
         }
     ]
@@ -370,6 +425,164 @@ def show_driver_walkthrough():
     
     st.divider()
     st.warning("⚠️ **Remember:** No login needed for POD upload - just use the link!")
+
+def show_client_walkthrough():
+    """Client viewer walkthrough"""
+    st.markdown("## Client Portal Guide")
+    
+    st.info("📋 **Your Portal:** Track your moves and manage documents in one place")
+    
+    steps = [
+        {
+            "title": "1️⃣ Understanding Your Dashboard",
+            "content": """
+            **Your Move Status Portal shows:**
+            - 🟡 **Pending** - Move scheduled, awaiting driver
+            - 🔵 **In Transit** - Driver actively completing
+            - 📸 **Awaiting POD** - Completed, documentation coming
+            - ✅ **Completed** - Move finished with docs
+            
+            💡 **Tip:** Refresh to see real-time updates
+            """
+        },
+        {
+            "title": "2️⃣ Document Management (NEW!)",
+            "content": """
+            **Two ways to submit documents:**
+            
+            **Option 1: Traditional Email**
+            - Continue emailing your coordinator
+            - No change to your current process
+            - We'll handle the upload for you
+            
+            **Option 2: Self-Service Portal**
+            - Click **📤 Upload Documents** tab
+            - Drag & drop files (PDF, JPG, PNG)
+            - Max file size: 10MB
+            - Instant confirmation when uploaded
+            
+            💡 **Choose what works best for you!**
+            """
+        },
+        {
+            "title": "3️⃣ Uploading Rate Confirmations",
+            "content": """
+            **When to upload Rate Cons:**
+            - When status shows 🟡 **Pending**
+            - After route is assigned to driver
+            
+            **How to upload:**
+            1. Go to **Upload Documents** tab
+            2. Select the move from dropdown
+            3. Drag & drop your signed Rate Con
+            4. Click **Submit Rate Con**
+            5. See instant confirmation ✅
+            
+            📧 **Alternative:** Email to coordinator as usual
+            """
+        },
+        {
+            "title": "4️⃣ Uploading Bills of Lading",
+            "content": """
+            **When to upload BOLs:**
+            - When status shows ✅ **Completed**
+            - After POD is received from driver
+            
+            **How to upload:**
+            1. Go to **Upload Documents** tab
+            2. Select completed move
+            3. Drag & drop signed BOL
+            4. Click **Submit BOL**
+            5. See instant confirmation ✅
+            
+            📧 **Alternative:** Email to coordinator as usual
+            """
+        },
+        {
+            "title": "5️⃣ Tracking Move Progress",
+            "content": """
+            **Understanding progress bars:**
+            - 25% = Awaiting driver dispatch
+            - 50% = Driver en route
+            - 75% = Delivered, awaiting docs
+            - 100% = Move complete
+            
+            **Filter your moves:**
+            - Use status dropdown to filter
+            - View All, Pending, In Transit, or Completed
+            - Click any move to expand details
+            
+            💡 **Tip:** Check **Pending Actions** tab for required docs
+            """
+        },
+        {
+            "title": "6️⃣ What You Can See",
+            "content": """
+            **Your portal shows:**
+            - Only YOUR company's moves
+            - Move status and progress
+            - Trailer numbers
+            - Pickup/delivery locations
+            - Document status
+            
+            **What's hidden (for security):**
+            - Driver names/contact info
+            - Internal costs and pricing
+            - Other clients' information
+            - System administration
+            
+            🔒 **Your data is private and secure**
+            """
+        },
+        {
+            "title": "7️⃣ Getting Help",
+            "content": """
+            **If you need assistance:**
+            
+            **Portal issues:**
+            - Contact your coordinator
+            - They can reset passwords
+            - Help with document uploads
+            
+            **Can't see your moves?**
+            - Moves filtered by company name
+            - Contact coordinator if missing
+            
+            **Wrong document uploaded?**
+            - Contact coordinator immediately
+            - They can correct the submission
+            
+            📞 **Your coordinator is always available to help!**
+            """
+        }
+    ]
+    
+    # Show walkthrough steps
+    for step in steps:
+        with st.expander(step["title"], expanded=False):
+            st.markdown(step["content"])
+    
+    # Quick reference card
+    st.divider()
+    st.markdown("### 📋 Quick Reference")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        **Status Meanings:**
+        - 🟡 Pending = Send Rate Con
+        - 🔵 In Transit = Driver working
+        - ✅ Completed = Send BOL
+        """)
+    
+    with col2:
+        st.markdown("""
+        **Document Types:**
+        - Rate Confirmations → When assigned
+        - Bills of Lading → When completed
+        - Both can be emailed or uploaded
+        """)
 
 def show_viewer_walkthrough():
     """Viewer role walkthrough"""
