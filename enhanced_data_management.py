@@ -118,7 +118,10 @@ class DataManager:
             'active': 'INTEGER DEFAULT 1',
             'created_at': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
             'updated_at': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
-            'username': 'TEXT'
+            'username': 'TEXT',
+            'home_address': 'TEXT',
+            'business_address': 'TEXT',
+            'is_owner': 'INTEGER DEFAULT 0'
         }
         
         for col_name, col_def in required_columns.items():
@@ -264,10 +267,10 @@ def show_driver_management_with_sync():
     st.markdown("### 👤 Driver Management")
     
     # Action buttons
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
     
     with col1:
-        if st.button("🔄 Sync Drivers", use_container_width=True, key="sync_drivers_admin"):
+        if st.button("🔄 Sync", use_container_width=True, key="sync_drivers_admin", help="Sync with user accounts"):
             success, message = manager.sync_drivers()
             if success:
                 st.success(message)
@@ -276,28 +279,39 @@ def show_driver_management_with_sync():
                 st.error(message)
     
     with col2:
-        if st.button("📊 View All", use_container_width=True, key="view_drivers_admin"):
+        if st.button("📊 View", use_container_width=True, key="view_drivers_admin"):
             st.session_state.show_drivers = True
             st.session_state.show_edit_driver = False
             st.session_state.show_remove_driver = False
+            st.session_state.show_add_owner = False
     
     with col3:
-        if st.button("➕ Add Driver", use_container_width=True, key="add_driver_admin"):
+        if st.button("➕ Add", use_container_width=True, key="add_driver_admin"):
             st.session_state.show_add_driver = True
             st.session_state.show_edit_driver = False
             st.session_state.show_remove_driver = False
+            st.session_state.show_add_owner = False
     
     with col4:
-        if st.button("✏️ Edit Driver", use_container_width=True, key="edit_driver_admin"):
-            st.session_state.show_edit_driver = True
-            st.session_state.show_drivers = False
+        if st.button("👑 Add Me", use_container_width=True, key="add_owner_admin", help="Add yourself as owner/driver"):
+            st.session_state.show_add_owner = True
+            st.session_state.show_add_driver = False
+            st.session_state.show_edit_driver = False
             st.session_state.show_remove_driver = False
     
     with col5:
-        if st.button("🗑️ Remove Driver", use_container_width=True, key="remove_driver_admin"):
+        if st.button("✏️ Edit", use_container_width=True, key="edit_driver_admin"):
+            st.session_state.show_edit_driver = True
+            st.session_state.show_drivers = False
+            st.session_state.show_remove_driver = False
+            st.session_state.show_add_owner = False
+    
+    with col6:
+        if st.button("🗑️ Remove", use_container_width=True, key="remove_driver_admin"):
             st.session_state.show_remove_driver = True
             st.session_state.show_drivers = False
             st.session_state.show_edit_driver = False
+            st.session_state.show_add_owner = False
     
     # Show drivers list
     if st.session_state.get('show_drivers', False):
@@ -362,9 +376,125 @@ def show_driver_management_with_sync():
             except Exception as e:
                 st.error(f"Error: {e}")
     
+    # Add owner/self interface
+    if st.session_state.get('show_add_owner', False):
+        show_add_owner_interface(manager)
+    
     # Edit driver interface
     if st.session_state.get('show_edit_driver', False):
         show_edit_driver_interface(manager)
+
+def show_add_owner_interface(manager):
+    """Interface for adding owner/self as a driver"""
+    st.markdown("#### 👑 Add Yourself as Owner/Driver")
+    st.info("This will add you to the driver list so you can be assigned to moves")
+    
+    with st.form("add_owner_driver_form"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**Personal Information**")
+            owner_name = st.text_input("Your Name*", value=st.session_state.get('user_name', ''))
+            owner_phone = st.text_input("Phone Number*", placeholder="(555) 123-4567")
+            owner_email = st.text_input("Email*", value=st.session_state.get('company_email', ''))
+            owner_cdl = st.text_input("CDL Number", placeholder="CDL123456789")
+            
+            driver_type = st.selectbox(
+                "Driver Type",
+                ["company", "contractor"],
+                index=0,
+                help="Are you driving as a company driver or owner-operator?"
+            )
+        
+        with col2:
+            if driver_type == "contractor":
+                st.markdown("**Business Information**")
+                owner_company = st.text_input("Company Name", value="Smith & Williams Trucking")
+                owner_mc = st.text_input("MC Number", placeholder="MC-123456")
+                owner_dot = st.text_input("DOT Number", placeholder="1234567")
+                owner_insurance = st.text_input("Insurance Company")
+            else:
+                st.markdown("**Company Driver**")
+                st.info("No additional business information needed")
+                owner_company = None
+                owner_mc = None
+                owner_dot = None
+                owner_insurance = None
+        
+        st.divider()
+        st.markdown("**Address Information**")
+        
+        col3, col4 = st.columns(2)
+        with col3:
+            if driver_type == "company":
+                owner_home_address = st.text_area(
+                    "Home Address",
+                    placeholder="123 Main St\nCity, State ZIP",
+                    help="Your personal address"
+                )
+                owner_business_address = None
+            else:
+                owner_home_address = None
+        
+        with col4:
+            if driver_type == "contractor":
+                owner_business_address = st.text_area(
+                    "Business Address", 
+                    placeholder="456 Business Ave\nCity, State ZIP",
+                    help="Your business/company address"
+                )
+            else:
+                owner_business_address = None
+        
+        col_submit, col_cancel = st.columns(2)
+        with col_submit:
+            if st.form_submit_button("➕ Add Me as Driver", type="primary"):
+                if owner_name and owner_phone and owner_email:
+                    try:
+                        conn = sqlite3.connect(manager.db_path)
+                        cursor = conn.cursor()
+                        
+                        # Ensure columns exist
+                        manager.ensure_driver_columns(conn)
+                        
+                        # Check if already exists
+                        cursor.execute("SELECT driver_name FROM drivers WHERE driver_name = ?", (owner_name,))
+                        if cursor.fetchone():
+                            st.error(f"Driver '{owner_name}' already exists. Use Edit to update.")
+                        else:
+                            # Add to drivers table
+                            cursor.execute("""
+                                INSERT INTO drivers (driver_name, phone, email, status, active, 
+                                                   home_address, business_address, is_owner, username)
+                                VALUES (?, ?, ?, 'available', 1, ?, ?, 1, ?)
+                            """, (owner_name, owner_phone, owner_email, owner_home_address, 
+                                  owner_business_address, st.session_state.get('username', '')))
+                            
+                            # Add to drivers_extended if contractor
+                            if driver_type == "contractor":
+                                cursor.execute("""
+                                    INSERT OR IGNORE INTO drivers_extended 
+                                    (driver_name, driver_type, phone, email, status, active,
+                                     company_name, mc_number, dot_number, cdl_number, insurance_company)
+                                    VALUES (?, 'contractor', ?, ?, 'available', 1, ?, ?, ?, ?, ?)
+                                """, (owner_name, owner_phone, owner_email, owner_company, 
+                                      owner_mc, owner_dot, owner_cdl, owner_insurance))
+                            
+                            conn.commit()
+                            conn.close()
+                            
+                            st.success(f"✅ Successfully added '{owner_name}' as owner/driver!")
+                            st.session_state.show_add_owner = False
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"Error adding owner: {str(e)}")
+                else:
+                    st.error("Please fill all required fields (*)")
+        
+        with col_cancel:
+            if st.form_submit_button("Cancel"):
+                st.session_state.show_add_owner = False
+                st.rerun()
 
 def show_edit_driver_interface(manager):
     """Interface for editing driver information"""
@@ -374,12 +504,16 @@ def show_edit_driver_interface(manager):
         conn = sqlite3.connect(manager.db_path)
         cursor = conn.cursor()
         
-        # Get all drivers with their full info
+        # Ensure new columns exist
+        manager.ensure_driver_columns(conn)
+        
+        # Get all drivers with their full info including addresses
         try:
             cursor.execute("""
                 SELECT d.driver_name, d.phone, d.email, d.status,
                        de.driver_type, de.company_name, de.mc_number, 
-                       de.dot_number, de.cdl_number, de.insurance_company
+                       de.dot_number, de.cdl_number, de.insurance_company,
+                       d.home_address, d.business_address, d.is_owner
                 FROM drivers d
                 LEFT JOIN drivers_extended de ON d.driver_name = de.driver_name
                 WHERE d.active = 1 OR d.active IS NULL
@@ -387,7 +521,9 @@ def show_edit_driver_interface(manager):
             """)
         except:
             cursor.execute("""
-                SELECT driver_name, phone, email, status
+                SELECT driver_name, phone, email, status, 
+                       NULL, NULL, NULL, NULL, NULL, NULL,
+                       home_address, business_address, is_owner
                 FROM drivers
                 ORDER BY driver_name
             """)
@@ -412,9 +548,15 @@ def show_edit_driver_interface(manager):
                 with st.form("edit_driver_form"):
                     st.markdown(f"**Editing: {driver_name}**")
                     
+                    # Check if owner
+                    is_owner = driver_data[12] if len(driver_data) > 12 else False
+                    if is_owner:
+                        st.info("👑 Owner/Self Driver")
+                    
                     col1, col2 = st.columns(2)
                     
                     with col1:
+                        st.markdown("**Contact Information**")
                         new_phone = st.text_input("Phone", value=driver_data[1] or "")
                         new_email = st.text_input("Email", value=driver_data[2] or "")
                         new_status = st.selectbox(
@@ -423,27 +565,54 @@ def show_edit_driver_interface(manager):
                             index=["available", "on_trip", "unavailable"].index(driver_data[3] or "available")
                         )
                         
-                        if len(driver_data) > 8:
-                            new_cdl = st.text_input("CDL Number", value=driver_data[8] or "")
-                        else:
-                            new_cdl = st.text_input("CDL Number", value="")
+                        new_cdl = st.text_input("CDL Number", value=driver_data[8] if len(driver_data) > 8 else "")
+                        
+                        # Mark as owner option
+                        new_is_owner = st.checkbox("This is me (Owner/Self)", value=bool(is_owner))
                     
                     with col2:
-                        if len(driver_data) > 4 and driver_data[4] == "contractor":
+                        driver_type = driver_data[4] if len(driver_data) > 4 else "company"
+                        
+                        if driver_type == "contractor":
                             st.markdown("**Contractor Information**")
-                            new_company = st.text_input("Company Name", value=driver_data[5] or "")
-                            new_mc = st.text_input("MC Number", value=driver_data[6] or "")
-                            new_dot = st.text_input("DOT Number", value=driver_data[7] or "")
-                            if len(driver_data) > 9:
-                                new_insurance = st.text_input("Insurance Company", value=driver_data[9] or "")
-                            else:
-                                new_insurance = st.text_input("Insurance Company", value="")
+                            new_company = st.text_input("Company Name", value=driver_data[5] if len(driver_data) > 5 else "")
+                            new_mc = st.text_input("MC Number", value=driver_data[6] if len(driver_data) > 6 else "")
+                            new_dot = st.text_input("DOT Number", value=driver_data[7] if len(driver_data) > 7 else "")
+                            new_insurance = st.text_input("Insurance Company", value=driver_data[9] if len(driver_data) > 9 else "")
                         else:
-                            st.info("Company Driver - No contractor info needed")
+                            st.markdown("**Company Driver Information**")
                             new_company = None
                             new_mc = None
                             new_dot = None
                             new_insurance = None
+                    
+                    st.divider()
+                    
+                    # Address section
+                    st.markdown("**Address Information**")
+                    col3, col4 = st.columns(2)
+                    
+                    with col3:
+                        if driver_type == "company":
+                            new_home_address = st.text_area(
+                                "Home Address",
+                                value=driver_data[10] if len(driver_data) > 10 else "",
+                                help="Driver's home address"
+                            )
+                            new_business_address = None
+                        else:
+                            st.info("Contractor - Business address required")
+                            new_home_address = None
+                    
+                    with col4:
+                        if driver_type == "contractor":
+                            new_business_address = st.text_area(
+                                "Business Address",
+                                value=driver_data[11] if len(driver_data) > 11 else "",
+                                help="Contractor's business address"
+                            )
+                        else:
+                            new_business_address = None
                     
                     col1, col2 = st.columns(2)
                     with col1:
@@ -451,7 +620,8 @@ def show_edit_driver_interface(manager):
                             success = update_driver_info(
                                 manager, driver_name, new_phone, new_email, 
                                 new_status, new_cdl, new_company, new_mc, 
-                                new_dot, new_insurance
+                                new_dot, new_insurance, new_home_address,
+                                new_business_address, new_is_owner
                             )
                             if success:
                                 st.success(f"Driver '{driver_name}' updated successfully!")
@@ -469,18 +639,24 @@ def show_edit_driver_interface(manager):
     except Exception as e:
         st.error(f"Error loading drivers: {e}")
 
-def update_driver_info(manager, driver_name, phone, email, status, cdl, company, mc, dot, insurance):
+def update_driver_info(manager, driver_name, phone, email, status, cdl, company, mc, dot, insurance, 
+                      home_address=None, business_address=None, is_owner=False):
     """Update driver information in database"""
     try:
         conn = sqlite3.connect(manager.db_path)
         cursor = conn.cursor()
         
-        # Update main drivers table
+        # Ensure columns exist
+        manager.ensure_driver_columns(conn)
+        
+        # Update main drivers table with addresses and owner flag
         cursor.execute("""
             UPDATE drivers 
-            SET phone = ?, email = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+            SET phone = ?, email = ?, status = ?, home_address = ?, 
+                business_address = ?, is_owner = ?, updated_at = CURRENT_TIMESTAMP
             WHERE driver_name = ?
-        """, (phone, email, status, driver_name))
+        """, (phone, email, status, home_address, business_address, 
+              1 if is_owner else 0, driver_name))
         
         # Update extended table if exists
         cursor.execute("""

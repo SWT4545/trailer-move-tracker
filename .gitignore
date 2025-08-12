@@ -28,6 +28,13 @@ wheels/
 *.sqlite
 *.sqlite3
 
+# Data persistence - DO NOT COMMIT THESE
+user_accounts.json
+data_backups/
+trailer_tracker_streamlined.db
+uploads/
+pod_uploads/
+
 # Backup files
 *_backup.py
 *_old.py

@@ -1544,6 +1544,9 @@ def show_system_admin():
     tabs = st.tabs([
         "🏢 Company Settings",
         "👥 User Management", 
+        "👤 Driver Management",
+        "🚛 Trailer Management",
+        "📍 Location Management",
         "🔐 Role Permissions", 
         "🗄️ Database Operations",
         "📊 System Status",
@@ -1558,7 +1561,16 @@ def show_system_admin():
         # Use the enhanced user manager with driver info
         enhanced_user_manager.show_enhanced_user_management()
     
-    with tabs[2]:  # Role Permissions
+    with tabs[2]:  # Driver Management
+        enhanced_data_management.show_driver_management_with_sync()
+    
+    with tabs[3]:  # Trailer Management
+        enhanced_data_management.show_trailer_management_with_remove()
+    
+    with tabs[4]:  # Location Management
+        enhanced_data_management.show_location_management_with_remove()
+    
+    with tabs[5]:  # Role Permissions
         st.markdown("### 🔐 Role Permission Matrix")
         
         permissions = {
@@ -1583,7 +1595,7 @@ def show_system_admin():
             if st.form_submit_button("Update Permissions"):
                 st.success(f"Permissions updated for {role_to_modify}")
     
-    with tabs[3]:  # Database Operations
+    with tabs[6]:  # Database Operations
         st.markdown("### 🗄️ Database Management")
         
         col1, col2, col3 = st.columns(3)
@@ -1656,7 +1668,29 @@ def show_system_admin():
         activity_df = pd.DataFrame(activity_data)
         st.dataframe(activity_df, use_container_width=True, hide_index=True)
     
-    with tabs[5]:  # Configuration
+    with tabs[7]:  # System Status
+        st.markdown("### 📊 System Status")
+        
+        # Database size
+        st.markdown("#### Database Information")
+        try:
+            import os
+            db_size = os.path.getsize('trailer_tracker_streamlined.db') / (1024 * 1024)  # MB
+            st.info(f"Database Size: {db_size:.2f} MB")
+        except:
+            st.info("Database size unavailable")
+        
+        # Activity log
+        st.markdown("#### Recent System Activity")
+        activity_data = {
+            'Time': [datetime.now() - timedelta(hours=i) for i in range(5)],
+            'User': ['admin', 'coordinator', 'driver1', 'admin', 'coordinator'],
+            'Action': ['Created move', 'Added trailer', 'Uploaded POD', 'Processed payment', 'Updated driver']
+        }
+        activity_df = pd.DataFrame(activity_data)
+        st.dataframe(activity_df, use_container_width=True, hide_index=True)
+    
+    with tabs[8]:  # Configuration
         st.markdown("### 🔧 System Configuration")
         
         col1, col2 = st.columns(2)
@@ -1737,7 +1771,7 @@ def show_system_admin():
             st.checkbox("Auto-archive old moves", value=True)
             st.number_input("Archive after (days)", value=90, min_value=30)
     
-    with tabs[6]:  # Data Cleanup
+    with tabs[9]:  # Data Cleanup
         st.markdown("### 🗑️ Data Management & Cleanup")
         
         st.markdown("#### Cleanup Operations")
