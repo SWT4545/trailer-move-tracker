@@ -10,6 +10,8 @@ from datetime import datetime, date, timedelta
 import uuid
 import time
 import json
+import mileage_calculator as mileage_calc
+import api_config
 
 class EnhancedTrailerSwapManager:
     """Robust trailer swap management with proper state handling"""
@@ -178,14 +180,40 @@ class EnhancedTrailerSwapManager:
             # Begin transaction
             conn.execute('BEGIN TRANSACTION')
             
-            # Create the move record
+            # Calculate mileage
+            base_location = "Fleet Memphis, TN"  # Default base location
+            delivery_location = swap_data['location']
+            
+            # Get full addresses for calculation
+            from_address = base_location
+            to_address = mileage_calc.get_location_full_address(delivery_location)
+            
+            total_miles = 0
+            if to_address:
+                # Calculate one-way mileage
+                one_way_miles, error = mileage_calc.calculate_mileage_google(
+                    from_address, to_address, 
+                    api_config.get_google_maps_key()
+                )
+                if one_way_miles:
+                    total_miles = round(one_way_miles * 2, 1)  # Round trip
+                else:
+                    # Use default if calculation fails
+                    st.warning(f"Could not calculate exact mileage: {error}. Using estimated distance.")
+                    total_miles = 100  # Default estimate
+            
+            # Calculate driver pay (97% of gross)
+            driver_pay = round(total_miles * 2.10 * 0.97, 2) if total_miles else 0
+            
+            # Create the move record with mileage
             cursor.execute('''
                 INSERT INTO moves (
                     move_id, new_trailer, old_trailer, 
                     pickup_location, delivery_location,
                     driver_name, move_date, status,
+                    total_miles, driver_pay,
                     created_by, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 move_id,
                 swap_data['new_trailer'],
@@ -195,6 +223,8 @@ class EnhancedTrailerSwapManager:
                 swap_data['driver_name'],
                 swap_data.get('move_date', date.today()),
                 'assigned',
+                total_miles,
+                driver_pay,
                 st.session_state.get('user_name', 'System'),
                 swap_data.get('notes', '')
             ))

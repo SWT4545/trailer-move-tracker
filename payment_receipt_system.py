@@ -140,13 +140,14 @@ class PaymentReceiptSystem:
         return df
     
     def calculate_payment_breakdown(self, gross_amount, rate_per_mile, deductions=0):
-        """Calculate payment breakdown with mileage"""
-        total_miles = gross_amount / rate_per_mile if rate_per_mile > 0 else 0
+        """Calculate payment breakdown with mileage from actual payment"""
+        # Calculate miles from actual payment amount
+        payment_derived_miles = gross_amount / rate_per_mile if rate_per_mile > 0 else 0
         net_amount = gross_amount - deductions
         
         return {
             'gross_amount': gross_amount,
-            'total_miles': round(total_miles, 2),
+            'total_miles': round(payment_derived_miles, 2),
             'rate_per_mile': rate_per_mile,
             'deductions': deductions,
             'net_amount': net_amount
@@ -460,7 +461,17 @@ def show_payment_receipt_interface():
                     # Calculate mileage from actual payment
                     if rate_per_mile > 0:
                         calculated_miles = gross_amount / rate_per_mile
-                        st.info(f"Calculated Miles: {calculated_miles:.2f}")
+                        st.info(f"Payment-Derived Miles: {calculated_miles:.2f}")
+                        
+                        # Show mileage comparison if Google Maps data available
+                        google_miles = selected_df['total_miles'].sum() if 'total_miles' in selected_df.columns else None
+                        if google_miles and google_miles > 0:
+                            delta = calculated_miles - google_miles
+                            if abs(delta) > 5:
+                                st.warning(f"⚠️ Mileage Delta: {abs(delta):.2f} miles")
+                                st.caption(f"Google Maps: {google_miles:.2f} | Payment: {calculated_miles:.2f}")
+                            else:
+                                st.success(f"✅ Mileage Verified (Delta: {abs(delta):.2f})")
                     else:
                         calculated_miles = 0
                 
@@ -470,7 +481,7 @@ def show_payment_receipt_interface():
                 
                 # Generate Receipt button
                 if st.button("🧾 Generate Receipt", type="primary"):
-                    # Calculate payment breakdown
+                    # Calculate payment breakdown (only using payment-derived miles for receipt)
                     breakdown = receipt_system.calculate_payment_breakdown(
                         gross_amount, rate_per_mile, deductions
                     )
