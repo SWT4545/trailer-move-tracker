@@ -24,6 +24,7 @@ import rate_con_manager
 import user_manager
 import client_portal
 import enhanced_user_manager
+import enhanced_data_management
 
 # Import enhanced modules for fixes
 import ui_responsiveness_fix as ui_fix
