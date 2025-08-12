@@ -378,8 +378,8 @@ def show_payment_receipt_interface():
     
     receipt_system = PaymentReceiptSystem()
     
-    # Get drivers list
-    conn = sqlite3.connect('trailer_data.db')
+    # Get drivers list from main database
+    conn = sqlite3.connect('trailer_tracker_streamlined.db')
     cursor = conn.cursor()
     cursor.execute("SELECT DISTINCT driver_name FROM drivers WHERE active = 1 ORDER BY driver_name")
     drivers = [row[0] for row in cursor.fetchall()]
