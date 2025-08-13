@@ -232,6 +232,29 @@ class DatabaseConnectionManager:
                 )
             """)
             
+            # Ensure rate_cons table exists
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS rate_cons (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    mlbl_number TEXT,
+                    rate_con_number TEXT,
+                    client_name TEXT,
+                    client_miles REAL,
+                    client_rate REAL,
+                    client_total REAL,
+                    factoring_fee REAL,
+                    driver_net REAL,
+                    rate_con_file_path TEXT,
+                    bol_file_path TEXT,
+                    upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    matched_to_move_id INTEGER UNIQUE,
+                    matched_date TIMESTAMP,
+                    matched_by TEXT,
+                    status TEXT DEFAULT 'unmatched',
+                    notes TEXT
+                )
+            """)
+            
             conn.commit()
 
 # Global instance

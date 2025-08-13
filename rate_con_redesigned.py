@@ -99,26 +99,32 @@ def show_quick_upload():
     with col1:
         st.markdown("### 📝 Move Details")
         
-        # Simple calculation toggle
+        # Simple calculation toggle (OUTSIDE the form for real-time updates)
         use_total = st.toggle("Calculate from total amount", value=False)
         
+        # Use containers for real-time calculation
+        if not use_total:
+            # Enter miles and rate
+            miles = st.number_input("Miles", min_value=0.0, step=1.0, key="miles_input")
+            rate = st.number_input("Rate ($/mile)", min_value=0.0, step=0.01, value=2.10, key="rate_input")
+            total = miles * rate
+            if total > 0:
+                st.success(f"**Total Amount: ${total:.2f}**")
+        else:
+            # Enter total and calculate miles
+            total = st.number_input("Total Amount ($)", min_value=0.0, step=0.01, key="total_input")
+            rate = st.number_input("Rate ($/mile)", min_value=0.0, step=0.01, value=2.10, key="rate_calc")
+            miles = total / rate if rate > 0 else 0
+            if miles > 0:
+                st.info(f"**Calculated Miles: {miles:.1f}**")
+        
+        # Form for file uploads and submission
         with st.form("quick_upload", clear_on_submit=True):
             # MLBL Number (optional)
             mlbl = st.text_input(
                 "MLBL Number", 
                 placeholder="Optional - e.g., MLBL-58064"
             )
-            
-            if not use_total:
-                # Enter miles and rate
-                miles = st.number_input("Miles", min_value=0.0, step=1.0)
-                rate = st.number_input("Rate ($/mile)", min_value=0.0, step=0.01, value=2.10)
-                total = miles * rate
-            else:
-                # Enter total and calculate miles
-                total = st.number_input("Total Amount ($)", min_value=0.0, step=0.01)
-                rate = st.number_input("Rate ($/mile)", min_value=0.0, step=0.01, value=2.10)
-                miles = total / rate if rate > 0 else 0
             
             # File uploads in a cleaner layout
             st.markdown("### 📎 Documents")

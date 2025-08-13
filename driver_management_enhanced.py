@@ -431,6 +431,17 @@ class EnhancedDriverManager:
                         help="Upload COI or insurance documentation",
                         key="insurance_doc_upload"
                     )
+                    
+                    # W9 document upload
+                    st.markdown("**📋 W9 Form (Tax Documentation)**")
+                    w9_doc = st.file_uploader(
+                        "Upload W9 Form",
+                        type=['pdf', 'jpg', 'jpeg', 'png'],
+                        help="W9 is required for contractor tax compliance",
+                        key="w9_doc_upload"
+                    )
+                    if not w9_doc:
+                        st.warning("⚠️ W9 can be uploaded later but is required for payment processing")
                 else:
                     st.success("✅ Company Driver - No additional info needed")
                     company_name = None
@@ -503,6 +514,19 @@ class EnhancedDriverManager:
                     
                     # Create driver
                     if self.create_driver(driver_data, user_credentials):
+                        # Handle W9 upload if provided
+                        if st.session_state.driver_type_selected == 'contractor' and 'w9_doc' in locals() and w9_doc:
+                            import w9_manager
+                            w9_mgr = w9_manager.W9Manager()
+                            success, result = w9_mgr.upload_w9(
+                                driver_name,
+                                w9_doc,
+                                tax_year=datetime.now().year,
+                                notes="Uploaded during driver creation"
+                            )
+                            if success:
+                                st.success(f"✅ W9 document uploaded: {result}")
+                        
                         st.success(f"""
                         ✅ **Driver Created Successfully!**
                         
