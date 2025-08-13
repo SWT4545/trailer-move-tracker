@@ -176,7 +176,7 @@ else:
             col1, col2 = st.columns(2)
             with col1:
                 trailer_number = st.text_input("Trailer Number")
-                trailer_type = st.selectbox("Type", ["Dry Van", "Reefer", "Flatbed"])
+                trailer_type = st.selectbox("Type", ["Roller Bed", "Dry Van", "Flatbed", "Reefer", "Step Deck", "Double Drop", "Lowboy", "Other"])
             with col2:
                 location = st.text_input("Current Location")
                 status = st.selectbox("Status", ["available", "in_use", "maintenance"])

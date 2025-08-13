@@ -325,36 +325,31 @@ st.markdown("""
         margin: 10px 0;
         border-radius: 0 5px 5px 0;
     }
-    /* Center logo on login page */
-    div[data-testid="column"]:nth-of-type(2) {
-        text-align: center;
-    }
-    /* Style for login page */
-    .login-container {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 10px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
 # Login page
 if not st.session_state.authenticated:
-    # Logo and title
+    # Logo at top of login page
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         # Use white logo for better visibility
         if os.path.exists("swt_logo_white.png"):
-            st.image("swt_logo_white.png", width=350, use_column_width=False)
+            st.image("swt_logo_white.png", use_container_width=True)
         elif os.path.exists("swt_logo.png"):
-            st.image("swt_logo.png", width=350, use_column_width=False)
+            st.image("swt_logo.png", use_container_width=True)
         else:
             st.markdown("# 🚛")
         
-        st.markdown("# Smith & Williams Trucking")
-        st.markdown("### Secure Login Portal")
+        st.markdown("<h1 style='text-align: center;'>Smith & Williams Trucking</h1>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #666;'>Trailer Move Management System</p>", unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("### Login")
         
-        # Login form
         username = st.text_input("Username", placeholder="Enter your username")
         password = st.text_input("Password", type="password", placeholder="Enter your password")
         
@@ -382,24 +377,14 @@ if not st.session_state.authenticated:
                 st.session_state.user_role = "admin"
                 st.rerun()
         
-        # Login help
-        with st.expander("📋 Test Accounts"):
-            st.markdown("""
-            **Admin Access:**
-            - Brandon / owner123
-            - admin / admin123
-            
-            **Specialized Roles:**
-            - dataentry / data123 (Data Entry Specialist)
-            - driver / driver123 (Driver)
-            - dispatch / dispatch123 (Dispatcher)
-            
-            **Or use Demo Mode for quick access**
-            """)
+        # Remove credentials display - just show Demo Mode is available
+        st.info("💡 Use Demo Mode for quick access or contact administrator for credentials")
     
-    # Footer
     st.markdown("---")
-    st.markdown("© 2025 Smith & Williams Trucking | 🔐 Protected by Vernon - Chief Data Security Officer")
+    st.markdown(
+        "<p style='text-align: center; color: #888;'>© 2025 Smith & Williams Trucking | 🔐 Protected by Vernon - Chief Data Security Officer</p>",
+        unsafe_allow_html=True
+    )
 
 # Main Application
 else:
@@ -407,9 +392,9 @@ else:
     with st.sidebar:
         # Logo - use white version for better visibility
         if os.path.exists("swt_logo_white.png"):
-            st.image("swt_logo_white.png", width=200)
+            st.image("swt_logo_white.png", use_container_width=True)
         elif os.path.exists("swt_logo.png"):
-            st.image("swt_logo.png", width=200)
+            st.image("swt_logo.png", use_container_width=True)
         
         st.markdown(f"### 👤 {st.session_state.username}")
         st.markdown(f"**Role:** {st.session_state.user_role}")
@@ -556,7 +541,7 @@ else:
                 col1, col2 = st.columns(2)
                 with col1:
                     trailer_num = st.text_input("Trailer Number*", help="Unique identifier")
-                    trailer_type = st.selectbox("Type*", ["Dry Van", "Reefer", "Flatbed", "Tanker", "Lowboy"])
+                    trailer_type = st.selectbox("Type*", ["Roller Bed", "Dry Van", "Flatbed", "Reefer", "Step Deck", "Double Drop", "Lowboy", "Conestoga", "Tanker", "Car Hauler", "Dump Trailer", "Hopper Bottom", "Livestock", "Pneumatic", "Stretch Trailer", "Side Kit", "Other"])
                     condition = st.selectbox("Condition", ["Excellent", "Good", "Fair", "Poor"])
                     year = st.number_input("Year", min_value=1990, max_value=2025, value=2020)
                 
@@ -917,7 +902,7 @@ else:
         with col1:
             filter_status = st.selectbox("Filter by Status", ["All", "available", "in_use", "maintenance"])
         with col2:
-            filter_type = st.selectbox("Filter by Type", ["All", "Dry Van", "Reefer", "Flatbed"])
+            filter_type = st.selectbox("Filter by Type", ["All", "Roller Bed", "Dry Van", "Flatbed", "Reefer", "Step Deck", "Double Drop", "Lowboy", "Other"])
         with col3:
             search = st.text_input("Search Trailer Number")
         
