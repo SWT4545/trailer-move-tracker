@@ -675,7 +675,7 @@ def show_submissions_by_status(status, submission_system):
                                 st.rerun()
                     
                     with col_b:
-                        if st.button("❌ Reject", key=f"reject_{submission['submission_id']]}"):
+                        if st.button("❌ Reject", key=f"reject_{submission['submission_id']}"):
                             reason = st.text_input(
                                 "Rejection reason",
                                 key=f"reason_{submission['submission_id']}"

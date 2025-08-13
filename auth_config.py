@@ -457,3 +457,60 @@ def is_user_owner(username):
     if username in USERS:
         return USERS[username].get('is_owner', False)
     return False
+
+def show_login():
+    """Show login page"""
+    import streamlit as st
+    
+    st.markdown("""
+    <div style='text-align: center; padding: 2rem;'>
+        <h1 style='color: #FFFFFF; font-size: 3rem;'>🚛</h1>
+        <h1 style='color: #FFFFFF;'>Smith & Williams Trucking</h1>
+        <p style='color: #888;'>Trailer Move Management System</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.form("login_form"):
+            username = st.text_input("Username", placeholder="Enter your username")
+            password = st.text_input("Password", type="password", placeholder="Enter your password")
+            
+            col_a, col_b = st.columns(2)
+            with col_a:
+                login_button = st.form_submit_button("🔓 Login", use_container_width=True, type="primary")
+            with col_b:
+                demo_button = st.form_submit_button("📱 Demo Mode", use_container_width=True)
+            
+            if login_button:
+                if validate_user(username, password):
+                    st.session_state.authenticated = True
+                    st.session_state.username = username
+                    
+                    # Get user role
+                    conn = sqlite3.connect('trailer_tracker_streamlined.db')
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT role FROM users WHERE username = ?", (username,))
+                    result = cursor.fetchone()
+                    conn.close()
+                    
+                    if result:
+                        st.session_state.user_role = result[0]
+                    else:
+                        # Check auth_config USERS dict for legacy support
+                        if username in USERS:
+                            st.session_state.user_role = USERS[username]['role']
+                        else:
+                            st.session_state.user_role = 'viewer'
+                    
+                    st.success("✅ Login successful!")
+                    st.rerun()
+                else:
+                    st.error("❌ Invalid username or password")
+            
+            if demo_button:
+                st.session_state.authenticated = True
+                st.session_state.username = "demo_user"
+                st.session_state.user_role = "viewer"
+                st.success("✅ Demo mode activated!")
+                st.rerun()
