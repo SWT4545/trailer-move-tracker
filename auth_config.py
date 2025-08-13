@@ -4,6 +4,36 @@ Authentication and Access Control Configuration
 
 # User roles and their permissions
 USER_ROLES = {
+    'Owner': {
+        'description': 'Owner - Complete system control with all permissions',
+        'access': [
+            'dashboard', 'trailer_management', 'add_move', 'progress_dashboard',
+            'invoices', 'email_center', 'locations', 'drivers', 'mileage',
+            'import_export', 'settings', 'user_management', 'financial_reports',
+            'system_config', 'audit_logs', 'driver_management', 'payments',
+            'reports', 'data_entry', 'vernon_cdso'
+        ],
+        'can_edit': True,
+        'can_delete': True,
+        'can_export': True,
+        'view_financial': True,
+        'manage_users': True,
+        'override_all': True,
+        'is_owner': True
+    },
+    'owner_driver': {
+        'description': 'Owner acting as Driver - Driver interface with owner permissions',
+        'access': [
+            'dashboard', 'self_assign', 'my_moves', 'my_earnings', 'documents',
+            'profile', 'settings', 'mobile_driver'
+        ],
+        'can_edit': True,
+        'can_delete': True,
+        'can_export': True,
+        'view_financial': True,
+        'is_owner': True,
+        'driver_mode': True
+    },
     'business_administrator': {
         'description': 'Business Administrator - Complete system control',
         'access': [
@@ -128,17 +158,41 @@ USER_ROLES = {
 # User accounts are now stored in database
 # Temporary accounts for Streamlit Cloud until database is created
 USERS = {
+    'brandon': {
+        'password': 'owner2024',
+        'role': 'Owner',
+        'name': 'Brandon Smith',
+        'title': 'Owner',
+        'is_owner': True,
+        'can_act_as_driver': True
+    },
+    'brandon_driver': {
+        'password': 'owner2024',
+        'role': 'owner_driver',
+        'name': 'Brandon Smith (Driver Mode)',
+        'title': 'Owner/Driver',
+        'is_owner': True,
+        'driver_mode': True
+    },
+    'j_duckett': {
+        'password': 'duck123',
+        'role': 'driver',
+        'name': 'Justin Duckett',
+        'title': 'Contract Driver',
+        'company': 'L&P Solutions'
+    },
+    'c_strickland': {
+        'password': 'strik123',
+        'role': 'driver',
+        'name': 'Carl Strickland',
+        'title': 'Contract Driver',
+        'company': 'Cross State Logistics Inc.'
+    },
     'admin': {
         'password': 'admin123',
         'role': 'business_administrator', 
         'name': 'Administrator',
         'title': 'Administrator'
-    },
-    'setup': {
-        'password': 'setup123',
-        'role': 'business_administrator',
-        'name': 'Setup Admin',
-        'title': 'Initial Setup'
     }
 }
 

@@ -432,8 +432,11 @@ else:
             pages = ["Dashboard", "Trailers", "Moves", "Driver Management", "Payments", "Reports", "User Management", "Settings"]
         elif st.session_state.user_role in ["Coordinator", "operations_coordinator"]:
             pages = ["Dashboard", "Trailers", "Moves", "Driver Management", "Reports", "Settings"]
+        elif st.session_state.user_role == "owner_driver":
+            # Owner acting as driver - show mobile interface
+            pages = ["Mobile Driver", "Dashboard", "Self-Assign", "My Moves", "My Earnings", "Documents", "Profile", "Settings"]
         elif st.session_state.user_role == "Driver" or st.session_state.user_role == "driver":
-            pages = ["Dashboard", "Self-Assign", "My Moves", "My Earnings", "Documents", "Profile", "Settings"]
+            pages = ["Mobile Driver", "Dashboard", "Self-Assign", "My Moves", "My Earnings", "Documents", "Profile", "Settings"]
         elif st.session_state.user_role == "data_entry" or st.session_state.user_role == "DataEntry":
             pages = ["Dashboard", "Data Entry", "Vernon CDSO", "Settings"]
         else:
@@ -1564,7 +1567,22 @@ else:
         except:
             st.info("Statistics will appear here once data is available")
     
-    elif page == "My Moves" and st.session_state.user_role == "Driver":
+    elif page == "Mobile Driver" and st.session_state.user_role in ["Driver", "driver", "owner_driver"]:
+        # Mobile-optimized driver interface
+        from mobile_driver_interface import show_mobile_driver_interface
+        show_mobile_driver_interface()
+    
+    elif page == "Dashboard" and st.session_state.user_role in ["Driver", "driver", "owner_driver"]:
+        # Use new driver dashboard
+        from driver_pages import show_driver_dashboard
+        show_driver_dashboard()
+    
+    elif page == "My Moves" and st.session_state.user_role in ["Driver", "driver", "owner_driver"]:
+        # Use new my moves page
+        from driver_pages import show_my_moves_page
+        show_my_moves_page()
+    
+    elif page == "My Moves_OLD" and st.session_state.user_role == "Driver":
         st.header("🚛 My Moves")
         
         # Get driver's moves
@@ -1606,19 +1624,17 @@ else:
         except:
             st.info("Your moves will appear here")
     
-    elif page == "Self-Assign" and st.session_state.user_role in ["Driver", "driver"]:
-        st.header("📋 Self-Assign Moves")
-        
-        try:
-            from driver_self_assignment import show_self_assignment_interface
-            driver_id = st.session_state.get('user_id', 1)
-            driver_name = st.session_state.username
-            show_self_assignment_interface(driver_id, driver_name)
-        except Exception as e:
-            st.info("Self-assignment system loading...")
-            st.caption(f"Debug: {e}")
+    elif page == "Self-Assign" and st.session_state.user_role in ["Driver", "driver", "owner_driver"]:
+        # Use new self-assign page
+        from driver_pages import show_self_assign_page
+        show_self_assign_page()
     
-    elif page == "Documents" and st.session_state.user_role in ["Driver", "driver"]:
+    elif page == "Documents" and st.session_state.user_role in ["Driver", "driver", "owner_driver"]:
+        # Use new documents page
+        from driver_pages import show_documents_page
+        show_documents_page()
+    
+    elif page == "Documents_OLD" and st.session_state.user_role in ["Driver", "driver"]:
         st.header("📄 My Documents")
         
         tabs = st.tabs(["Upload Documents", "View Documents", "Required Documents"])
@@ -1671,7 +1687,12 @@ else:
             - Doubles/Triples
             """)
     
-    elif page == "Profile" and st.session_state.user_role in ["Driver", "driver"]:
+    elif page == "Profile" and st.session_state.user_role in ["Driver", "driver", "owner_driver"]:
+        # Use new profile page
+        from driver_pages import show_profile_page
+        show_profile_page()
+    
+    elif page == "Profile_OLD" and st.session_state.user_role in ["Driver", "driver"]:
         st.header("👤 My Profile")
         
         tabs = st.tabs(["Personal Info", "Emergency Contact", "Payment Info", "Preferences", "Certifications"])
@@ -1881,7 +1902,7 @@ else:
         </div>
         """, unsafe_allow_html=True)
     
-    elif page == "My Earnings" and st.session_state.user_role in ["Driver", "driver"]:
+    elif page == "My Earnings" and st.session_state.user_role in ["Driver", "driver", "owner_driver"]:
         st.header("💰 My Earnings")
         
         try:
