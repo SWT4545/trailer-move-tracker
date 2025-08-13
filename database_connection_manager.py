@@ -211,6 +211,27 @@ class DatabaseConnectionManager:
                 )
             """)
             
+            # Ensure W9 documents table exists
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS w9_documents (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    driver_name TEXT NOT NULL,
+                    driver_id INTEGER,
+                    file_name TEXT,
+                    file_path TEXT,
+                    file_size INTEGER,
+                    upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    tax_year INTEGER,
+                    ein_or_ssn TEXT,
+                    business_name TEXT,
+                    status TEXT DEFAULT 'active',
+                    verified_by TEXT,
+                    verified_date TIMESTAMP,
+                    notes TEXT,
+                    FOREIGN KEY (driver_id) REFERENCES drivers(id)
+                )
+            """)
+            
             conn.commit()
 
 # Global instance

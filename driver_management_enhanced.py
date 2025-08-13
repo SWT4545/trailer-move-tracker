@@ -745,7 +745,7 @@ def show_enhanced_driver_management():
     
     st.title("🚛 Enhanced Driver Management")
     
-    tabs = st.tabs(["➕ Create Driver", "✏️ Update Driver", "📋 View All Drivers"])
+    tabs = st.tabs(["➕ Create Driver", "✏️ Update Driver", "📋 View All Drivers", "📄 W9 Documents"])
     
     with tabs[0]:
         manager.show_driver_creation_form()
@@ -755,6 +755,20 @@ def show_enhanced_driver_management():
     
     with tabs[2]:
         manager.show_driver_list()
+    
+    with tabs[3]:
+        # Import W9 manager
+        import w9_manager
+        
+        # Check if user is admin
+        if st.session_state.get('user_role') == 'business_administrator':
+            # Show full W9 management for admins
+            w9_manager.show_w9_management_interface()
+        else:
+            # Show upload interface only for non-admins
+            st.markdown("### 📄 W9 Document Upload")
+            st.info("W9 forms are required for all contract drivers for tax compliance.")
+            w9_manager.show_w9_upload_interface()
 
 # Export for use in main app
 __all__ = ['EnhancedDriverManager', 'show_enhanced_driver_management']

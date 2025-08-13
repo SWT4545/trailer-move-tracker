@@ -28,6 +28,7 @@ import enhanced_user_manager
 import enhanced_data_management
 from payment_receipt_system import show_payment_receipt_interface
 import move_editor
+import w9_manager
 
 # Import enhanced modules for fixes
 import ui_responsiveness_fix as ui_fix
@@ -1420,13 +1421,26 @@ def show_payment_tracking():
         st.error("Access restricted to Business Administrator")
         return
     
-    # Add error handling for database connection
+    # Ensure database tables exist
     try:
-        db_path = 'trailer_tracker_streamlined.db' if os.path.exists('trailer_tracker_streamlined.db') else 'trailer_data.db'
-        test_conn = sqlite3.connect(db_path)
-        test_conn.close()
+        from database_connection_manager import db_manager
+        db_manager.ensure_tables()
+        
+        # Test the connection
+        with db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = cursor.fetchall()
     except Exception as e:
-        st.error(f"Database connection error. Please refresh the page.")
+        st.error(f"Database initialization required.")
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button("🔄 Initialize Database", type="primary", use_container_width=True):
+                try:
+                    db_manager.ensure_tables()
+                    st.rerun()
+                except:
+                    st.error("Could not initialize database. Contact IT Support.")
         return
     
     st.title("💰 Payment Tracking")
@@ -1606,15 +1620,26 @@ def show_system_admin():
     st.title("⚙️ System Administration")
     st.warning("⚠️ **CAUTION:** Changes here affect the entire system")
     
-    # Add error handling for database connection
+    # Ensure database tables exist
     try:
-        db_path = 'trailer_tracker_streamlined.db' if os.path.exists('trailer_tracker_streamlined.db') else 'trailer_data.db'
-        test_conn = sqlite3.connect(db_path)
-        test_conn.close()
+        from database_connection_manager import db_manager
+        db_manager.ensure_tables()
+        
+        # Test the connection
+        with db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = cursor.fetchall()
     except Exception as e:
-        st.error(f"Database connection error. Please refresh the page.")
-        if st.button("🔄 Retry Connection"):
-            st.rerun()
+        st.error(f"Database initialization required.")
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button("🔄 Initialize Database", type="primary", use_container_width=True):
+                try:
+                    db_manager.ensure_tables()
+                    st.rerun()
+                except:
+                    st.error("Could not initialize database. Contact IT Support.")
         return
     
     tabs = st.tabs([
