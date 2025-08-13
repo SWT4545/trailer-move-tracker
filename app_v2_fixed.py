@@ -11,12 +11,16 @@ import hashlib
 import os
 from PIL import Image
 
-# Import PDF generator if available
+# Import PDF generator - try full version first, then simple version
 try:
     from pdf_report_generator import PDFReportGenerator, generate_status_report_for_profile
     PDF_AVAILABLE = True
 except:
-    PDF_AVAILABLE = False
+    try:
+        from simple_pdf_generator import PDFReportGenerator, generate_status_report_for_profile
+        PDF_AVAILABLE = True
+    except:
+        PDF_AVAILABLE = False
 
 # Page config
 st.set_page_config(
@@ -220,15 +224,24 @@ else:
                 st.session_state.page = "Trailers"
                 st.rerun()
         with col3:
-            if PDF_AVAILABLE and st.button("📄 Generate Report", use_container_width=True):
-                with st.spinner("Generating PDF..."):
-                    pdf_buffer = generate_status_report_for_profile(st.session_state.username, st.session_state.user_role)
-                    st.download_button(
-                        "📥 Download Report",
-                        pdf_buffer,
-                        f"Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                        mime="application/pdf"
-                    )
+            if PDF_AVAILABLE:
+                if st.button("📄 Generate Report", use_container_width=True):
+                    with st.spinner("Generating PDF..."):
+                        try:
+                            pdf_buffer = generate_status_report_for_profile(st.session_state.username, st.session_state.user_role)
+                            st.download_button(
+                                "📥 Download Report",
+                                pdf_buffer,
+                                f"Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                                mime="application/pdf",
+                                key="dashboard_pdf_download"
+                            )
+                            st.success("✅ Report generated! Click the download button above.")
+                        except Exception as e:
+                            st.error(f"Error generating report: {e}")
+            else:
+                if st.button("📄 Generate Report", use_container_width=True):
+                    st.info("PDF generation requires reportlab. Install with: pip install reportlab")
         
         # Stats
         st.markdown("### Key Metrics")
@@ -486,21 +499,26 @@ else:
             
             with col3:
                 if st.button("📄 Generate PDF", type="primary", use_container_width=True):
-                    with st.spinner("Creating report..."):
-                        generator = PDFReportGenerator()
-                        pdf_buffer = generator.generate_client_update_report(
-                            report_type,
-                            date_range[0] if len(date_range) > 0 else None,
-                            date_range[1] if len(date_range) > 1 else None
-                        )
-                        
-                        st.download_button(
-                            "📥 Download PDF Report",
-                            pdf_buffer,
-                            f"{report_type.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
+                    try:
+                        with st.spinner("Creating report..."):
+                            generator = PDFReportGenerator()
+                            pdf_buffer = generator.generate_client_update_report(
+                                report_type,
+                                date_range[0] if len(date_range) > 0 else None,
+                                date_range[1] if len(date_range) > 1 else None
+                            )
+                            
+                            st.download_button(
+                                "📥 Download PDF Report",
+                                pdf_buffer,
+                                f"{report_type.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                                mime="application/pdf",
+                                use_container_width=True,
+                                key="reports_pdf_download"
+                            )
+                            st.success("✅ Report ready! Click the download button above.")
+                    except Exception as e:
+                        st.error(f"Error generating report: {e}")
         
         # Quick stats
         st.markdown("### Quick Statistics")
