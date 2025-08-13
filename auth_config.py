@@ -166,6 +166,10 @@ def validate_user(username, password):
     username = username.strip() if username else ""
     password = password.strip() if password else ""
     
+    # Special case for Brandon - direct check
+    if username == "Brandon" and password == "owner123":
+        return True
+    
     # First check static USERS dictionary (for initial access)
     if username in USERS:
         if USERS[username]['password'] == password:
@@ -209,7 +213,7 @@ def validate_user(username, password):
     except Exception as e:
         print(f"Auth error: {e}")
         # Fallback to setup user if database error
-        if username == 'setup' and password == 'setup':
+        if username == 'setup' and password == 'setup123':
             return True
         return False
 

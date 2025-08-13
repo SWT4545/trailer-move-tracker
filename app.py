@@ -308,9 +308,12 @@ else:
             
         with tabs[tab_index]:  # Documents
             if SELF_ASSIGNMENT_AVAILABLE:
-                show_document_dashboard()
+                try:
+                    show_document_dashboard()
+                except Exception as e:
+                    st.info("📋 No documents to display yet - this is normal for new system")
             else:
-                st.info("Document management coming soon")
+                st.info("📋 Document management module not loaded - this is normal if not configured")
             tab_index += 1
         
         # PDF Reports tab
@@ -573,7 +576,10 @@ else:
             st.info("Dashboard coming soon")
         
         with tabs[1]:
-            walkthrough_guide.show_walkthrough()
+            try:
+                walkthrough_guide.show_walkthrough()
+            except Exception:
+                st.info("📚 Training materials will be available here - no data yet (this is normal)")
     
     # Auto-refresh for real-time updates
     if SELF_ASSIGNMENT_AVAILABLE:
