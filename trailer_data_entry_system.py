@@ -1,6 +1,7 @@
 """
-Trailer Data Entry System with Vernon Guidance
-Specialized interface for trailer location management and data entry
+Trailer Data Entry System with Vernon IT Guidance
+For Data Entry Specialists to manage trailer locations efficiently
+Smith & Williams Trucking
 """
 
 import streamlit as st
@@ -8,642 +9,551 @@ import pandas as pd
 from datetime import datetime, date
 import sqlite3
 import json
-import uuid
 
-class TrailerDataEntrySystem:
-    def __init__(self):
-        self.conn = sqlite3.connect('trailer_tracker_streamlined.db')
-        self.ensure_tables()
-        
-    def ensure_tables(self):
-        """Ensure trailer tables exist with all necessary columns"""
-        cursor = self.conn.cursor()
-        
-        # Enhanced trailer inventory table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS trailer_inventory (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                trailer_number TEXT UNIQUE NOT NULL,
-                trailer_type TEXT,
-                status TEXT DEFAULT 'available',
-                condition TEXT DEFAULT 'good',
-                current_location TEXT,
-                location_lat REAL,
-                location_lng REAL,
-                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_by TEXT,
-                notes TEXT,
-                customer_owner TEXT,
-                year_manufactured INTEGER,
-                last_inspection DATE,
-                next_inspection DATE,
-                photos TEXT,
-                qr_code TEXT,
-                is_old_trailer BOOLEAN DEFAULT 0,
-                found_by_driver TEXT,
-                approval_status TEXT DEFAULT 'pending',
-                approved_by TEXT,
-                approval_date TIMESTAMP
-            )
-        ''')
-        
-        # Trailer location history
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS trailer_location_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                trailer_number TEXT,
-                location TEXT,
-                lat REAL,
-                lng REAL,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_by TEXT,
-                reason TEXT,
-                notes TEXT,
-                FOREIGN KEY (trailer_number) REFERENCES trailer_inventory(trailer_number)
-            )
-        ''')
-        
-        # Trailer status changes
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS trailer_status_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                trailer_number TEXT,
-                old_status TEXT,
-                new_status TEXT,
-                changed_by TEXT,
-                change_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                reason TEXT,
-                FOREIGN KEY (trailer_number) REFERENCES trailer_inventory(trailer_number)
-            )
-        ''')
-        
-        self.conn.commit()
+def get_connection():
+    return sqlite3.connect('trailer_tracker_streamlined.db')
 
-    def show_data_entry_interface(self, username):
-        """Main interface for trailer data entry"""
-        st.title("🚛 Trailer Data Management Center")
+def show_vernon_guidance(step, context=""):
+    """Vernon provides non-annoying, helpful guidance"""
+    guidance = {
+        "welcome": """
+        🦸‍♂️ **Vernon Here - Your IT Superhero!**
         
-        # Vernon's helpful guidance
-        self.show_vernon_helper()
+        Welcome to the Trailer Management Center! I'm here to help you succeed.
+        You're doing important work tracking our trailers. Let me guide you through it!
         
-        # Tab interface
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
-            "📝 Add/Update Trailer",
-            "📍 Update Locations",
-            "📊 Bulk Operations",
-            "🔍 Search & View",
-            "📈 Reports"
-        ])
+        💡 **Quick Tips:**
+        - Use the search to find trailers quickly
+        - Double-check trailer numbers before saving
+        - I'll help validate your entries automatically
+        """,
         
-        with tab1:
-            self.show_trailer_entry_form(username)
-            
-        with tab2:
-            self.show_location_update_interface(username)
-            
-        with tab3:
-            self.show_bulk_operations(username)
-            
-        with tab4:
-            self.show_search_interface()
-            
-        with tab5:
-            self.show_data_entry_reports(username)
-
-    def show_vernon_helper(self):
-        """Vernon's helpful guidance system"""
-        with st.sidebar:
-            st.markdown("### 🦸‍♂️ Vernon IT Support")
-            st.info("""
-            👋 Hi! I'm Vernon, your IT superhero!
-            
-            I'm here to help you manage trailer data efficiently:
-            
-            **Quick Tips:**
-            • Use Tab key to move between fields
-            • Press Enter to submit forms
-            • Click 📍 to auto-detect location
-            • Use bulk upload for multiple trailers
-            
-            **Need Help?**
-            Click any ❓ icon for instant guidance!
-            """)
-            
-            if st.button("🆘 Get Help from Vernon", use_container_width=True):
-                st.balloons()
-                st.success("Vernon is here to help! What do you need assistance with?")
-
-    def show_trailer_entry_form(self, username):
-        """Form for adding or updating trailer information"""
-        st.subheader("Add or Update Trailer Information")
+        "add_trailer": """
+        ✨ **Adding a New Trailer**
         
-        col1, col2 = st.columns(2)
+        Enter the trailer number carefully - it's like the trailer's ID card!
+        Location is super important - be specific (e.g., "Memphis Yard Bay 5")
+        """,
         
-        with col1:
-            trailer_number = st.text_input(
-                "Trailer Number*",
-                help="Enter the trailer ID (e.g., TR-001, SWT-123)",
-                placeholder="TR-001"
-            )
-            
-            trailer_type = st.selectbox(
-                "Trailer Type",
-                ["Dry Van", "Reefer", "Flatbed", "Step Deck", "Double Drop", "Other"],
-                help="Select the type of trailer"
-            )
-            
-            condition = st.selectbox(
-                "Condition",
-                ["Excellent", "Good", "Fair", "Poor", "Needs Repair"],
-                index=1,
-                help="Current condition of the trailer"
-            )
-            
-            is_old = st.checkbox(
-                "This is an OLD trailer (found/abandoned)",
-                help="Check if this trailer was found or is abandoned"
-            )
-            
-        with col2:
-            current_location = st.text_input(
-                "Current Location*",
-                help="Enter the current location (address or landmark)",
-                placeholder="123 Main St, City, State"
-            )
-            
-            col2a, col2b = st.columns(2)
-            with col2a:
-                lat = st.number_input("Latitude", value=0.0, format="%.6f")
-            with col2b:
-                lng = st.number_input("Longitude", value=0.0, format="%.6f")
-            
-            if st.button("📍 Auto-Detect Location"):
-                st.info("Vernon says: Location detection would use device GPS in production!")
-                lat = 33.7490  # Example: Atlanta
-                lng = -84.3880
-                st.success(f"Location detected: {lat}, {lng}")
-            
-            customer_owner = st.text_input(
-                "Customer/Owner",
-                help="Who owns or is assigned this trailer?",
-                placeholder="Customer name or 'Company'"
-            )
+        "bulk_upload": """
+        📊 **Bulk Upload Power Mode!**
         
-        # Additional Information
-        with st.expander("📋 Additional Information"):
-            col3, col4 = st.columns(2)
-            
-            with col3:
-                year_manufactured = st.number_input(
-                    "Year Manufactured",
-                    min_value=1990,
-                    max_value=2025,
-                    value=2020
-                )
-                
-                last_inspection = st.date_input(
-                    "Last Inspection Date",
-                    value=None
-                )
-                
-                next_inspection = st.date_input(
-                    "Next Inspection Due",
-                    value=None
-                )
-            
-            with col4:
-                notes = st.text_area(
-                    "Notes",
-                    placeholder="Any additional information about this trailer...",
-                    height=120
-                )
-                
-                photos = st.file_uploader(
-                    "Upload Photos",
-                    accept_multiple_files=True,
-                    type=['png', 'jpg', 'jpeg']
-                )
+        You can upload many trailers at once using CSV!
+        Download my template first - it shows the exact format needed.
+        I'll check everything before we save it.
+        """,
         
-        # Submit buttons
-        col5, col6, col7 = st.columns(3)
+        "location_update": """
+        📍 **Updating Locations**
         
-        with col5:
-            if st.button("💾 Save Trailer", type="primary", use_container_width=True):
-                if trailer_number and current_location:
-                    self.save_trailer_data(
-                        trailer_number, trailer_type, condition, current_location,
-                        lat, lng, customer_owner, is_old, year_manufactured,
-                        last_inspection, next_inspection, notes, username
-                    )
-                    st.success(f"✅ Trailer {trailer_number} saved successfully!")
-                    st.balloons()
-                else:
-                    st.error("Please fill in required fields (Trailer Number and Location)")
+        Great job keeping locations current! Remember:
+        - Use consistent naming (e.g., always "Memphis" not "memphis" or "MEM")
+        - Include specific spots when possible (Bay, Row, Section numbers)
+        """,
         
-        with col6:
-            if st.button("🔄 Clear Form", use_container_width=True):
-                st.rerun()
+        "validation_error": f"""
+        ⚠️ **Oops! Let me help fix this:**
         
-        with col7:
-            if st.button("❓ Help", use_container_width=True):
-                st.info("""
-                Vernon's Quick Guide:
-                1. Enter trailer number (required)
-                2. Select trailer type and condition
-                3. Enter current location (required)
-                4. Optionally add GPS coordinates
-                5. Fill additional info if available
-                6. Click Save to submit
-                """)
-
-    def show_location_update_interface(self, username):
-        """Interface for updating trailer locations"""
-        st.subheader("📍 Update Trailer Locations")
+        {context}
         
-        # Quick location update
-        st.markdown("### Quick Location Update")
+        No worries - we all make mistakes! Just adjust and try again.
+        I'm here to help you succeed! 💪
+        """,
         
-        col1, col2, col3 = st.columns(3)
+        "success": """
+        🎉 **Excellent Work!**
         
-        with col1:
-            # Get list of trailers
-            cursor = self.conn.cursor()
-            cursor.execute("SELECT trailer_number FROM trailer_inventory ORDER BY trailer_number")
-            trailers = [row[0] for row in cursor.fetchall()]
-            
-            selected_trailer = st.selectbox(
-                "Select Trailer",
-                [""] + trailers,
-                help="Choose the trailer to update"
-            )
-        
-        with col2:
-            new_location = st.text_input(
-                "New Location",
-                placeholder="Enter new location"
-            )
-        
-        with col3:
-            reason = st.selectbox(
-                "Reason for Move",
-                ["Delivery", "Pickup", "Storage", "Maintenance", "Transfer", "Other"]
-            )
-        
-        if st.button("📍 Update Location", type="primary", use_container_width=True):
-            if selected_trailer and new_location:
-                self.update_trailer_location(selected_trailer, new_location, reason, username)
-                st.success(f"✅ Location updated for {selected_trailer}")
-            else:
-                st.error("Please select a trailer and enter new location")
-        
-        # Batch location updates
-        st.markdown("### Batch Location Updates")
-        st.info("Vernon says: You can update multiple trailers at once! Upload a CSV with columns: trailer_number, new_location, reason")
-        
-        uploaded_file = st.file_uploader("Upload CSV for batch updates", type=['csv'])
-        
-        if uploaded_file:
-            df = pd.read_csv(uploaded_file)
-            st.dataframe(df)
-            
-            if st.button("🚀 Process Batch Update"):
-                with st.spinner("Processing batch updates..."):
-                    success_count = 0
-                    for _, row in df.iterrows():
-                        try:
-                            self.update_trailer_location(
-                                row['trailer_number'],
-                                row['new_location'],
-                                row.get('reason', 'Batch Update'),
-                                username
-                            )
-                            success_count += 1
-                        except Exception as e:
-                            st.warning(f"Failed to update {row['trailer_number']}: {e}")
-                    
-                    st.success(f"✅ Successfully updated {success_count} trailers!")
-
-    def show_bulk_operations(self, username):
-        """Bulk operations interface"""
-        st.subheader("📊 Bulk Operations")
-        
-        operation = st.radio(
-            "Select Operation",
-            ["Import Trailers", "Export Data", "Update Status", "Delete Old Records"]
-        )
-        
-        if operation == "Import Trailers":
-            st.markdown("### Import Multiple Trailers")
-            st.info("Upload a CSV file with trailer information")
-            
-            # Show template
-            if st.button("📥 Download Template"):
-                template_df = pd.DataFrame({
-                    'trailer_number': ['TR-001', 'TR-002'],
-                    'trailer_type': ['Dry Van', 'Reefer'],
-                    'condition': ['Good', 'Excellent'],
-                    'current_location': ['Location 1', 'Location 2'],
-                    'customer_owner': ['Customer A', 'Customer B']
-                })
-                csv = template_df.to_csv(index=False)
-                st.download_button(
-                    "Download CSV Template",
-                    csv,
-                    "trailer_import_template.csv",
-                    "text/csv"
-                )
-            
-            uploaded = st.file_uploader("Choose CSV file", type=['csv'])
-            if uploaded:
-                df = pd.read_csv(uploaded)
-                st.dataframe(df)
-                
-                if st.button("🚀 Import Trailers", type="primary"):
-                    self.import_trailers_bulk(df, username)
-                    st.success(f"✅ Imported {len(df)} trailers successfully!")
-        
-        elif operation == "Export Data":
-            st.markdown("### Export Trailer Data")
-            
-            export_format = st.selectbox("Export Format", ["CSV", "Excel", "JSON"])
-            
-            if st.button("📤 Export All Trailers"):
-                df = self.get_all_trailers()
-                
-                if export_format == "CSV":
-                    csv = df.to_csv(index=False)
-                    st.download_button(
-                        "Download CSV",
-                        csv,
-                        f"trailers_export_{datetime.now().strftime('%Y%m%d')}.csv",
-                        "text/csv"
-                    )
-                elif export_format == "JSON":
-                    json_str = df.to_json(orient='records')
-                    st.download_button(
-                        "Download JSON",
-                        json_str,
-                        f"trailers_export_{datetime.now().strftime('%Y%m%d')}.json",
-                        "application/json"
-                    )
-        
-        elif operation == "Update Status":
-            st.markdown("### Bulk Status Update")
-            
-            status_filter = st.selectbox(
-                "Current Status",
-                ["available", "in_use", "maintenance", "retired"]
-            )
-            
-            new_status = st.selectbox(
-                "New Status",
-                ["available", "in_use", "maintenance", "retired"]
-            )
-            
-            if st.button("🔄 Update All Matching Trailers"):
-                count = self.bulk_update_status(status_filter, new_status, username)
-                st.success(f"✅ Updated {count} trailers from {status_filter} to {new_status}")
-
-    def show_search_interface(self):
-        """Search and view trailers"""
-        st.subheader("🔍 Search Trailers")
-        
-        # Search filters
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            search_term = st.text_input(
-                "Search",
-                placeholder="Trailer number or location..."
-            )
-        
-        with col2:
-            status_filter = st.selectbox(
-                "Status",
-                ["All", "available", "in_use", "maintenance", "retired"]
-            )
-        
-        with col3:
-            condition_filter = st.selectbox(
-                "Condition",
-                ["All", "Excellent", "Good", "Fair", "Poor", "Needs Repair"]
-            )
-        
-        # Search results
-        df = self.search_trailers(search_term, status_filter, condition_filter)
-        
-        if not df.empty:
-            st.markdown(f"### Found {len(df)} trailers")
-            
-            # Display options
-            view_mode = st.radio(
-                "View Mode",
-                ["Table", "Cards", "Map"],
-                horizontal=True
-            )
-            
-            if view_mode == "Table":
-                st.dataframe(
-                    df,
-                    use_container_width=True,
-                    hide_index=True,
-                    column_config={
-                        "trailer_number": st.column_config.TextColumn("Trailer #"),
-                        "current_location": st.column_config.TextColumn("Location"),
-                        "status": st.column_config.SelectboxColumn("Status"),
-                        "condition": st.column_config.SelectboxColumn("Condition"),
-                        "last_updated": st.column_config.DatetimeColumn("Last Updated")
-                    }
-                )
-            
-            elif view_mode == "Cards":
-                for _, trailer in df.iterrows():
-                    with st.expander(f"🚛 {trailer['trailer_number']} - {trailer['status']}"):
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.write(f"**Type:** {trailer['trailer_type']}")
-                            st.write(f"**Condition:** {trailer['condition']}")
-                            st.write(f"**Location:** {trailer['current_location']}")
-                        with col2:
-                            st.write(f"**Owner:** {trailer['customer_owner']}")
-                            st.write(f"**Updated:** {trailer['last_updated']}")
-                            st.write(f"**By:** {trailer['updated_by']}")
-            
-            elif view_mode == "Map":
-                st.info("Vernon says: Map view would show trailer locations on an interactive map!")
-        else:
-            st.info("No trailers found matching your criteria")
-
-    def show_data_entry_reports(self, username):
-        """Reports for data entry activities"""
-        st.subheader("📈 Data Entry Reports")
-        
-        # Activity summary
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            total = self.get_trailer_count()
-            st.metric("Total Trailers", total)
-        
-        with col2:
-            available = self.get_trailer_count("available")
-            st.metric("Available", available)
-        
-        with col3:
-            in_use = self.get_trailer_count("in_use")
-            st.metric("In Use", in_use)
-        
-        with col4:
-            maintenance = self.get_trailer_count("maintenance")
-            st.metric("Maintenance", maintenance)
-        
-        # Recent activities
-        st.markdown("### Recent Updates by You")
-        recent_df = self.get_recent_updates(username)
-        if not recent_df.empty:
-            st.dataframe(recent_df, use_container_width=True, hide_index=True)
-        else:
-            st.info("No recent updates")
-        
-        # Generate PDF report
-        if st.button("📄 Generate PDF Report", type="primary"):
-            st.info("Generating trailer inventory report...")
-            # Would integrate with pdf_report_generator.py here
-
-    # Database operations
-    def save_trailer_data(self, trailer_number, trailer_type, condition, location,
-                         lat, lng, owner, is_old, year, last_insp, next_insp, notes, username):
-        """Save trailer data to database"""
-        cursor = self.conn.cursor()
-        
-        cursor.execute('''
-            INSERT OR REPLACE INTO trailer_inventory
-            (trailer_number, trailer_type, condition, current_location, location_lat, location_lng,
-             customer_owner, is_old_trailer, year_manufactured, last_inspection, next_inspection,
-             notes, updated_by, last_updated)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (trailer_number, trailer_type, condition, location, lat, lng,
-              owner, is_old, year, last_insp, next_insp, notes, username, datetime.now()))
-        
-        self.conn.commit()
-        
-        # Log location history
-        self.log_location_history(trailer_number, location, lat, lng, username, "Initial Entry")
-
-    def update_trailer_location(self, trailer_number, new_location, reason, username):
-        """Update trailer location"""
-        cursor = self.conn.cursor()
-        
-        # Get current location for history
-        cursor.execute("SELECT current_location FROM trailer_inventory WHERE trailer_number = ?",
-                      (trailer_number,))
-        old_location = cursor.fetchone()
-        
-        # Update location
-        cursor.execute('''
-            UPDATE trailer_inventory
-            SET current_location = ?, last_updated = ?, updated_by = ?
-            WHERE trailer_number = ?
-        ''', (new_location, datetime.now(), username, trailer_number))
-        
-        self.conn.commit()
-        
-        # Log history
-        self.log_location_history(trailer_number, new_location, 0, 0, username, reason)
-
-    def log_location_history(self, trailer_number, location, lat, lng, username, reason):
-        """Log location change history"""
-        cursor = self.conn.cursor()
-        cursor.execute('''
-            INSERT INTO trailer_location_history
-            (trailer_number, location, lat, lng, updated_by, reason)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (trailer_number, location, lat, lng, username, reason))
-        self.conn.commit()
-
-    def import_trailers_bulk(self, df, username):
-        """Import multiple trailers from DataFrame"""
-        for _, row in df.iterrows():
-            self.save_trailer_data(
-                row.get('trailer_number'),
-                row.get('trailer_type', 'Dry Van'),
-                row.get('condition', 'Good'),
-                row.get('current_location', 'Unknown'),
-                row.get('lat', 0),
-                row.get('lng', 0),
-                row.get('customer_owner', ''),
-                row.get('is_old', False),
-                row.get('year_manufactured', 2020),
-                None, None,
-                row.get('notes', ''),
-                username
-            )
-
-    def get_all_trailers(self):
-        """Get all trailers as DataFrame"""
-        query = "SELECT * FROM trailer_inventory ORDER BY trailer_number"
-        return pd.read_sql_query(query, self.conn)
-
-    def search_trailers(self, search_term, status, condition):
-        """Search trailers with filters"""
-        query = "SELECT * FROM trailer_inventory WHERE 1=1"
-        params = []
-        
-        if search_term:
-            query += " AND (trailer_number LIKE ? OR current_location LIKE ?)"
-            params.extend([f"%{search_term}%", f"%{search_term}%"])
-        
-        if status != "All":
-            query += " AND status = ?"
-            params.append(status)
-        
-        if condition != "All":
-            query += " AND condition = ?"
-            params.append(condition)
-        
-        query += " ORDER BY last_updated DESC"
-        
-        return pd.read_sql_query(query, self.conn, params=params)
-
-    def get_trailer_count(self, status=None):
-        """Get count of trailers"""
-        cursor = self.conn.cursor()
-        if status:
-            cursor.execute("SELECT COUNT(*) FROM trailer_inventory WHERE status = ?", (status,))
-        else:
-            cursor.execute("SELECT COUNT(*) FROM trailer_inventory")
-        return cursor.fetchone()[0]
-
-    def get_recent_updates(self, username, limit=10):
-        """Get recent updates by user"""
-        query = """
-        SELECT trailer_number, current_location, last_updated, condition, status
-        FROM trailer_inventory
-        WHERE updated_by = ?
-        ORDER BY last_updated DESC
-        LIMIT ?
+        Your data has been saved successfully!
+        The system is now updated across all profiles.
+        Keep up the amazing work! You're a data entry champion! 🏆
         """
-        return pd.read_sql_query(query, self.conn, params=(username, limit))
+    }
+    
+    return guidance.get(step, "I'm here to help! Contact me at ext. 1337 if you need assistance.")
 
-    def bulk_update_status(self, old_status, new_status, username):
-        """Bulk update trailer status"""
-        cursor = self.conn.cursor()
-        cursor.execute('''
-            UPDATE trailer_inventory
-            SET status = ?, updated_by = ?, last_updated = ?
-            WHERE status = ?
-        ''', (new_status, username, datetime.now(), old_status))
-        
-        count = cursor.rowcount
-        self.conn.commit()
-        return count
+def validate_trailer_number(trailer_number):
+    """Validate trailer number format"""
+    if not trailer_number:
+        return False, "Trailer number is required"
+    
+    if len(trailer_number) < 3:
+        return False, "Trailer number too short (minimum 3 characters)"
+    
+    if len(trailer_number) > 20:
+        return False, "Trailer number too long (maximum 20 characters)"
+    
+    # Check for invalid characters
+    invalid_chars = ['#', '@', '!', '$', '%', '^', '&', '*']
+    for char in invalid_chars:
+        if char in trailer_number:
+            return False, f"Invalid character '{char}' in trailer number"
+    
+    return True, "Valid"
+
+def validate_location(location):
+    """Validate location entry"""
+    if not location:
+        return False, "Location is required"
+    
+    if len(location) < 2:
+        return False, "Location too short - please be more specific"
+    
+    return True, "Valid"
 
 def show_trailer_data_entry_interface(username):
-    """Main entry point for trailer data entry system"""
-    system = TrailerDataEntrySystem()
-    system.show_data_entry_interface(username)
+    """Main interface for data entry specialists"""
+    
+    # Header with Vernon
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col1:
+        st.markdown("""
+        <div style='background: linear-gradient(135deg, #667eea, #764ba2); 
+                    padding: 1rem; border-radius: 8px; text-align: center;'>
+            <h3 style='color: white; margin: 0;'>🦸‍♂️</h3>
+            <p style='color: white; margin: 0; font-weight: bold;'>Vernon IT</p>
+            <p style='color: white; margin: 0; font-size: 0.8em;'>Here to Help!</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("## 📝 Trailer Data Management Center")
+        st.markdown(f"*Data Entry Specialist: {username}*")
+    
+    with col3:
+        # Quick stats
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM trailers")
+        total_trailers = cursor.fetchone()[0]
+        conn.close()
+        
+        st.metric("Total Trailers", total_trailers)
+    
+    # Vernon's Welcome
+    with st.expander("🦸‍♂️ Vernon's Guidance", expanded=True):
+        st.info(show_vernon_guidance("welcome"))
+    
+    # Main tabs
+    tabs = st.tabs([
+        "➕ Add Trailer",
+        "📍 Update Locations", 
+        "📊 Bulk Upload",
+        "🔍 Search & Edit",
+        "📈 Status Overview",
+        "💾 Export Data"
+    ])
+    
+    # Add Trailer Tab
+    with tabs[0]:
+        st.markdown("### Add New Trailer")
+        st.info(show_vernon_guidance("add_trailer"))
+        
+        with st.form("add_trailer_form", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                trailer_number = st.text_input(
+                    "Trailer Number *",
+                    placeholder="e.g., TR-001, SMITH-123",
+                    help="Unique identifier for the trailer"
+                ).upper()
+                
+                trailer_type = st.selectbox(
+                    "Trailer Type *",
+                    ["Roller Bed", "Dry Van", "Flatbed", "Reefer", "Step Deck", 
+                     "Double Drop", "Lowboy", "Conestoga", "Tanker", "Car Hauler",
+                     "Dump Trailer", "Hopper Bottom", "Livestock", "Pneumatic",
+                     "Stretch Trailer", "Side Kit", "Other"],
+                    help="Select the trailer type"
+                )
+                
+                condition = st.selectbox(
+                    "Condition *",
+                    ["Excellent", "Good", "Fair", "Poor", "Needs Repair"],
+                    help="Current condition of the trailer"
+                )
+            
+            with col2:
+                location = st.text_input(
+                    "Current Location *",
+                    placeholder="e.g., Memphis Yard Bay 5",
+                    help="Be specific about the location"
+                )
+                
+                status = st.selectbox(
+                    "Status *",
+                    ["available", "in_use", "maintenance", "reserved", "retired"],
+                    help="Current operational status"
+                )
+                
+                owner = st.text_input(
+                    "Owner/Customer",
+                    placeholder="Leave blank if company-owned",
+                    help="Customer name if not owned by S&W"
+                )
+            
+            notes = st.text_area(
+                "Notes",
+                placeholder="Any additional information about this trailer",
+                help="Optional notes or special instructions"
+            )
+            
+            submitted = st.form_submit_button("➕ Add Trailer", type="primary", use_container_width=True)
+            
+            if submitted:
+                # Validate inputs
+                valid_number, number_msg = validate_trailer_number(trailer_number)
+                valid_location, location_msg = validate_location(location)
+                
+                if not valid_number:
+                    st.error(show_vernon_guidance("validation_error", number_msg))
+                elif not valid_location:
+                    st.error(show_vernon_guidance("validation_error", location_msg))
+                else:
+                    try:
+                        conn = get_connection()
+                        cursor = conn.cursor()
+                        
+                        # Check if trailer exists
+                        cursor.execute("SELECT id FROM trailers WHERE trailer_number = ?", (trailer_number,))
+                        if cursor.fetchone():
+                            st.error(f"Trailer {trailer_number} already exists! Use the Edit tab to update it.")
+                        else:
+                            cursor.execute("""
+                                INSERT INTO trailers 
+                                (trailer_number, trailer_type, condition, location, status, owner, notes, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """, (trailer_number, trailer_type, condition, location, status, owner, notes, datetime.now()))
+                            
+                            conn.commit()
+                            conn.close()
+                            
+                            st.success(show_vernon_guidance("success"))
+                            st.balloons()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+    
+    # Update Locations Tab
+    with tabs[1]:
+        st.markdown("### Batch Location Update")
+        st.info(show_vernon_guidance("location_update"))
+        
+        # Get all trailers
+        conn = get_connection()
+        df = pd.read_sql_query("""
+            SELECT trailer_number, location, status 
+            FROM trailers 
+            ORDER BY trailer_number
+        """, conn)
+        conn.close()
+        
+        if not df.empty:
+            # Allow editing
+            st.markdown("#### Edit Locations Below:")
+            edited_df = st.data_editor(
+                df,
+                use_container_width=True,
+                num_rows="fixed",
+                column_config={
+                    "trailer_number": st.column_config.TextColumn(
+                        "Trailer #",
+                        disabled=True,
+                        width="small"
+                    ),
+                    "location": st.column_config.TextColumn(
+                        "Location",
+                        help="Update location here",
+                        width="medium"
+                    ),
+                    "status": st.column_config.SelectboxColumn(
+                        "Status",
+                        options=["available", "in_use", "maintenance", "reserved", "retired"],
+                        width="small"
+                    )
+                }
+            )
+            
+            if st.button("💾 Save All Changes", type="primary"):
+                try:
+                    conn = get_connection()
+                    cursor = conn.cursor()
+                    
+                    for index, row in edited_df.iterrows():
+                        cursor.execute("""
+                            UPDATE trailers 
+                            SET location = ?, status = ?
+                            WHERE trailer_number = ?
+                        """, (row['location'], row['status'], row['trailer_number']))
+                    
+                    conn.commit()
+                    conn.close()
+                    
+                    st.success(show_vernon_guidance("success"))
+                except Exception as e:
+                    st.error(f"Error updating: {e}")
+    
+    # Bulk Upload Tab
+    with tabs[2]:
+        st.markdown("### Bulk CSV Upload")
+        st.info(show_vernon_guidance("bulk_upload"))
+        
+        # Download template
+        template_data = pd.DataFrame({
+            'trailer_number': ['TR-001', 'TR-002', 'TR-003'],
+            'trailer_type': ['Dry Van', 'Flatbed', 'Reefer'],
+            'condition': ['Good', 'Excellent', 'Fair'],
+            'location': ['Memphis Yard Bay 1', 'Nashville Depot', 'Memphis Yard Bay 3'],
+            'status': ['available', 'in_use', 'available'],
+            'owner': ['', 'Customer ABC', ''],
+            'notes': ['', 'Long-term lease', 'Recently serviced']
+        })
+        
+        csv = template_data.to_csv(index=False)
+        st.download_button(
+            "📥 Download CSV Template",
+            csv,
+            "trailer_upload_template.csv",
+            "text/csv",
+            help="Use this template for bulk upload"
+        )
+        
+        # Upload file
+        uploaded_file = st.file_uploader("Choose CSV file", type=['csv'])
+        
+        if uploaded_file:
+            try:
+                df = pd.read_csv(uploaded_file)
+                st.write("Preview of uploaded data:")
+                st.dataframe(df, use_container_width=True)
+                
+                if st.button("✅ Import All Trailers", type="primary"):
+                    conn = get_connection()
+                    cursor = conn.cursor()
+                    
+                    success_count = 0
+                    error_count = 0
+                    errors = []
+                    
+                    for index, row in df.iterrows():
+                        try:
+                            # Check if trailer exists
+                            cursor.execute("SELECT id FROM trailers WHERE trailer_number = ?", 
+                                         (row['trailer_number'],))
+                            if cursor.fetchone():
+                                errors.append(f"Trailer {row['trailer_number']} already exists")
+                                error_count += 1
+                            else:
+                                cursor.execute("""
+                                    INSERT INTO trailers 
+                                    (trailer_number, trailer_type, condition, location, status, owner, notes, created_at)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                """, (
+                                    row['trailer_number'],
+                                    row.get('trailer_type', 'Dry Van'),
+                                    row.get('condition', 'Good'),
+                                    row.get('location', 'Unknown'),
+                                    row.get('status', 'available'),
+                                    row.get('owner', ''),
+                                    row.get('notes', ''),
+                                    datetime.now()
+                                ))
+                                success_count += 1
+                        except Exception as e:
+                            errors.append(f"Row {index + 1}: {str(e)}")
+                            error_count += 1
+                    
+                    conn.commit()
+                    conn.close()
+                    
+                    if success_count > 0:
+                        st.success(f"✅ Successfully imported {success_count} trailers!")
+                    
+                    if error_count > 0:
+                        st.warning(f"⚠️ {error_count} trailers could not be imported")
+                        for error in errors:
+                            st.error(error)
+                    
+                    if success_count > 0:
+                        st.balloons()
+                        st.info(show_vernon_guidance("success"))
+                        
+            except Exception as e:
+                st.error(f"Error reading file: {e}")
+    
+    # Search & Edit Tab
+    with tabs[3]:
+        st.markdown("### Search and Edit Trailers")
+        
+        search_term = st.text_input("🔍 Search trailers", placeholder="Enter trailer number or location")
+        
+        conn = get_connection()
+        if search_term:
+            query = """
+                SELECT * FROM trailers 
+                WHERE trailer_number LIKE ? OR location LIKE ?
+                ORDER BY trailer_number
+            """
+            df = pd.read_sql_query(query, conn, params=[f"%{search_term}%", f"%{search_term}%"])
+        else:
+            df = pd.read_sql_query("SELECT * FROM trailers ORDER BY trailer_number LIMIT 50", conn)
+        conn.close()
+        
+        if not df.empty:
+            st.dataframe(df, use_container_width=True, hide_index=True)
+            
+            # Edit specific trailer
+            st.markdown("#### Edit Trailer")
+            trailer_to_edit = st.selectbox("Select trailer to edit", df['trailer_number'].tolist())
+            
+            if trailer_to_edit:
+                trailer_data = df[df['trailer_number'] == trailer_to_edit].iloc[0]
+                
+                with st.form("edit_trailer_form"):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        new_type = st.selectbox("Type", 
+                            ["Roller Bed", "Dry Van", "Flatbed", "Reefer", "Step Deck", "Other"],
+                            index=["Roller Bed", "Dry Van", "Flatbed", "Reefer", "Step Deck", "Other"].index(
+                                trailer_data['trailer_type']) if trailer_data['trailer_type'] in 
+                                ["Roller Bed", "Dry Van", "Flatbed", "Reefer", "Step Deck", "Other"] else 0
+                        )
+                        new_condition = st.selectbox("Condition",
+                            ["Excellent", "Good", "Fair", "Poor", "Needs Repair"],
+                            index=["Excellent", "Good", "Fair", "Poor", "Needs Repair"].index(
+                                trailer_data['condition']) if trailer_data['condition'] in
+                                ["Excellent", "Good", "Fair", "Poor", "Needs Repair"] else 1
+                        )
+                    
+                    with col2:
+                        new_location = st.text_input("Location", value=trailer_data['location'])
+                        new_status = st.selectbox("Status",
+                            ["available", "in_use", "maintenance", "reserved", "retired"],
+                            index=["available", "in_use", "maintenance", "reserved", "retired"].index(
+                                trailer_data['status']) if trailer_data['status'] in
+                                ["available", "in_use", "maintenance", "reserved", "retired"] else 0
+                        )
+                    
+                    new_notes = st.text_area("Notes", value=trailer_data['notes'] if trailer_data['notes'] else "")
+                    
+                    if st.form_submit_button("💾 Update Trailer", type="primary"):
+                        try:
+                            conn = get_connection()
+                            cursor = conn.cursor()
+                            cursor.execute("""
+                                UPDATE trailers 
+                                SET trailer_type = ?, condition = ?, location = ?, 
+                                    status = ?, notes = ?
+                                WHERE trailer_number = ?
+                            """, (new_type, new_condition, new_location, new_status, 
+                                  new_notes, trailer_to_edit))
+                            conn.commit()
+                            conn.close()
+                            
+                            st.success(f"✅ Trailer {trailer_to_edit} updated successfully!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error: {e}")
+    
+    # Status Overview Tab
+    with tabs[4]:
+        st.markdown("### Trailer Status Overview")
+        
+        conn = get_connection()
+        
+        # Status summary
+        status_df = pd.read_sql_query("""
+            SELECT status, COUNT(*) as count 
+            FROM trailers 
+            GROUP BY status 
+            ORDER BY count DESC
+        """, conn)
+        
+        # Location summary
+        location_df = pd.read_sql_query("""
+            SELECT location, COUNT(*) as count 
+            FROM trailers 
+            GROUP BY location 
+            ORDER BY count DESC 
+            LIMIT 10
+        """, conn)
+        
+        # Type summary
+        type_df = pd.read_sql_query("""
+            SELECT trailer_type, COUNT(*) as count 
+            FROM trailers 
+            GROUP BY trailer_type 
+            ORDER BY count DESC
+        """, conn)
+        
+        conn.close()
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown("#### By Status")
+            if not status_df.empty:
+                for index, row in status_df.iterrows():
+                    st.metric(row['status'].title(), row['count'])
+        
+        with col2:
+            st.markdown("#### Top Locations")
+            if not location_df.empty:
+                st.dataframe(location_df, use_container_width=True, hide_index=True)
+        
+        with col3:
+            st.markdown("#### By Type")
+            if not type_df.empty:
+                st.dataframe(type_df, use_container_width=True, hide_index=True)
+    
+    # Export Data Tab
+    with tabs[5]:
+        st.markdown("### Export Trailer Data")
+        
+        conn = get_connection()
+        df = pd.read_sql_query("SELECT * FROM trailers ORDER BY trailer_number", conn)
+        conn.close()
+        
+        if not df.empty:
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                csv = df.to_csv(index=False)
+                st.download_button(
+                    "📥 Download as CSV",
+                    csv,
+                    f"trailers_export_{datetime.now().strftime('%Y%m%d')}.csv",
+                    "text/csv",
+                    use_container_width=True
+                )
+            
+            with col2:
+                json_str = df.to_json(orient='records', indent=2)
+                st.download_button(
+                    "📥 Download as JSON",
+                    json_str,
+                    f"trailers_export_{datetime.now().strftime('%Y%m%d')}.json",
+                    "application/json",
+                    use_container_width=True
+                )
+            
+            st.markdown("### Data Preview")
+            st.dataframe(df, use_container_width=True, hide_index=True)
+            
+            # Show Vernon's success message
+            st.success(f"""
+            🦸‍♂️ **Great Job, {username}!**
+            
+            You're managing {len(df)} trailers like a champion!
+            Your accurate data entry keeps our entire operation running smoothly.
+            
+            Remember: I'm always here at ext. 1337 if you need help!
+            
+            - Vernon, Your IT Superhero
+            """)
 
-if __name__ == "__main__":
-    # Test the system
-    st.set_page_config(page_title="Trailer Data Entry", page_icon="🚛", layout="wide")
-    show_trailer_data_entry_interface("test_user")
+# For backward compatibility
+class TrailerDataEntrySystem:
+    def show_interface(self, username):
+        show_trailer_data_entry_interface(username)

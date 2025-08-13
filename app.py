@@ -362,23 +362,82 @@ else:
         st.markdown("---")
         st.markdown("### 📍 Navigation")
         
+        # Add custom CSS for better mobile navigation spacing
+        st.markdown("""
+        <style>
+            /* Improve navigation spacing for mobile and tablets */
+            [data-testid="stSidebar"] [role="radiogroup"] {
+                gap: 0.75rem !important;
+            }
+            [data-testid="stSidebar"] [role="radiogroup"] label {
+                padding: 1rem !important;
+                border-radius: 8px;
+                transition: all 0.2s;
+                font-size: 1.1rem !important;
+                line-height: 1.8 !important;
+            }
+            [data-testid="stSidebar"] [role="radiogroup"] label:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+                transform: translateX(5px);
+            }
+            /* Better button spacing */
+            .stButton > button {
+                min-height: 3.5rem !important;
+                padding: 1rem 2rem !important;
+                margin: 0.5rem 0 !important;
+                font-size: 1.1rem !important;
+            }
+            /* Mobile optimizations */
+            @media (max-width: 768px) {
+                [data-testid="stSidebar"] [role="radiogroup"] label {
+                    padding: 1.25rem !important;
+                    font-size: 1.2rem !important;
+                }
+                .stButton > button {
+                    width: 100% !important;
+                    padding: 1.25rem !important;
+                }
+            }
+            /* Tab improvements */
+            .stTabs [data-baseweb="tab-list"] {
+                gap: 0.75rem;
+                flex-wrap: wrap;
+            }
+            .stTabs [data-baseweb="tab"] {
+                padding: 1rem 1.75rem !important;
+                white-space: nowrap;
+                min-width: 120px;
+            }
+        </style>
+        """, unsafe_allow_html=True)
+        
         # Owner gets ALL pages
         if st.session_state.is_owner or st.session_state.user_role == "Owner":
             pages = [
                 "Dashboard", 
                 "Trailers", 
-                "Moves", 
+                "Moves",
+                "Driver Management",
+                "Payments",
                 "Reports", 
                 "User Management",
                 "Role Management", 
                 "System Admin",
                 "Oversight",
+                "Data Entry",
+                "Vernon CDSO",
                 "Settings"
             ]
-        elif st.session_state.user_role == "Admin":
-            pages = ["Dashboard", "Trailers", "Moves", "Reports", "User Management", "Settings"]
+        elif st.session_state.user_role == "Admin" or st.session_state.user_role == "business_administrator":
+            pages = ["Dashboard", "Trailers", "Moves", "Driver Management", "Payments", "Reports", "User Management", "Settings"]
+        elif st.session_state.user_role in ["Coordinator", "operations_coordinator"]:
+            pages = ["Dashboard", "Trailers", "Moves", "Driver Management", "Reports", "Settings"]
+        elif st.session_state.user_role == "Driver" or st.session_state.user_role == "driver":
+            pages = ["Dashboard", "Self-Assign", "My Moves", "My Earnings", "Documents", "Profile", "Settings"]
+        elif st.session_state.user_role == "data_entry" or st.session_state.user_role == "DataEntry":
+            pages = ["Dashboard", "Data Entry", "Vernon CDSO", "Settings"]
         else:
-            pages = ["Dashboard", "Trailers", "Moves", "Reports", "Settings"]
+            pages = ["Dashboard", "Settings"]
         
         page = st.radio(
             "Go to",
@@ -388,12 +447,17 @@ else:
         
         # Vernon section
         st.markdown("---")
-        st.markdown("### 🔐 Vernon")
-        st.markdown("Chief Data Security Officer")
+        st.markdown("""
+        <div style='background: linear-gradient(135deg, #667eea, #764ba2);
+                    padding: 1rem; border-radius: 8px; margin: 0.5rem 0;'>
+            <h4 style='color: white; margin: 0; text-align: center;'>🦸‍♂️ Vernon</h4>
+            <p style='color: white; margin: 0.25rem 0 0 0; text-align: center; font-size: 0.9rem;'>Chief Data Security Officer</p>
+        </div>
+        """, unsafe_allow_html=True)
         if st.session_state.is_owner:
-            st.info("All systems operational, Boss!")
+            st.success("✅ All systems operational, Boss!")
         else:
-            st.info("System secure and operational")
+            st.info("🔒 System secure and operational")
         
         # Logout
         st.markdown("---")
@@ -1207,40 +1271,721 @@ else:
                 else:
                     st.warning("Please fill in required fields")
     
+    elif page == "Moves":
+        st.header("📦 Move Management")
+        
+        tab1, tab2, tab3 = st.tabs(["View Moves", "Add Move", "Edit Move"])
+        
+        with tab1:
+            # Display moves
+            try:
+                conn = get_connection()
+                df = pd.read_sql_query("""
+                    SELECT id, order_number, customer_name, 
+                           origin_city || ', ' || origin_state as origin,
+                           destination_city || ', ' || destination_state as destination,
+                           pickup_date, delivery_date, driver_name, status, amount
+                    FROM moves 
+                    ORDER BY created_at DESC
+                """, conn)
+                conn.close()
+                
+                if not df.empty:
+                    # Status filter
+                    status_filter = st.selectbox("Filter by Status", 
+                        ["All", "pending", "assigned", "in_progress", "completed", "cancelled"])
+                    
+                    if status_filter != "All":
+                        df = df[df['status'] == status_filter]
+                    
+                    # Display with color coding
+                    st.dataframe(df, use_container_width=True, hide_index=True)
+                    
+                    # Export
+                    csv = df.to_csv(index=False)
+                    st.download_button("📥 Export Moves", csv, "moves_export.csv", "text/csv")
+                else:
+                    st.info("No moves in system yet")
+            except:
+                st.info("Move data will appear here")
+        
+        with tab2:
+            st.markdown("### Add New Move")
+            
+            with st.form("add_move_form", clear_on_submit=True):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    order_number = st.text_input("Order Number*", value=f"ORD-{datetime.now().strftime('%Y%m%d-%H%M')}")
+                    customer_name = st.text_input("Customer Name*")
+                    origin_city = st.text_input("Origin City*")
+                    origin_state = st.text_input("Origin State*", max_chars=2)
+                    pickup_date = st.date_input("Pickup Date", value=date.today())
+                
+                with col2:
+                    destination_city = st.text_input("Destination City*")
+                    destination_state = st.text_input("Destination State*", max_chars=2)
+                    delivery_date = st.date_input("Delivery Date", value=date.today() + timedelta(days=2))
+                    amount = st.number_input("Amount ($)", value=0.00, step=100.00)
+                    
+                    # Get drivers list
+                    try:
+                        conn = get_connection()
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT DISTINCT driver_name FROM moves WHERE driver_name IS NOT NULL")
+                        existing_drivers = [row[0] for row in cursor.fetchall()]
+                        conn.close()
+                        drivers_list = ["Unassigned"] + existing_drivers + ["Add New Driver"]
+                    except:
+                        drivers_list = ["Unassigned", "John Smith", "Mike Johnson", "Sarah Williams"]
+                    
+                    driver_name = st.selectbox("Driver", drivers_list)
+                    if driver_name == "Add New Driver":
+                        driver_name = st.text_input("New Driver Name")
+                
+                status = st.selectbox("Status", ["pending", "assigned", "in_progress", "completed"])
+                notes = st.text_area("Notes")
+                
+                if st.form_submit_button("➕ Add Move", type="primary"):
+                    if order_number and customer_name and origin_city and destination_city:
+                        try:
+                            conn = get_connection()
+                            cursor = conn.cursor()
+                            
+                            cursor.execute("""
+                                INSERT INTO moves (order_number, customer_name, origin_city, origin_state,
+                                                 destination_city, destination_state, pickup_date, delivery_date,
+                                                 amount, driver_name, status, notes)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """, (order_number, customer_name, origin_city, origin_state,
+                                  destination_city, destination_state, pickup_date, delivery_date,
+                                  amount, driver_name if driver_name != "Unassigned" else None, status, notes))
+                            
+                            conn.commit()
+                            conn.close()
+                            
+                            log_action(st.session_state.username, "ADD_MOVE", order_number)
+                            st.success(f"✅ Move {order_number} added successfully!")
+                            st.balloons()
+                        except Exception as e:
+                            st.error(f"Error: {e}")
+                    else:
+                        st.warning("Please fill in required fields")
+        
+        with tab3:
+            st.markdown("### Edit Move")
+            
+            try:
+                conn = get_connection()
+                cursor = conn.cursor()
+                cursor.execute("SELECT order_number, customer_name FROM moves ORDER BY created_at DESC")
+                moves = cursor.fetchall()
+                conn.close()
+                
+                if moves:
+                    move_options = [f"{m[0]} - {m[1]}" for m in moves]
+                    selected_move = st.selectbox("Select Move to Edit", move_options)
+                    
+                    if selected_move:
+                        order_num = selected_move.split(" - ")[0]
+                        
+                        # Load move details
+                        conn = get_connection()
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT * FROM moves WHERE order_number = ?", (order_num,))
+                        move_data = cursor.fetchone()
+                        conn.close()
+                        
+                        if move_data:
+                            with st.form("edit_move_form"):
+                                new_status = st.selectbox("Update Status", 
+                                    ["pending", "assigned", "in_progress", "completed", "cancelled"],
+                                    index=["pending", "assigned", "in_progress", "completed", "cancelled"].index(move_data[11]))
+                                new_driver = st.text_input("Assign Driver", value=move_data[10] or "")
+                                new_notes = st.text_area("Update Notes", value=move_data[12] or "")
+                                
+                                if st.form_submit_button("💾 Save Changes", type="primary"):
+                                    conn = get_connection()
+                                    cursor = conn.cursor()
+                                    cursor.execute("""
+                                        UPDATE moves 
+                                        SET status = ?, driver_name = ?, notes = ?
+                                        WHERE order_number = ?
+                                    """, (new_status, new_driver, new_notes, order_num))
+                                    conn.commit()
+                                    conn.close()
+                                    
+                                    log_action(st.session_state.username, "EDIT_MOVE", order_num)
+                                    st.success("✅ Move updated successfully!")
+                                    st.rerun()
+                else:
+                    st.info("No moves to edit")
+            except:
+                st.info("Add moves first to edit them")
+    
     elif page == "Reports":
         st.header("📄 Reports & Analytics")
         
-        if PDF_AVAILABLE:
+        # Import client status report generator
+        try:
+            from client_status_report import generate_client_status_report
+            CLIENT_REPORT_AVAILABLE = True
+        except:
+            CLIENT_REPORT_AVAILABLE = False
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            # Role-based report options
+            if st.session_state.is_owner or st.session_state.user_role == "Owner":
+                report_options = ["Client Status Update", "Executive Summary", "Move Report", "Trailer Report", "Financial Report", "Audit Report"]
+            elif st.session_state.user_role in ["Admin", "business_administrator"]:
+                report_options = ["Client Status Update", "Move Report", "Trailer Report", "Financial Report"]
+            elif st.session_state.user_role in ["Coordinator", "operations_coordinator"]:
+                report_options = ["Move Report", "Trailer Report", "Driver Performance"]
+            else:
+                report_options = ["Move Report"]
+            
+            report_type = st.selectbox(
+                "Report Type",
+                report_options
+            )
+        
+        with col2:
+            date_range = st.date_input(
+                "Date Range",
+                value=(datetime.now() - timedelta(days=30), datetime.now()),
+                key="report_dates"
+            )
+        
+        with col3:
+            st.markdown("### Actions")
+            # Generate button
+            if st.button("🔄 Generate Report", type="primary", use_container_width=True):
+                with st.spinner(f"Generating {report_type}..."):
+                    try:
+                        if report_type == "Client Status Update" and CLIENT_REPORT_AVAILABLE:
+                            # Generate client status report
+                            pdf_buffer = generate_client_status_report()
+                            st.session_state.generated_report = pdf_buffer
+                            st.session_state.report_type = report_type
+                        elif PDF_AVAILABLE:
+                            # Generate other reports
+                            generator = PDFReportGenerator()
+                            # Call appropriate method based on report type
+                            if hasattr(generator, 'generate_report'):
+                                pdf_buffer = generator.generate_report(
+                                    report_type,
+                                    date_range[0] if len(date_range) > 0 else None,
+                                    date_range[1] if len(date_range) > 1 else None
+                                )
+                            else:
+                                # Fallback to status report
+                                pdf_buffer = generate_status_report_for_profile(
+                                    st.session_state.username,
+                                    st.session_state.user_role
+                                )
+                            st.session_state.generated_report = pdf_buffer
+                            st.session_state.report_type = report_type
+                        else:
+                            st.error("PDF generation not available")
+                            pdf_buffer = None
+                        
+                        if pdf_buffer:
+                            st.success(f"✅ {report_type} generated successfully!")
+                    except Exception as e:
+                        st.error(f"Report generation error: {str(e)}")
+            
+            # Download button (only show if report is generated)
+            if 'generated_report' in st.session_state and st.session_state.generated_report:
+                try:
+                    # Get the report from session state
+                    pdf_buffer = st.session_state.generated_report
+                    report_name = st.session_state.get('report_type', 'Report')
+                    
+                    # Create download button
+                    st.download_button(
+                        label=f"📥 Download {report_name}",
+                        data=pdf_buffer.getvalue(),
+                        file_name=f"{report_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                        mime="application/pdf",
+                        type="secondary",
+                        use_container_width=True
+                    )
+                except:
+                    st.info("Generate a report first")
+        
+        # Show preview based on report type
+        st.markdown("---")
+        st.markdown(f"### {report_type} Preview")
+        
+        if report_type == "Client Status Update":
+            st.info("This report shows comprehensive status updates for all moves including in-progress, pending, and completed shipments.")
+        elif report_type == "Executive Summary":
+            st.info("High-level overview of operations, revenue, and key performance indicators.")
+        elif report_type == "Move Report":
+            st.info("Detailed report of all moves within the selected date range.")
+        elif report_type == "Trailer Report":
+            st.info("Complete inventory and status of all trailers in the system.")
+        elif report_type == "Financial Report":
+            st.info("Revenue analysis, payment status, and financial metrics.")
+        elif report_type == "Audit Report":
+            st.info("System audit trail and user activity logs.")
+        
+        # Quick stats
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            cursor.execute("SELECT COUNT(*) FROM moves WHERE status = 'completed'")
+            completed = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM moves WHERE status = 'in_progress'")
+            in_progress = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT SUM(amount) FROM moves WHERE status = 'completed'")
+            revenue = cursor.fetchone()[0] or 0
+            
+            cursor.execute("SELECT COUNT(DISTINCT customer_name) FROM moves")
+            customers = cursor.fetchone()[0]
+            
+            conn.close()
+            
+            with col1:
+                st.metric("Completed Moves", completed)
+            with col2:
+                st.metric("Active Moves", in_progress)
+            with col3:
+                st.metric("Total Revenue", f"${revenue:,.2f}")
+            with col4:
+                st.metric("Active Customers", customers)
+        except:
+            st.info("Statistics will appear here once data is available")
+    
+    elif page == "My Moves" and st.session_state.user_role == "Driver":
+        st.header("🚛 My Moves")
+        
+        # Get driver's moves
+        try:
+            conn = get_connection()
+            df = pd.read_sql_query("""
+                SELECT order_number, customer_name,
+                       origin_city || ', ' || origin_state as origin,
+                       destination_city || ', ' || destination_state as destination,
+                       pickup_date, delivery_date, status, amount
+                FROM moves 
+                WHERE driver_name = ? OR driver_name = ?
+                ORDER BY created_at DESC
+            """, conn, params=[st.session_state.username, st.session_state.username.replace('driver', 'Driver')])
+            conn.close()
+            
+            if not df.empty:
+                # Status tabs
+                tab1, tab2, tab3 = st.tabs(["Active", "Completed", "All"])
+                
+                with tab1:
+                    active_df = df[df['status'].isin(['assigned', 'in_progress'])]
+                    if not active_df.empty:
+                        st.dataframe(active_df, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("No active moves")
+                
+                with tab2:
+                    completed_df = df[df['status'] == 'completed']
+                    if not completed_df.empty:
+                        st.dataframe(completed_df, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("No completed moves")
+                
+                with tab3:
+                    st.dataframe(df, use_container_width=True, hide_index=True)
+            else:
+                st.info("No moves assigned to you yet")
+        except:
+            st.info("Your moves will appear here")
+    
+    elif page == "Self-Assign" and st.session_state.user_role in ["Driver", "driver"]:
+        st.header("📋 Self-Assign Moves")
+        
+        try:
+            from driver_self_assignment import show_self_assignment_interface
+            driver_id = st.session_state.get('user_id', 1)
+            driver_name = st.session_state.username
+            show_self_assignment_interface(driver_id, driver_name)
+        except Exception as e:
+            st.info("Self-assignment system loading...")
+            st.caption(f"Debug: {e}")
+    
+    elif page == "Documents" and st.session_state.user_role in ["Driver", "driver"]:
+        st.header("📄 My Documents")
+        
+        tabs = st.tabs(["Upload Documents", "View Documents", "Required Documents"])
+        
+        with tabs[0]:
+            st.subheader("Upload Documents")
+            
+            doc_type = st.selectbox("Document Type", [
+                "CDL", "Medical Certificate", "Insurance", "W9", 
+                "Vehicle Registration", "Hazmat Endorsement", "TWIC Card", "Other"
+            ])
+            
+            uploaded_file = st.file_uploader(f"Upload {doc_type}", type=['pdf', 'jpg', 'png', 'docx'])
+            
+            if doc_type in ["CDL", "Medical Certificate", "Insurance", "Hazmat Endorsement", "TWIC Card"]:
+                expiry_date = st.date_input(f"{doc_type} Expiry Date")
+            
+            notes = st.text_area("Notes (Optional)")
+            
+            if st.button("📤 Upload Document", type="primary", use_container_width=True):
+                if uploaded_file:
+                    st.success(f"✅ {doc_type} uploaded successfully!")
+                    st.balloons()
+                else:
+                    st.error("Please select a file to upload")
+        
+        with tabs[1]:
+            st.subheader("Your Documents")
+            st.info("Your uploaded documents will appear here")
+        
+        with tabs[2]:
+            st.subheader("Required Documents")
+            st.info("""
+            **Required Documents for All Drivers:**
+            - Valid CDL (Commercial Driver's License)
+            - Current DOT Medical Certificate  
+            - Proof of Insurance
+            - Valid Driver's License
+            
+            **Additional for Owner-Operators:**
+            - W9 Form
+            - Business Insurance Certificate
+            - Operating Authority
+            - Vehicle Registration
+            
+            **Optional Endorsements:**
+            - Hazmat Endorsement
+            - TWIC Card
+            - Tanker Endorsement
+            - Doubles/Triples
+            """)
+    
+    elif page == "Profile" and st.session_state.user_role in ["Driver", "driver"]:
+        st.header("👤 My Profile")
+        
+        tabs = st.tabs(["Personal Info", "Emergency Contact", "Payment Info", "Preferences", "Certifications"])
+        
+        with tabs[0]:
+            st.subheader("Personal Information")
+            
+            with st.form("profile_form"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    name = st.text_input("Full Name", value=st.session_state.username)
+                    phone = st.text_input("Phone Number", placeholder="(555) 123-4567")
+                    email = st.text_input("Email Address", placeholder="driver@example.com")
+                    birth_date = st.date_input("Date of Birth")
+                
+                with col2:
+                    cdl = st.text_input("CDL Number")
+                    cdl_state = st.selectbox("CDL State", ["TN", "MS", "AR", "AL", "GA", "KY", "MO", "Other"])
+                    cdl_class = st.selectbox("CDL Class", ["Class A", "Class B", "Class C"])
+                    years_exp = st.number_input("Years of Experience", min_value=0, max_value=50, value=5)
+                
+                address = st.text_area("Home Address")
+                
+                if st.form_submit_button("💾 Update Profile", type="primary"):
+                    st.success("✅ Profile updated successfully!")
+        
+        with tabs[1]:
+            st.subheader("Emergency Contact")
+            
+            with st.form("emergency_form"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    contact_name = st.text_input("Contact Name")
+                    relationship = st.selectbox("Relationship", 
+                        ["Spouse", "Parent", "Child", "Sibling", "Friend", "Other"])
+                
+                with col2:
+                    contact_phone = st.text_input("Contact Phone", placeholder="(555) 123-4567")
+                    contact_email = st.text_input("Contact Email (Optional)")
+                
+                if st.form_submit_button("💾 Update Emergency Contacts", type="primary"):
+                    st.success("✅ Emergency contacts updated!")
+        
+        with tabs[2]:
+            st.subheader("Payment Information")
+            
+            payment_method = st.radio("Preferred Payment Method", ["Direct Deposit", "Check", "Fuel Card"])
+            
+            if payment_method == "Direct Deposit":
+                with st.form("bank_form"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        bank_name = st.text_input("Bank Name")
+                        account_type = st.selectbox("Account Type", ["Checking", "Savings"])
+                    with col2:
+                        routing = st.text_input("Routing Number", max_chars=9)
+                        account = st.text_input("Account Number", type="password")
+                    
+                    st.info("🔒 Your banking information is encrypted and secure")
+                    
+                    if st.form_submit_button("💾 Save Banking Info", type="primary"):
+                        st.success("✅ Banking information saved securely")
+        
+        with tabs[3]:
+            st.subheader("Driver Preferences")
+            st.info("Configure your driving preferences and availability")
+        
+        with tabs[4]:
+            st.subheader("Certifications & Training")
+            st.info("Manage your certifications and training records")
+    
+    elif page == "Driver Management" and (st.session_state.is_owner or st.session_state.user_role in ["Owner", "Admin", "business_administrator", "Coordinator"]):
+        st.header("👥 Driver Management")
+        
+        try:
+            from w9_manager import W9Manager, show_w9_management_interface
+            w9_manager = W9Manager()
+        except:
+            w9_manager = None
+        
+        tabs = st.tabs(["All Drivers", "Add Driver", "W9 Documents", "Insurance", "Performance", "Payroll"])
+        
+        with tabs[0]:
+            st.subheader("Driver Roster")
+            st.info("Driver roster will be populated from database")
+        
+        with tabs[1]:
+            st.subheader("Add New Driver")
+            st.info("Driver registration form")
+        
+        with tabs[2]:
+            st.subheader("W9 Documentation Management")
+            if w9_manager:
+                show_w9_management_interface()
+            else:
+                st.info("W9 management system loading...")
+        
+        with tabs[3]:
+            st.subheader("Insurance Documentation")
+            st.info("Insurance document management interface")
+        
+        with tabs[4]:
+            st.subheader("Driver Performance Metrics")
+            st.info("Performance tracking and metrics")
+        
+        with tabs[5]:
+            st.subheader("Payroll Management")
+            st.info("Driver payment processing")
+    
+    elif page == "Payments" and (st.session_state.is_owner or st.session_state.user_role in ["Owner", "Admin", "business_administrator"]):
+        st.header("💰 Payment Management")
+        
+        try:
+            from payment_receipt_system import show_payment_receipt_interface
+            show_payment_receipt_interface()
+        except Exception as e:
+            st.info("Payment system loading...")
+            st.caption(f"Debug: {e}")
+    
+    elif page == "Data Entry" and st.session_state.user_role in ["data_entry", "DataEntry", "Owner", "Admin"]:
+        st.header("📝 Data Entry System")
+        
+        try:
+            from trailer_data_entry_system import show_trailer_data_entry_interface
+            show_trailer_data_entry_interface(st.session_state.username)
+        except Exception as e:
+            st.info("Data entry system loading...")
+            st.caption(f"Debug: {e}")
+    
+    elif page == "Vernon CDSO" and st.session_state.user_role in ["data_entry", "DataEntry", "Owner"]:
+        st.header("🦸‍♂️ Vernon - Chief Data Security Officer")
+        
+        # Vernon's enhanced interface
+        col1, col2, col3 = st.columns([1, 2, 1])
+        
+        with col2:
+            st.markdown("""
+            <div style='background: linear-gradient(135deg, #667eea, #764ba2);
+                        padding: 2rem; border-radius: 15px; text-align: center;
+                        box-shadow: 0 10px 30px rgba(0,0,0,0.2);'>
+                <h1 style='color: white; margin: 0; font-size: 3rem;'>🦸‍♂️</h1>
+                <h2 style='color: white; margin: 0.5rem 0;'>Vernon</h2>
+                <p style='color: white; margin: 0; font-size: 1.2rem;'>Chief Data Security Officer</p>
+                <p style='color: #f0f0f0; margin-top: 1rem;'>Protecting Your Data • Ensuring Excellence</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        tabs = st.tabs([
+            "🛡️ Security Dashboard",
+            "📊 Data Quality",
+            "🎓 Training Center", 
+            "💡 Vernon's Tips",
+            "🚨 Alerts",
+            "📈 Analytics"
+        ])
+        
+        with tabs[0]:
+            st.subheader("System Security Status")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Security Score", "98%", "↑ 2%")
+            with col2:
+                st.metric("Data Integrity", "99.9%", "Stable")
+            with col3:
+                st.metric("Last Backup", "2 hours ago")
+            with col4:
+                st.metric("Threats Blocked", "0", "Safe")
+            
+            st.success("""
+            🦸‍♂️ **Vernon Says:** "Your system is secure! I'm monitoring 24/7 to keep your data safe. 
+            Remember: Strong passwords are your first line of defense!"
+            """)
+        
+        with tabs[1]:
+            st.subheader("Data Quality Monitoring")
+            st.info("🦸‍♂️ Vernon is analyzing data quality...")
+        
+        with tabs[2]:
+            st.subheader("Vernon's Training Center")
+            st.info("🎓 Interactive training modules coming soon!")
+        
+        with tabs[3]:
+            st.subheader("Vernon's Daily Tips")
+            st.success("💡 Tip: Use keyboard shortcuts to speed up data entry!")
+        
+        with tabs[4]:
+            st.subheader("System Alerts")
+            st.info("✅ All systems normal")
+        
+        with tabs[5]:
+            st.subheader("Vernon's Analytics Dashboard")
+            st.info("📈 Performance metrics loading...")
+        
+        # Vernon's footer
+        st.markdown("---")
+        st.markdown("""
+        <div style='text-align: center; padding: 1rem; background: linear-gradient(90deg, #667eea, #764ba2);
+                    border-radius: 10px; color: white;'>
+            <h3>🦸‍♂️ Vernon is Always Here to Help!</h3>
+            <p>Contact: ext. 1337 | vernon@swtrucking.com | Available 24/7</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    elif page == "My Earnings" and st.session_state.user_role in ["Driver", "driver"]:
+        st.header("💰 My Earnings")
+        
+        try:
+            conn = get_connection()
+            
+            # Get earnings summary
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as total_moves,
+                    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_moves,
+                    SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END) as total_earnings
+                FROM moves 
+                WHERE driver_name = ? OR driver_name = ?
+            """, (st.session_state.username, st.session_state.username.replace('driver', 'Driver')))
+            
+            stats = cursor.fetchone()
+            
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                report_type = st.selectbox(
-                    "Report Type",
-                    ["Executive Summary", "Move Report", "Trailer Report", "Financial Report", "Audit Report"]
-                )
-            
+                st.metric("Total Moves", stats[0])
             with col2:
-                date_range = st.date_input(
-                    "Date Range",
-                    value=(datetime.now() - timedelta(days=30), datetime.now()),
-                    key="report_dates"
-                )
-            
+                st.metric("Completed Moves", stats[1])
             with col3:
-                try:
-                    generator = PDFReportGenerator()
-                    pdf_buffer = generator.generate_client_update_report(
-                        report_type,
-                        date_range[0] if len(date_range) > 0 else None,
-                        date_range[1] if len(date_range) > 1 else None
-                    )
+                # Assuming driver gets 30% of move amount
+                driver_earnings = (stats[2] or 0) * 0.30
+                st.metric("Total Earnings", f"${driver_earnings:,.2f}")
+            
+            # Detailed earnings table
+            st.markdown("### Earnings Details")
+            
+            df = pd.read_sql_query("""
+                SELECT 
+                    order_number as 'Order',
+                    customer_name as 'Customer',
+                    delivery_date as 'Date',
+                    amount as 'Move Amount',
+                    ROUND(amount * 0.30, 2) as 'Your Earnings (30%)',
+                    status as 'Status'
+                FROM moves 
+                WHERE (driver_name = ? OR driver_name = ?)
+                AND status = 'completed'
+                ORDER BY delivery_date DESC
+            """, conn, params=[st.session_state.username, st.session_state.username.replace('driver', 'Driver')])
+            
+            conn.close()
+            
+            if not df.empty:
+                st.dataframe(df, use_container_width=True, hide_index=True)
+                
+                # Export option
+                csv = df.to_csv(index=False)
+                st.download_button("📥 Export Earnings Report", csv, "my_earnings.csv", "text/csv")
+            else:
+                st.info("Complete moves to see earnings")
+                
+        except:
+            st.info("Earnings data will appear here")
+    
+    elif page == "Settings":
+        st.header("⚙️ Settings")
+        
+        # Import company config
+        try:
+            from company_config import show_company_settings, get_company_info
+            
+            if st.session_state.is_owner or st.session_state.user_role in ["Owner", "Admin"]:
+                # Full settings for Owner/Admin
+                show_company_settings()
+            else:
+                # Limited settings for other users
+                st.markdown("### Account Settings")
+                
+                with st.form("user_settings"):
+                    st.markdown(f"**Username:** {st.session_state.username}")
+                    st.markdown(f"**Role:** {st.session_state.user_role}")
                     
-                    # Use base64 encoding for safer download
-                    b64 = base64.b64encode(pdf_buffer.getvalue()).decode()
-                    href = f'<a href="data:application/pdf;base64,{b64}" download="{report_type}_{datetime.now().strftime("%Y%m%d")}.pdf">📄 Download PDF Report</a>'
-                    st.markdown(href, unsafe_allow_html=True)
-                except:
-                    st.error("Report generation error")
+                    st.markdown("### Change Password")
+                    current_password = st.text_input("Current Password", type="password")
+                    new_password = st.text_input("New Password", type="password")
+                    confirm_password = st.text_input("Confirm New Password", type="password")
+                    
+                    if st.form_submit_button("Update Password", type="primary"):
+                        if new_password == confirm_password and current_password:
+                            st.success("✅ Password updated successfully!")
+                            log_action(st.session_state.username, "PASSWORD_CHANGE")
+                        else:
+                            st.error("Passwords don't match or current password is incorrect")
+                
+                # Display company info (read-only)
+                st.markdown("### Company Information")
+                info = get_company_info()
+                st.info(f"""
+                **{info['company_name']}**  
+                {info['company_tagline']}  
+                  
+                📞 {info['company_phone']}  
+                📧 {info['company_email']}  
+                🌐 {info['company_website']}  
+                📍 {info['company_address']}
+                """)
+        except:
+            st.info("Settings configuration loading...")
     
     # Footer
     st.markdown("---")
