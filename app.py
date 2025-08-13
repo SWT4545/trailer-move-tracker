@@ -32,6 +32,14 @@ from payment_receipt_system import show_payment_receipt_interface
 import move_editor
 import w9_manager
 
+# New imports for PDF and data entry
+try:
+    from pdf_report_generator import show_pdf_report_interface, generate_status_report_for_profile
+    from trailer_data_entry_system import show_trailer_data_entry_interface
+    PDF_REPORTS_AVAILABLE = True
+except ImportError:
+    PDF_REPORTS_AVAILABLE = False
+
 # Enhanced modules for fixes
 import ui_responsiveness_fix as ui_fix
 import driver_management_enhanced
@@ -218,11 +226,11 @@ else:
         if SELF_ASSIGNMENT_AVAILABLE:
             vernon = Vernon()
             st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #667eea, #764ba2);
+            <div style="background: linear-gradient(135deg, #1e3a8a, #3b82f6);
                         padding: 1rem; border-radius: 8px; color: white; margin-bottom: 1rem;">
-                <h4>{vernon.avatar} SUPER VERNON</h4>
-                <p style="margin: 0; font-size: 0.9rem;">IT Superhero - Can Fix EVERYTHING!</p>
-                <p style="margin: 0; font-size: 0.8rem;">📞 Ext. 1337 | Available 24/7</p>
+                <h4>🔐 Vernon - CDSO</h4>
+                <p style="margin: 0; font-size: 0.9rem;">Chief Data Security Officer</p>
+                <p style="margin: 0; font-size: 0.8rem;">📞 Ext. 1337 | Secure Line 24/7</p>
             </div>
             """, unsafe_allow_html=True)
             
@@ -247,12 +255,20 @@ else:
             st.rerun()
     
     # Main content based on role
-    elif user_role in ["Admin", "Owner"]:
+    elif user_role in ["Admin", "Owner", "business_administrator", "executive"]:
         st.title("🚛 Smith & Williams Trucking - Admin Dashboard")
         
         # Enhanced tabs with self-assignment
         tab_list = ["🏠 Dashboard", "🚚 Trailers", "📦 Moves", "👥 Drivers", 
                    "📍 Locations", "💰 Payments", "📊 Analytics", "📋 Documents"]
+        
+        # Add PDF reports tab if available
+        if PDF_REPORTS_AVAILABLE:
+            tab_list.append("📄 PDF Reports")
+        
+        # Add data entry tab for testing
+        if st.session_state.get('demo_mode'):
+            tab_list.append("📝 Data Entry")
         
         if SELF_ASSIGNMENT_AVAILABLE:
             tab_list.extend(["🎯 Self-Assignment", "📝 Trailer Approvals"])
@@ -295,6 +311,18 @@ else:
                 show_document_dashboard()
             else:
                 st.info("Document management coming soon")
+            tab_index += 1
+        
+        # PDF Reports tab
+        if PDF_REPORTS_AVAILABLE:
+            with tabs[tab_index]:  # PDF Reports
+                show_pdf_report_interface()
+            tab_index += 1
+        
+        # Data Entry tab (for demo mode)
+        if st.session_state.get('demo_mode'):
+            with tabs[tab_index]:  # Data Entry
+                show_trailer_data_entry_interface(username)
             tab_index += 1
         
         if SELF_ASSIGNMENT_AVAILABLE:
@@ -365,7 +393,7 @@ else:
             if training_type == "Self-Assignment" and SELF_ASSIGNMENT_AVAILABLE:
                 show_self_assignment_walkthrough('admin')
             elif training_type == "Basic":
-                walkthrough_guide.show_interactive_walkthrough()
+                walkthrough_guide.show_walkthrough()
             elif training_type == "Enhanced":
                 walkthrough_guide_enhanced.show_enhanced_walkthrough()
             else:
@@ -440,7 +468,19 @@ else:
             if SELF_ASSIGNMENT_AVAILABLE:
                 show_self_assignment_walkthrough('coordinator')
             else:
-                walkthrough_guide.show_interactive_walkthrough()
+                walkthrough_guide.show_walkthrough()
+    
+    elif user_role == "data_entry":
+        # Data Entry Specialist Interface
+        st.title("📝 Trailer Data Management Center")
+        
+        # Vernon helper in sidebar already shown
+        
+        # Show the data entry interface
+        if PDF_REPORTS_AVAILABLE:
+            show_trailer_data_entry_interface(username)
+        else:
+            st.error("Data entry module not available")
     
     elif user_role == "Driver":
         # Check if on mobile
@@ -519,7 +559,7 @@ else:
             with tabs[2]:
                 trailer_swap_enhanced.show_driver_earnings(username)
             with tabs[3]:
-                walkthrough_guide.show_interactive_walkthrough()
+                walkthrough_guide.show_walkthrough()
     
     else:
         # Other roles
@@ -533,7 +573,7 @@ else:
             st.info("Dashboard coming soon")
         
         with tabs[1]:
-            walkthrough_guide.show_interactive_walkthrough()
+            walkthrough_guide.show_walkthrough()
     
     # Auto-refresh for real-time updates
     if SELF_ASSIGNMENT_AVAILABLE:
@@ -544,8 +584,8 @@ st.markdown("---")
 st.markdown(
     """
     <div style='text-align: center; color: #666;'>
-        Smith & Williams Trucking © 2024 | Enhanced with Self-Assignment System
-        <br>🦸‍♂️ Protected by SUPER VERNON - IT Superhero
+        Smith & Williams Trucking © 2025 | Professional Trailer Management System
+        <br>🔐 Protected by Vernon - Chief Data Security Officer
     </div>
     """,
     unsafe_allow_html=True

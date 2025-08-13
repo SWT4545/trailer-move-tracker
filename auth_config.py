@@ -77,6 +77,21 @@ USER_ROLES = {
         'can_generate_reports': False,
         'data_entry_only': True
     },
+    'data_entry': {
+        'description': 'Data Entry Specialist - Full trailer location and data management',
+        'access': [
+            'trailer_data_entry', 'trailer_management', 'locations',
+            'import_export', 'dashboard', 'progress_dashboard'
+        ],
+        'can_edit': True,
+        'can_delete': False,
+        'can_export': True,
+        'view_financial': False,
+        'can_update_trailer_status': True,
+        'can_bulk_operations': True,
+        'vernon_guidance': True,
+        'pdf_reports': True
+    },
     'driver': {
         'description': 'Driver - View assignments and upload PODs',
         'access': [
@@ -458,6 +473,88 @@ def is_user_owner(username):
         return USERS[username].get('is_owner', False)
     return False
 
+def create_demo_environment():
+    """Create demo environment with test data"""
+    import sqlite3
+    from datetime import datetime, timedelta
+    import random
+    
+    conn = sqlite3.connect('trailer_tracker_streamlined.db')
+    cursor = conn.cursor()
+    
+    # Check if demo data already exists
+    cursor.execute("SELECT COUNT(*) FROM moves WHERE customer_name LIKE '%DEMO%'")
+    if cursor.fetchone()[0] > 0:
+        conn.close()
+        return  # Demo data already exists
+    
+    # Create demo moves
+    demo_moves = [
+        ('DEMO-001', 'DEMO Customer A', 'Atlanta', 'GA', 'Miami', 'FL', 'pending', 1500),
+        ('DEMO-002', 'DEMO Customer B', 'Dallas', 'TX', 'Houston', 'TX', 'in_progress', 1200),
+        ('DEMO-003', 'DEMO Customer C', 'Chicago', 'IL', 'Detroit', 'MI', 'completed', 1800),
+        ('DEMO-004', 'DEMO Customer A', 'Phoenix', 'AZ', 'Las Vegas', 'NV', 'in_progress', 1350),
+        ('DEMO-005', 'DEMO Customer D', 'Denver', 'CO', 'Salt Lake City', 'UT', 'pending', 1650),
+    ]
+    
+    for order, customer, orig_city, orig_state, dest_city, dest_state, status, amount in demo_moves:
+        pickup = datetime.now() + timedelta(days=random.randint(1, 7))
+        delivery = pickup + timedelta(days=random.randint(2, 5))
+        
+        cursor.execute('''
+            INSERT INTO moves (order_number, customer_name, origin_city, origin_state,
+                             destination_city, destination_state, status, amount,
+                             pickup_date, delivery_date, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (order, customer, orig_city, orig_state, dest_city, dest_state,
+              status, amount, pickup, delivery, datetime.now()))
+    
+    # Create demo trailers
+    demo_trailers = [
+        ('DEMO-TR-001', 'Dry Van', 'available', 'Good', 'Atlanta Depot'),
+        ('DEMO-TR-002', 'Reefer', 'in_use', 'Excellent', 'Miami Terminal'),
+        ('DEMO-TR-003', 'Flatbed', 'maintenance', 'Fair', 'Service Center'),
+        ('DEMO-TR-004', 'Step Deck', 'available', 'Good', 'Dallas Yard'),
+        ('DEMO-TR-005', 'Double Drop', 'available', 'Excellent', 'Phoenix Hub'),
+    ]
+    
+    # Create trailer inventory table if not exists
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS trailer_inventory (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            trailer_number TEXT UNIQUE NOT NULL,
+            trailer_type TEXT,
+            status TEXT DEFAULT 'available',
+            condition TEXT DEFAULT 'good',
+            current_location TEXT,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_by TEXT DEFAULT 'demo_user'
+        )
+    ''')
+    
+    for trailer_num, trailer_type, status, condition, location in demo_trailers:
+        cursor.execute('''
+            INSERT OR IGNORE INTO trailer_inventory
+            (trailer_number, trailer_type, status, condition, current_location)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (trailer_num, trailer_type, status, condition, location))
+    
+    # Create demo drivers
+    demo_drivers = [
+        ('DEMO Driver 1', 'demo1@test.com', '555-0001', 'Active'),
+        ('DEMO Driver 2', 'demo2@test.com', '555-0002', 'Active'),
+        ('DEMO Driver 3', 'demo3@test.com', '555-0003', 'On Leave'),
+    ]
+    
+    for name, email, phone, status in demo_drivers:
+        cursor.execute('''
+            INSERT OR IGNORE INTO drivers (name, email, phone, status)
+            VALUES (?, ?, ?, ?)
+        ''', (name, email, phone, status))
+    
+    conn.commit()
+    conn.close()
+
 def show_login():
     """Show login page"""
     import streamlit as st
@@ -509,8 +606,18 @@ def show_login():
                     st.error("❌ Invalid username or password")
             
             if demo_button:
+                # Enhanced demo mode with test environment
                 st.session_state.authenticated = True
                 st.session_state.username = "demo_user"
-                st.session_state.user_role = "viewer"
-                st.success("✅ Demo mode activated!")
+                st.session_state.user_role = "business_administrator"
+                st.session_state.demo_mode = True
+                
+                # Create test data if not exists
+                try:
+                    create_demo_environment()
+                except:
+                    pass
+                
+                st.success("✅ Demo mode activated with full test environment!")
+                st.info("You have full administrator access to test all features")
                 st.rerun()
