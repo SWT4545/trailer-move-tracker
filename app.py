@@ -26,6 +26,7 @@ import client_portal
 import enhanced_user_manager
 import enhanced_data_management
 from payment_receipt_system import show_payment_receipt_interface
+import move_editor
 
 # Import enhanced modules for fixes
 import ui_responsiveness_fix as ui_fix
@@ -246,10 +247,18 @@ def show_admin_dashboard(moves_df):
                     st.write(f"🚛 **Trailers:** {move.get('new_trailer', 'N/A')} ↔️ {move.get('old_trailer', 'N/A')}")
                     st.write(f"📅 **Status:** {move['status'].title()}")
                     
-                    if st.button(f"📱 Copy Driver Message", key=f"msg_{move['id']}"):
-                        message = generate_driver_message(move)
-                        st.code(message)
-                        st.success("Message ready to copy!")
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        if st.button(f"🔄 Change Trailers", key=f"edit_{move['id']}"):
+                            st.session_state.page = "🔄 Edit Move"
+                            st.session_state.selected_move_id = move['id']
+                            st.rerun()
+                    
+                    with col_b:
+                        if st.button(f"📱 Copy Message", key=f"msg_{move['id']}"):
+                            message = generate_driver_message(move)
+                            st.code(message)
+                            st.success("Message ready to copy!")
         else:
             st.info("No active moves")
     
@@ -1609,7 +1618,8 @@ def show_system_admin():
         "🗄️ Database Operations",
         "📊 System Status",
         "🔧 Configuration",
-        "🗑️ Data Cleanup"
+        "🗑️ Data Cleanup",
+        "📋 Change Audit Log"
     ])
     
     with tabs[0]:  # Company Settings
@@ -1880,6 +1890,9 @@ def show_system_admin():
                 moves_df = db.get_all_trailer_moves()
                 if not moves_df.empty:
                     st.dataframe(moves_df.head(), use_container_width=True)
+    
+    with tabs[10]:  # Change Audit Log
+        move_editor.show_change_audit_log()
 
 def generate_client_report(moves_df):
     """Generate comprehensive client report with all move details"""
@@ -2372,6 +2385,7 @@ def main():
             menu_items.extend([
                 "🚛 Trailers",
                 "➕ Create Move",
+                "🔄 Edit Move",
                 "👤 Drivers",
                 "📄 Rate Cons"
             ])
@@ -2443,6 +2457,8 @@ def main():
     elif page == "➕ Create Move":
         # Use enhanced trailer swap management
         trailer_swap_enhanced.show_enhanced_trailer_swap()
+    elif page == "🔄 Edit Move":
+        move_editor.show_move_editor()
     elif page == "👤 Drivers":
         show_driver_management()
     elif page == "💰 Payments":
