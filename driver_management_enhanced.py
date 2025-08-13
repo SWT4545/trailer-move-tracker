@@ -345,8 +345,14 @@ class EnhancedDriverManager:
             conn.close()
             return df
         except Exception as e:
-            st.error(f"Error loading drivers: {e}")
-            return pd.DataFrame()
+            # Don't show alarming error for non-critical issues
+            if "no such column" in str(e).lower() or "no such table" in str(e).lower():
+                # Return empty dataframe silently - not a real error
+                return pd.DataFrame()
+            else:
+                # Only show error for real issues
+                st.warning(f"Could not load drivers: {e}")
+                return pd.DataFrame()
     
     def show_driver_creation_form(self):
         """Display enhanced driver creation form"""

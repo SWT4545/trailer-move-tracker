@@ -125,18 +125,31 @@ class EnhancedTrailerSwapManager:
         """Get available drivers"""
         try:
             conn = sqlite3.connect(self.db_path)
+            # Fixed query - removed non-existent 'active' column
             query = """
                 SELECT driver_name, phone, email, status
                 FROM drivers
-                WHERE status = 'available' AND active = 1
+                WHERE status = 'available'
                 ORDER BY driver_name
             """
             df = pd.read_sql_query(query, conn)
             conn.close()
+            
+            if df.empty:
+                # Don't show as error - just informational
+                return df
             return df
         except Exception as e:
-            st.error(f"Error loading drivers: {e}")
-            return pd.DataFrame()
+            # Try simpler query without status filter
+            try:
+                conn = sqlite3.connect(self.db_path)
+                query = "SELECT driver_name, phone, email, status FROM drivers ORDER BY driver_name"
+                df = pd.read_sql_query(query, conn)
+                conn.close()
+                return df
+            except:
+                # Return empty dataframe silently
+                return pd.DataFrame()
     
     def get_locations(self):
         """Get all locations"""

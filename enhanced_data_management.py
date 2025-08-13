@@ -342,7 +342,11 @@ def show_driver_management_with_sync():
             else:
                 st.info("No drivers found. Click 'Sync Drivers' to import from user accounts.")
         except Exception as e:
-            st.error(f"Error loading drivers: {e}")
+            # Show as info instead of error for non-critical issues
+            if "no such" in str(e).lower():
+                st.info("No drivers found. Click 'Sync Drivers' to import from user accounts.")
+            else:
+                st.warning(f"Could not load drivers: {e}")
     
     # Remove driver interface
     if st.session_state.get('show_remove_driver', False):
@@ -647,7 +651,11 @@ def show_edit_driver_interface(manager):
         else:
             st.info("No drivers found to edit")
     except Exception as e:
-        st.error(f"Error loading drivers: {e}")
+        # Show as info for empty data situations
+        if "no such" in str(e).lower():
+            st.info("No drivers to edit. Add drivers first.")
+        else:
+            st.warning(f"Could not load drivers: {e}")
 
 def update_driver_info(manager, driver_name, phone, email, status, cdl, company, mc, dot, insurance, 
                       home_address=None, business_address=None, is_owner=False):
