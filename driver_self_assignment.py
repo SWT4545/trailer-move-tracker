@@ -60,7 +60,7 @@ class DriverSelfAssignment:
                 t2.id as old_trailer_id,
                 t2.trailer_number as old_trailer,
                 t1.swap_location as location,
-                l.location_address as full_address,
+                l.address as full_address,
                 l.city,
                 l.state,
                 t1.notes as new_trailer_notes,
