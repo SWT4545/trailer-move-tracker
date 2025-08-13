@@ -545,7 +545,7 @@ def show_settings_page():
         st.subheader("Email Configuration")
         
         # Default email settings
-        default_from_email = st.text_input("Default From Email", placeholder="noreply@smithwilliams.com")
+        default_from_email = st.text_input("Default From Email", placeholder="noreply@smithwilliamstrucking.com")
         smtp_server = st.text_input("SMTP Server", placeholder="smtp.gmail.com")
         smtp_port = st.number_input("SMTP Port", value=587, min_value=1)
         

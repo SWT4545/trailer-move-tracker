@@ -78,7 +78,7 @@ def create_driver_profile():
                 password_hash,
                 'contractor',
                 '555-SMITH-01',
-                'b.smith@smithwilliams.com',
+                'b.smith@smithwilliamstrucking.com',
                 1,  # 1 concurrent move at a time as requested
                 json.dumps(['Memphis', 'Nashville', 'Little Rock', 'Jackson']),
                 json.dumps({
@@ -106,7 +106,7 @@ def create_driver_profile():
                 1,
                 1,
                 '555-SMITH-01',
-                'b.smith@smithwilliams.com',
+                'b.smith@smithwilliamstrucking.com',
                 1,
                 json.dumps(['Memphis', 'Nashville', 'Little Rock', 'Jackson']),
                 json.dumps({
@@ -143,7 +143,7 @@ def create_driver_profile():
                 password_hash,  # Store hash in password field
                 'Driver',
                 driver_name,
-                'b.smith@smithwilliams.com',
+                'b.smith@smithwilliamstrucking.com',
                 '555-SMITH-01',
                 datetime.now().isoformat(),
                 1
@@ -159,7 +159,7 @@ def create_driver_profile():
                 password_hash,
                 'Driver',
                 driver_name,
-                'b.smith@smithwilliams.com',
+                'b.smith@smithwilliamstrucking.com',
                 '555-SMITH-01',
                 datetime.now().isoformat(),
                 1
@@ -174,7 +174,7 @@ def create_driver_profile():
         print(f"Username: {username}")
         print(f"Password: {password}")
         print(f"Phone: 555-SMITH-01")
-        print(f"Email: b.smith@smithwilliams.com")
+        print(f"Email: b.smith@smithwilliamstrucking.com")
         print("\nFeatures enabled:")
         print("✓ Self-assignment enabled")
         print("✓ Max 1 concurrent move (as requested)")

@@ -83,7 +83,7 @@ class Vernon:
         **{self.name}**
         {self.title}
         {self.company}
-        📧 vernon.it@smithwilliams.com
+        📧 vernon.it@smithwilliamstrucking.com
         📱 Extension: 1337
         💬 *"Your IT success is my priority!"*
         """
@@ -318,7 +318,7 @@ def show_vernon_widget(compact=False):
                     st.info("Extension: 1337")
             with col3:
                 if st.button("📧 Email Vernon", use_container_width=True):
-                    st.info("vernon.it@smithwilliams.com")
+                    st.info("vernon.it@smithwilliamstrucking.com")
             
             # Show a random tip
             st.info(vernon.get_tips())

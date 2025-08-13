@@ -44,12 +44,12 @@ def show_settings_page():
             with col2:
                 st.text_input(
                     "Support Email",
-                    value="support@smithwilliams.com",
+                    value="support@smithwilliamstrucking.com",
                     help="Email for customer support"
                 )
                 st.text_input(
                     "Billing Email",
-                    value="billing@smithwilliams.com",
+                    value="billing@smithwilliamstrucking.com",
                     help="Email for billing inquiries"
                 )
             

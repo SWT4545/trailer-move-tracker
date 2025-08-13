@@ -102,7 +102,7 @@ def add_driver_capabilities_to_brandon():
                     'Brandon',
                     password_hash,
                     phone or '555-OWNER-01',
-                    email or 'brandon@smithwilliams.com',
+                    email or 'brandon@smithwilliamstrucking.com',
                     'owner-operator',
                     1,  # can_self_assign
                     1,  # active

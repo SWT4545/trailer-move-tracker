@@ -76,7 +76,7 @@ def create_test_driver():
                 password_hash,
                 'contractor',
                 '555-SMITH-01',
-                'b.smith@smithwilliams.com',
+                'b.smith@smithwilliamstrucking.com',
                 2,  # Allow 2 concurrent moves for testing
                 json.dumps(['Memphis', 'Nashville', 'Little Rock']),
                 json.dumps({
@@ -104,7 +104,7 @@ def create_test_driver():
                 1,  # active
                 1,  # can_self_assign
                 '555-SMITH-01',
-                'b.smith@smithwilliams.com',
+                'b.smith@smithwilliamstrucking.com',
                 2,  # max_concurrent_moves
                 json.dumps(['Memphis', 'Nashville', 'Little Rock']),
                 json.dumps({
@@ -137,7 +137,7 @@ def create_test_driver():
             password_hash,
             'Driver',
             driver_name,
-            'b.smith@smithwilliams.com',
+            'b.smith@smithwilliamstrucking.com',
             '555-TEST-001',
             datetime.now(),
             1,
@@ -158,7 +158,7 @@ def create_test_driver():
         print(f"Password: {password}")
         print(f"Driver Name: {driver_name}")
         print(f"Phone: 555-SMITH-01")
-        print(f"Email: b.smith@smithwilliams.com")
+        print(f"Email: b.smith@smithwilliamstrucking.com")
         print("\nFeatures enabled:")
         print("- Self-assignment: YES")
         print("- Max concurrent moves: 2")
