@@ -21,6 +21,7 @@ import company_config
 import it_bot_vernon as vernon_it
 import vernon_sidebar
 import rate_con_manager
+import rate_con_redesigned
 import user_manager
 import client_portal
 import enhanced_user_manager
@@ -52,6 +53,14 @@ except:
 
 # Initialize database and run migration
 db.init_database()
+
+# Ensure all tables exist using connection manager
+try:
+    from database_connection_manager import db_manager
+    db_manager.ensure_tables()
+except Exception as e:
+    # Try to create tables on error
+    pass
 
 # Run migration to ensure data safety
 try:
@@ -2474,7 +2483,8 @@ def main():
         # Use enhanced Vernon with configurable validation
         vernon_enhanced.show_vernon_enhanced()
     elif page == "📄 Rate Cons":
-        rate_con_manager.show_rate_con_management()
+        # Use redesigned Rate Con interface
+        rate_con_redesigned.show_rate_con_redesigned()
     elif page == "💰 My Rate Cons":
         rate_con_manager.show_driver_rate_cons(st.session_state.get('user_name', 'Driver'))
     elif page == "📋 Move Status":

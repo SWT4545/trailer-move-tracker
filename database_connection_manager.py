@@ -101,9 +101,68 @@ class DatabaseConnectionManager:
                 CREATE TABLE IF NOT EXISTS drivers (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT UNIQUE NOT NULL,
+                    driver_name TEXT,
                     phone TEXT,
                     email TEXT,
                     status TEXT DEFAULT 'available',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Update driver_name column if needed
+            cursor.execute("PRAGMA table_info(drivers)")
+            columns = [col[1] for col in cursor.fetchall()]
+            if 'driver_name' not in columns:
+                cursor.execute("ALTER TABLE drivers ADD COLUMN driver_name TEXT")
+                cursor.execute("UPDATE drivers SET driver_name = name WHERE driver_name IS NULL")
+            
+            # Ensure trailer_moves table exists
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS trailer_moves (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    driver_name TEXT,
+                    new_trailer TEXT,
+                    old_trailer TEXT,
+                    pickup_location TEXT,
+                    delivery_location TEXT,
+                    move_date DATE,
+                    pickup_time TIME,
+                    total_miles REAL,
+                    driver_pay REAL,
+                    status TEXT DEFAULT 'assigned',
+                    special_instructions TEXT,
+                    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    pod_uploaded BOOLEAN DEFAULT 0,
+                    pod_upload_date TIMESTAMP,
+                    payment_status TEXT DEFAULT 'pending',
+                    paid_date TIMESTAMP,
+                    notes TEXT
+                )
+            """)
+            
+            # Ensure trailers table exists
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS trailers (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    trailer_number TEXT UNIQUE NOT NULL,
+                    trailer_type TEXT CHECK(trailer_type IN ('new', 'old')),
+                    current_location TEXT,
+                    status TEXT DEFAULT 'available',
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Ensure locations table exists
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS locations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    location_title TEXT UNIQUE NOT NULL,
+                    street_address TEXT,
+                    city TEXT,
+                    state TEXT,
+                    zip_code TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -135,6 +194,20 @@ class DatabaseConnectionManager:
                     address_state TEXT,
                     address_zip TEXT,
                     FOREIGN KEY (driver_id) REFERENCES drivers(id)
+                )
+            """)
+            
+            # Ensure move_changes table exists (for move editor)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS move_changes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    move_id INTEGER,
+                    change_type TEXT,
+                    old_value TEXT,
+                    new_value TEXT,
+                    reason TEXT,
+                    changed_by TEXT,
+                    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             
