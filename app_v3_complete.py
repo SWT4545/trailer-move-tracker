@@ -325,6 +325,16 @@ st.markdown("""
         margin: 10px 0;
         border-radius: 0 5px 5px 0;
     }
+    /* Center logo on login page */
+    div[data-testid="column"]:nth-of-type(2) {
+        text-align: center;
+    }
+    /* Style for login page */
+    .login-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem;
+        border-radius: 10px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -333,8 +343,11 @@ if not st.session_state.authenticated:
     # Logo and title
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if os.path.exists("swt_logo.png"):
-            st.image("swt_logo.png", width=300)
+        # Use white logo for better visibility
+        if os.path.exists("swt_logo_white.png"):
+            st.image("swt_logo_white.png", width=350, use_column_width=False)
+        elif os.path.exists("swt_logo.png"):
+            st.image("swt_logo.png", width=350, use_column_width=False)
         else:
             st.markdown("# 🚛")
         
@@ -392,9 +405,11 @@ if not st.session_state.authenticated:
 else:
     # Sidebar with logo
     with st.sidebar:
-        # Logo
-        if os.path.exists("swt_logo.png"):
-            st.image("swt_logo.png", width=150)
+        # Logo - use white version for better visibility
+        if os.path.exists("swt_logo_white.png"):
+            st.image("swt_logo_white.png", width=200)
+        elif os.path.exists("swt_logo.png"):
+            st.image("swt_logo.png", width=200)
         
         st.markdown(f"### 👤 {st.session_state.username}")
         st.markdown(f"**Role:** {st.session_state.user_role}")
