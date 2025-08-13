@@ -29,7 +29,8 @@
       "WebFetch(domain:docs.streamlit.io)",
       "Bash(git commit:*)",
       "Bash(copy app.py app_backup_before_major_fix.py)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(pip config:*)"
     ],
     "deny": []
   }

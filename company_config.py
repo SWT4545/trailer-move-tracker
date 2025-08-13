@@ -16,6 +16,14 @@ def get_default_company_info():
         'company_address': '3716 Hwy 78, Memphis, TN 38109',
         'company_tagline': 'Your cargo. Our mission. Moving forward.',
         'company_tagline_alt': 'Your freight, our commitment',
+        'company_slogans': [
+            'Your cargo. Our mission. Moving forward.',
+            'Your freight, our commitment',
+            'Professional Transportation Services',
+            'Delivering Excellence Since 2025',
+            'On Time, Every Time',
+            'Trust in Every Mile'
+        ],
         'company_logo': 'swt_logo_white.png',
         'base_location': 'Fleet Memphis',
         'rate_per_mile': 2.10,
@@ -162,18 +170,32 @@ def show_company_settings():
                     help="Legal business name"
                 )
                 
-                # Tagline selection
-                tagline_options = [
-                    "Your cargo. Our mission. Moving forward.",
-                    "Your freight, our commitment"
-                ]
-                current_tagline = st.session_state.get('company_tagline', tagline_options[0])
+                # Get slogans from defaults or session state
+                default_slogans = get_default_company_info()['company_slogans']
+                current_slogans = st.session_state.get('company_slogans', default_slogans)
+                
+                # Primary tagline selection from slogans
+                current_tagline = st.session_state.get('company_tagline', current_slogans[0])
                 company_tagline = st.selectbox(
                     "Primary Tagline",
-                    tagline_options,
-                    index=tagline_options.index(current_tagline) if current_tagline in tagline_options else 0,
+                    current_slogans,
+                    index=current_slogans.index(current_tagline) if current_tagline in current_slogans else 0,
                     help="Main tagline for reports and communications"
                 )
+                
+                # Allow custom slogan entry
+                custom_slogan = st.text_input(
+                    "Add Custom Slogan",
+                    placeholder="Enter a new slogan to add to the list",
+                    help="Add your own custom slogan"
+                )
+                
+                if custom_slogan and st.button("➕ Add Slogan"):
+                    if custom_slogan not in current_slogans:
+                        current_slogans.append(custom_slogan)
+                        st.session_state.company_slogans = current_slogans
+                        st.success(f"✅ Added: {custom_slogan}")
+                        st.rerun()
                 
                 base_location = st.text_input(
                     "Base Location",
