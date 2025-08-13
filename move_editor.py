@@ -9,165 +9,192 @@ import pandas as pd
 from datetime import datetime
 import database as db
 import json
+import os
+from database_connection_manager import db_manager
 
 class MoveEditor:
     def __init__(self):
-        self.db_path = 'trailer_tracker_streamlined.db'
+        # Use correct database path
+        self.db_path = 'trailer_tracker_streamlined.db' if os.path.exists('trailer_tracker_streamlined.db') else 'trailer_data.db'
         self.ensure_change_log_table()
     
     def ensure_change_log_table(self):
         """Create table to track trailer changes"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS move_changes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                move_id INTEGER,
-                change_type TEXT,
-                old_value TEXT,
-                new_value TEXT,
-                reason TEXT,
-                changed_by TEXT,
-                changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (move_id) REFERENCES trailer_moves(id)
-            )
-        """)
-        
-        conn.commit()
-        conn.close()
+        try:
+            with db_manager.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS move_changes (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        move_id INTEGER,
+                        change_type TEXT,
+                        old_value TEXT,
+                        new_value TEXT,
+                        reason TEXT,
+                        changed_by TEXT,
+                        changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                
+                conn.commit()
+        except Exception as e:
+            st.warning(f"Could not create change log table: {e}")
     
     def get_active_moves(self):
         """Get all active moves that can be edited"""
-        conn = sqlite3.connect(self.db_path)
-        query = """
-            SELECT * FROM trailer_moves 
-            WHERE status IN ('assigned', 'in_progress', 'pending')
-            ORDER BY move_date DESC
-        """
-        df = pd.read_sql_query(query, conn)
-        conn.close()
-        return df
+        try:
+            with db_manager.get_connection() as conn:
+                query = """
+                    SELECT * FROM trailer_moves 
+                    WHERE status IN ('assigned', 'in_progress', 'pending')
+                    ORDER BY move_date DESC
+                """
+                df = pd.read_sql_query(query, conn)
+                return df
+        except Exception as e:
+            st.error(f"Database error: {e}")
+            return pd.DataFrame()
     
     def get_available_trailers(self, trailer_type, exclude_id=None):
         """Get available trailers of specified type"""
-        conn = sqlite3.connect(self.db_path)
-        query = """
-            SELECT * FROM trailers 
-            WHERE trailer_type = ? AND status = 'available'
-        """
-        
-        if exclude_id:
-            query += " AND trailer_number != ?"
-            df = pd.read_sql_query(query, conn, params=(trailer_type, exclude_id))
-        else:
-            df = pd.read_sql_query(query, conn, params=(trailer_type,))
-        
-        conn.close()
-        return df
+        try:
+            with db_manager.get_connection() as conn:
+                query = """
+                    SELECT * FROM trailers 
+                    WHERE trailer_type = ? AND status = 'available'
+                """
+                
+                if exclude_id:
+                    query += " AND trailer_number != ?"
+                    df = pd.read_sql_query(query, conn, params=(trailer_type, exclude_id))
+                else:
+                    df = pd.read_sql_query(query, conn, params=(trailer_type,))
+                
+                return df
+        except Exception as e:
+            st.error(f"Database error: {e}")
+            return pd.DataFrame()
     
     def log_change(self, move_id, change_type, old_value, new_value, reason, changed_by):
         """Log a trailer change"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            INSERT INTO move_changes (move_id, change_type, old_value, new_value, reason, changed_by)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (move_id, change_type, old_value, new_value, reason, changed_by))
-        
-        conn.commit()
-        conn.close()
+        try:
+            with db_manager.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute("""
+                    INSERT INTO move_changes (move_id, change_type, old_value, new_value, reason, changed_by)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (move_id, change_type, old_value, new_value, reason, changed_by))
+                
+                conn.commit()
+        except Exception as e:
+            st.error(f"Could not log change: {e}")
     
     def update_move_trailers(self, move_id, new_trailer=None, old_trailer=None, reason="", user=""):
         """Update trailers in a move"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        # Get current move details
-        cursor.execute("SELECT * FROM trailer_moves WHERE id = ?", (move_id,))
-        current_move = cursor.fetchone()
-        
-        if not current_move:
-            conn.close()
-            return False, "Move not found"
-        
-        updates = []
-        params = []
-        
-        # Update NEW trailer if provided
-        if new_trailer and new_trailer != current_move[2]:  # Index 2 is new_trailer
-            # Log the change
-            self.log_change(move_id, "NEW_TRAILER", current_move[2], new_trailer, reason, user)
-            
-            # Free up the old NEW trailer
-            cursor.execute("UPDATE trailers SET status = 'available' WHERE trailer_number = ?", (current_move[2],))
-            
-            # Mark new trailer as in_use
-            cursor.execute("UPDATE trailers SET status = 'in_use' WHERE trailer_number = ?", (new_trailer,))
-            
-            updates.append("new_trailer = ?")
-            params.append(new_trailer)
-        
-        # Update OLD trailer if provided
-        if old_trailer and old_trailer != current_move[3]:  # Index 3 is old_trailer
-            # Log the change
-            self.log_change(move_id, "OLD_TRAILER", current_move[3], old_trailer, reason, user)
-            
-            # Free up the old OLD trailer
-            cursor.execute("UPDATE trailers SET status = 'available' WHERE trailer_number = ?", (current_move[3],))
-            
-            # Mark new trailer as in_use
-            cursor.execute("UPDATE trailers SET status = 'in_use' WHERE trailer_number = ?", (old_trailer,))
-            
-            updates.append("old_trailer = ?")
-            params.append(old_trailer)
-        
-        if updates:
-            # Update the move
-            query = f"UPDATE trailer_moves SET {', '.join(updates)}, updated_date = CURRENT_TIMESTAMP WHERE id = ?"
-            params.append(move_id)
-            cursor.execute(query, params)
-            
-            conn.commit()
-            conn.close()
-            return True, "Move updated successfully"
-        else:
-            conn.close()
-            return False, "No changes made"
+        try:
+            with db_manager.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Get current move details
+                cursor.execute("SELECT * FROM trailer_moves WHERE id = ?", (move_id,))
+                current_move = cursor.fetchone()
+                
+                if not current_move:
+                    return False, "Move not found"
+                
+                updates = []
+                params = []
+                
+                # Update NEW trailer if provided
+                if new_trailer and new_trailer != current_move[2]:  # Index 2 is new_trailer
+                    # Log the change
+                    self.log_change(move_id, "NEW_TRAILER", current_move[2], new_trailer, reason, user)
+                    
+                    # Free up the old NEW trailer
+                    cursor.execute("UPDATE trailers SET status = 'available' WHERE trailer_number = ?", (current_move[2],))
+                    
+                    # Mark new trailer as in_use
+                    cursor.execute("UPDATE trailers SET status = 'in_use' WHERE trailer_number = ?", (new_trailer,))
+                    
+                    updates.append("new_trailer = ?")
+                    params.append(new_trailer)
+                
+                # Update OLD trailer if provided
+                if old_trailer and old_trailer != current_move[3]:  # Index 3 is old_trailer
+                    # Log the change
+                    self.log_change(move_id, "OLD_TRAILER", current_move[3], old_trailer, reason, user)
+                    
+                    # Free up the old OLD trailer
+                    cursor.execute("UPDATE trailers SET status = 'available' WHERE trailer_number = ?", (current_move[3],))
+                    
+                    # Mark new trailer as in_use
+                    cursor.execute("UPDATE trailers SET status = 'in_use' WHERE trailer_number = ?", (old_trailer,))
+                    
+                    updates.append("old_trailer = ?")
+                    params.append(old_trailer)
+                
+                if updates:
+                    # Update the move
+                    query = f"UPDATE trailer_moves SET {', '.join(updates)}, updated_date = CURRENT_TIMESTAMP WHERE id = ?"
+                    params.append(move_id)
+                    cursor.execute(query, params)
+                    
+                    conn.commit()
+                    return True, "Move updated successfully"
+                else:
+                    return False, "No changes made"
+        except Exception as e:
+            return False, f"Database error: {e}"
     
     def get_change_history(self, move_id=None):
         """Get change history for a move or all moves"""
-        conn = sqlite3.connect(self.db_path)
-        
-        if move_id:
-            query = """
-                SELECT mc.*, tm.driver_name 
-                FROM move_changes mc
-                LEFT JOIN trailer_moves tm ON mc.move_id = tm.id
-                WHERE mc.move_id = ?
-                ORDER BY mc.changed_at DESC
-            """
-            df = pd.read_sql_query(query, conn, params=(move_id,))
-        else:
-            query = """
-                SELECT mc.*, tm.driver_name 
-                FROM move_changes mc
-                LEFT JOIN trailer_moves tm ON mc.move_id = tm.id
-                ORDER BY mc.changed_at DESC
-                LIMIT 50
-            """
-            df = pd.read_sql_query(query, conn)
-        
-        conn.close()
-        return df
+        try:
+            with db_manager.get_connection() as conn:
+                if move_id:
+                    query = """
+                        SELECT mc.*, tm.driver_name 
+                        FROM move_changes mc
+                        LEFT JOIN trailer_moves tm ON mc.move_id = tm.id
+                        WHERE mc.move_id = ?
+                        ORDER BY mc.changed_at DESC
+                    """
+                    df = pd.read_sql_query(query, conn, params=(move_id,))
+                else:
+                    query = """
+                        SELECT mc.*, tm.driver_name 
+                        FROM move_changes mc
+                        LEFT JOIN trailer_moves tm ON mc.move_id = tm.id
+                        ORDER BY mc.changed_at DESC
+                        LIMIT 50
+                    """
+                    df = pd.read_sql_query(query, conn)
+                
+                return df
+        except Exception as e:
+            st.error(f"Database error: {e}")
+            return pd.DataFrame()
 
 def show_move_editor():
     """Main UI for editing moves"""
     st.title("🔄 Edit Move - Change Trailers")
     st.info("Change trailers when they're not ready or need replacement")
     
-    editor = MoveEditor()
+    # Add refresh button for connection issues
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button("🔄 Refresh Page", type="secondary", use_container_width=True):
+            from database_connection_manager import refresh_all_connections
+            refresh_all_connections()
+            st.rerun()
+    
+    try:
+        editor = MoveEditor()
+    except Exception as e:
+        st.error(f"Database initialization error: {e}")
+        st.info("Click the refresh button above to retry")
+        return
     
     # Get user info
     user_name = st.session_state.get('user_name', 'Unknown')
@@ -183,6 +210,7 @@ def show_move_editor():
     
     if active_moves.empty:
         st.warning("No active moves to edit")
+        st.info("This could mean no moves are active or there's a database connection issue.")
         return
     
     # Select move to edit

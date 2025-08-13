@@ -798,7 +798,7 @@ def show_vernon_enhanced():
             with st.spinner("Refreshing entire system..."):
                 try:
                     # Import the connection manager
-                    from database_connection_manager import refresh_all_connections
+                    from database_connection_manager import refresh_all_connections, db_manager
                     
                     # Clear all caches
                     st.cache_data.clear()
@@ -807,11 +807,35 @@ def show_vernon_enhanced():
                     # Refresh database connections
                     refresh_all_connections()
                     
+                    # Ensure all required tables exist
+                    db_manager.ensure_tables()
+                    
+                    # Also ensure move_changes table exists for move editor
+                    with db_manager.get_connection() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("""
+                            CREATE TABLE IF NOT EXISTS move_changes (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                move_id INTEGER,
+                                change_type TEXT,
+                                old_value TEXT,
+                                new_value TEXT,
+                                reason TEXT,
+                                changed_by TEXT,
+                                changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                            )
+                        """)
+                        conn.commit()
+                    
                     # Clear session state issues
                     if 'vernon_state' in st.session_state:
                         st.session_state.vernon_state['issues_found'] = []
                     
-                    st.success("✅ System refresh complete! All connections reset.")
+                    # Clear any selected move IDs
+                    if 'selected_move_id' in st.session_state:
+                        del st.session_state.selected_move_id
+                    
+                    st.success("✅ System refresh complete! All connections reset and tables verified.")
                     time.sleep(1)
                     st.rerun()
                 except Exception as e:
