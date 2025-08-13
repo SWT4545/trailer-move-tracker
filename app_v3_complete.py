@@ -339,7 +339,7 @@ if not st.session_state.authenticated:
         elif os.path.exists("swt_logo.png"):
             st.image("swt_logo.png", use_container_width=True)
         else:
-            st.markdown("# 🚛")
+            st.markdown("# S&W")
         
         st.markdown("<h1 style='text-align: center;'>Smith & Williams Trucking</h1>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #666;'>Trailer Move Management System</p>", unsafe_allow_html=True)
@@ -428,7 +428,7 @@ else:
             st.rerun()
     
     # Main content area
-    st.title(f"🚛 Smith & Williams Trucking")
+    st.title(f"Smith & Williams Trucking")
     
     # Dashboard Page
     if st.session_state.page == "Dashboard":

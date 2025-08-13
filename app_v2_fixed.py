@@ -127,7 +127,7 @@ if not st.session_state.authenticated:
         if logo:
             st.image(logo, use_container_width=True)
         else:
-            st.markdown("# 🚛")
+            st.markdown("# S&W")
         
         st.markdown("<h1 style='text-align: center;'>Smith & Williams Trucking</h1>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #666;'>Trailer Move Management System</p>", unsafe_allow_html=True)
@@ -209,7 +209,7 @@ else:
             st.rerun()
     
     # Main content area with consistent header
-    st.markdown(f"# 🚛 Smith & Williams Trucking")
+    st.markdown(f"# Smith & Williams Trucking")
     st.markdown(f"Welcome back, **{st.session_state.username}**!")
     st.markdown("---")
     

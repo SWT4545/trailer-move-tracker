@@ -66,7 +66,7 @@ def check_login(username, password):
 
 # Login page
 if not st.session_state.authenticated:
-    st.markdown("# 🚛 Smith & Williams Trucking")
+    st.markdown("# Smith & Williams Trucking")
     st.markdown("### Login")
     
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -123,7 +123,7 @@ else:
         st.markdown("Chief Data Security Officer")
     
     # Main content
-    st.title("🚛 Smith & Williams Trucking")
+    st.title("Smith & Williams Trucking")
     st.markdown(f"Welcome, {st.session_state.username}!")
     
     # Create tabs
