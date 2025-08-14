@@ -814,9 +814,8 @@ if __name__ == "__main__":
     # Install graphviz if needed (FIX #13)
     try:
         import graphviz
-    except:
-        import subprocess
-        import sys
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "graphviz"])
+    except ImportError:
+        st.warning("Graphviz is not installed. Some visualization features may be limited.")
+        pass
     
     main()
