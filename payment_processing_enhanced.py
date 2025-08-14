@@ -18,6 +18,7 @@ def show_payment_processing():
     
     tabs = st.tabs([
         "📝 Process Payments",
+        "📄 Documents",
         "💳 Factoring Submission", 
         "📄 Generate Receipts",
         "📊 Payment History",
@@ -31,11 +32,13 @@ def show_payment_processing():
         conn = get_connection()
         cursor = conn.cursor()
         
-        # Get completed moves that haven't been fully paid
+        # Get completed moves with documents that haven't been paid
         cursor.execute('''SELECT m.id, m.move_id, m.driver_name, m.total_miles, 
                                 m.driver_pay, m.payment_status, m.completed_date,
-                                m.new_trailer, m.old_trailer, m.delivery_location
+                                m.new_trailer, m.old_trailer, m.delivery_location,
+                                dr.rate_confirmation, dr.bol, dr.pod, dr.all_docs_complete
                          FROM moves m
+                         LEFT JOIN document_requirements dr ON m.move_id = dr.move_id
                          WHERE m.status = 'completed' 
                          AND (m.payment_status != 'paid' OR m.payment_status IS NULL)
                          ORDER BY m.completed_date''')
@@ -45,7 +48,17 @@ def show_payment_processing():
             st.markdown("#### Pending Payments")
             
             for move in unpaid_moves:
-                move_id_db, move_id, driver, miles, gross_pay, pay_status, comp_date, new_t, old_t, location = move
+                move_id_db, move_id, driver, miles, gross_pay, pay_status, comp_date, new_t, old_t, location, has_rc, has_bol, has_pod, docs_complete = move
+                
+                # Check if ready for payment
+                if not docs_complete:
+                    docs_status = []
+                    if not has_rc: docs_status.append("Rate Conf")
+                    if not has_bol: docs_status.append("BOL")
+                    if not has_pod: docs_status.append("POD")
+                    
+                    st.warning(f"⚠️ {move_id} - Missing documents: {', '.join(docs_status)}")
+                    continue
                 
                 with st.expander(f"💵 {move_id} - {driver} - ${gross_pay:.2f}", expanded=True):
                     col1, col2, col3 = st.columns(3)
@@ -96,27 +109,55 @@ def show_payment_processing():
                             key=f"fact_ref_{move_id_db}"
                         )
                         
+                        st.markdown("**Payment Method:**")
+                        payment_method = st.selectbox(
+                            "Transfer via",
+                            ["Navy Federal Transfer", "Check", "Other"],
+                            key=f"method_{move_id_db}"
+                        )
+                        
+                        transfer_ref = st.text_input(
+                            "Transfer Reference",
+                            placeholder="Navy Federal confirmation #",
+                            key=f"transfer_{move_id_db}"
+                        )
+                        
                         if st.button("Process Payment", key=f"process_{move_id_db}", type="primary"):
                             # Update move with payment info
                             cursor.execute('''UPDATE moves 
                                            SET payment_status = 'paid',
                                                payment_date = ?,
+                                               payment_method = ?,
                                                service_fee = ?,
                                                net_pay = ?,
                                                factoring_amount = ?,
                                                factoring_reference = ?
                                            WHERE id = ?''',
-                                         (datetime.now(), service_fee, net_pay,
+                                         (datetime.now(), payment_method, service_fee, net_pay,
                                           factoring_amount, factoring_ref, move_id_db))
                             
-                            # Create payment record
+                            # Create payment record with transfer info
                             cursor.execute('''INSERT INTO payments 
                                            (driver_name, amount, service_fee, miles, 
                                             status, notes, payment_date, move_id)
                                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
                                          (driver, net_pay, service_fee, miles,
-                                          'paid', f'Move {move_id} - Factoring: {factoring_ref}',
+                                          'paid', f'Move {move_id} - {payment_method} - Ref: {transfer_ref}',
                                           datetime.now(), move_id))
+                            
+                            # Generate and store invoice receipt
+                            receipt = generate_payment_receipt(driver, 
+                                (0, datetime.now().strftime('%Y-%m-%d'), net_pay, service_fee, miles, move_id, 
+                                 f'{payment_method} - {transfer_ref}'), gross_pay)
+                            
+                            # Store receipt in documents
+                            cursor.execute('''INSERT INTO factoring_documents 
+                                           (move_id, document_type, file_name, file_data, 
+                                            uploaded_by, verified)
+                                           VALUES (?, ?, ?, ?, ?, ?)''',
+                                         (move_id, 'Payment Receipt', 
+                                          f'receipt_{move_id}_{datetime.now().strftime("%Y%m%d")}.pdf',
+                                          receipt, st.session_state.get('username', 'System'), 1))
                             
                             conn.commit()
                             st.success(f"✅ Payment processed: ${net_pay:.2f} to {driver}")
@@ -126,7 +167,14 @@ def show_payment_processing():
         
         conn.close()
     
-    with tabs[1]:  # Factoring Submission
+    with tabs[1]:  # Documents Tab
+        try:
+            from factoring_document_manager import show_document_management
+            show_document_management()
+        except Exception as e:
+            st.error(f"Document manager loading error: {e}")
+    
+    with tabs[2]:  # Factoring Submission
         st.markdown("### Factoring Submission Tracking")
         
         conn = get_connection()
