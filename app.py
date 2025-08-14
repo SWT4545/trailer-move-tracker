@@ -161,6 +161,8 @@ def init_database():
             destination TEXT,
             client TEXT,
             driver TEXT,
+            driver_name TEXT,
+            driver_pay REAL DEFAULT 0,
             status TEXT DEFAULT 'pending',
             delivery_status TEXT DEFAULT 'Pending',
             delivery_location TEXT,
@@ -200,7 +202,20 @@ def init_database():
         )
     ''')
     
-    # Ensure moves table has delivery tracking (FIX #5)
+    # Create drivers table if not exists
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS drivers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            driver_name TEXT UNIQUE NOT NULL,
+            company_name TEXT,
+            phone TEXT,
+            email TEXT,
+            status TEXT DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Ensure moves table has all required columns
     try:
         cursor.execute("ALTER TABLE moves ADD COLUMN delivery_status TEXT DEFAULT 'Pending'")
     except:
@@ -211,6 +226,14 @@ def init_database():
         pass
     try:
         cursor.execute("ALTER TABLE moves ADD COLUMN delivery_date TIMESTAMP")
+    except:
+        pass
+    try:
+        cursor.execute("ALTER TABLE moves ADD COLUMN driver_name TEXT")
+    except:
+        pass
+    try:
+        cursor.execute("ALTER TABLE moves ADD COLUMN driver_pay REAL DEFAULT 0")
     except:
         pass
     
