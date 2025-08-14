@@ -483,6 +483,15 @@ else:
     
     # Page routing
     if page == "Dashboard":
+        # Check if driver role and show contractor portal
+        if st.session_state.user_role == "driver":
+            try:
+                from driver_contractor_portal import show_driver_contractor_portal
+                show_driver_contractor_portal(st.session_state.username)
+                return  # Exit early for drivers
+            except Exception as e:
+                st.error(f"Driver portal error: {e}")
+        
         st.header("📊 Executive Dashboard")
         
         # Quick actions - Full suite for Owner

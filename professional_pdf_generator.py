@@ -217,12 +217,30 @@ def generate_status_report_for_profile(username, role):
             
             conn.close()
             
-            # Summary paragraph
+            # Get driver performance data
+            cursor.execute('''SELECT driver_name, COUNT(*) as move_count, 
+                                   SUM(total_miles) as total_miles, 
+                                   SUM(driver_pay) as total_pay
+                            FROM moves WHERE status = 'completed' 
+                            GROUP BY driver_name''')
+            driver_data = cursor.fetchall()
+            
+            # Get payment summary
+            cursor.execute('''SELECT SUM(amount) as total_paid, 
+                                   SUM(service_fee) as total_fees
+                            FROM payments WHERE status = 'paid' ''')
+            payment_summary = cursor.fetchone()
+            total_paid = payment_summary[0] or 0
+            total_fees = payment_summary[1] or 0
+            
+            conn.close()
+            
+            # Summary paragraph with actual data
             summary_text = f"""
-            As of {datetime.now().strftime('%B %d, %Y')}, Smith & Williams Trucking operations show strong performance 
-            across all key metrics. The fleet consists of {total_trailers} trailers with {available_trailers} currently 
-            available for dispatch. Move operations show {pending} pending moves, {in_progress} in progress, and 
-            {completed} completed moves. Total revenue from completed moves: ${total_revenue:,.2f}.
+            As of {datetime.now().strftime('%B %d, %Y')}, Smith & Williams Trucking has completed {completed} moves 
+            covering {sum(d[2] or 0 for d in driver_data):,.0f} total miles. Our contractor drivers have earned 
+            ${total_paid:,.2f} in total payments. Current operations show {in_progress} moves in transit and 
+            {pending} pending dispatch. Fleet utilization stands at {((total_trailers-available_trailers)/total_trailers*100 if total_trailers > 0 else 0):.1f}%.
             """
             story.append(Paragraph(summary_text, styles['Normal']))
             story.append(Spacer(1, 0.2*inch))
@@ -260,15 +278,54 @@ def generate_status_report_for_profile(username, role):
         
         story.append(Spacer(1, 0.3*inch))
         
-        # Recommendations section
-        story.append(Paragraph("RECOMMENDATIONS & NEXT STEPS", heading_style))
+        # Driver Performance Section
+        story.append(Paragraph("DRIVER PERFORMANCE SUMMARY", heading_style))
+        
+        if driver_data:
+            driver_table_data = [['Driver Name', 'Completed Moves', 'Total Miles', 'Earnings']]
+            for driver in driver_data:
+                driver_table_data.append([
+                    driver[0],
+                    str(driver[1]),
+                    f"{driver[2]:,.0f} mi",
+                    f"${driver[3]:,.2f}"
+                ])
+            
+            driver_table = Table(driver_table_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+            driver_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#DC143C')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.beige]),
+            ]))
+            story.append(driver_table)
+        
+        story.append(Spacer(1, 0.3*inch))
+        
+        # Financial Summary
+        story.append(Paragraph("FINANCIAL SUMMARY", heading_style))
+        
+        financial_text = f"""
+        Total Driver Payments: ${total_paid:,.2f}
+        Service Fees Collected: ${total_fees:,.2f}
+        Average Per Move: ${(total_paid/completed if completed > 0 else 0):,.2f}
+        """
+        story.append(Paragraph(financial_text, styles['Normal']))
+        
+        story.append(Spacer(1, 0.3*inch))
+        
+        # Action Items
+        story.append(Paragraph("ACTION ITEMS & PRIORITIES", heading_style))
         
         recommendations = [
-            "• Continue monitoring fleet utilization for optimization opportunities",
-            "• Review pending moves for priority dispatch assignments",
-            "• Maintain regular trailer maintenance schedule",
-            "• Update driver assignments for balanced workload distribution",
-            "• Review customer payment status for completed moves"
+            f"• Process pending payments for {pending} moves awaiting dispatch",
+            f"• Review driver documents - Ensure all COI and W9 forms are current",
+            f"• Optimize routes for {in_progress} active moves to maximize efficiency",
+            "• Update contractor agreements for Q1 2025",
+            "• Schedule quarterly driver performance reviews"
         ]
         
         for rec in recommendations:
