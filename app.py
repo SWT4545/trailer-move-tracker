@@ -499,20 +499,16 @@ else:
             col1, col2, col3, col4, col5 = st.columns(5)
             with col1:
                 if st.button("➕ Add Move", use_container_width=True):
-                    st.session_state.page = "Moves"
-                    st.rerun()
+                    selected_page = "Moves"
             with col2:
                 if st.button("🚚 Add Trailer", use_container_width=True):
-                    st.session_state.page = "Trailers"
-                    st.rerun()
+                    selected_page = "Trailers"
             with col3:
                 if st.button("👥 Users", use_container_width=True):
-                    st.session_state.page = "User Management"
-                    st.rerun()
+                    selected_page = "User Management"
             with col4:
                 if st.button("🔧 System", use_container_width=True):
-                    st.session_state.page = "System Admin"
-                    st.rerun()
+                    selected_page = "System Admin"
             with col5:
                 if PDF_AVAILABLE:
                     try:

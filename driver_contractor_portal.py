@@ -39,16 +39,24 @@ def show_driver_contractor_portal(username):
     if company_name:
         st.markdown(f"### {company_name}")
     
-    # Tabs for different sections
-    tabs = st.tabs([
-        "📊 Dashboard",
-        "🚚 My Moves", 
-        "💰 Payments",
-        "📄 Documents",
-        "📚 Help Guide"
-    ])
+    # Import self-assignment functionality
+    try:
+        from driver_self_assignment_portal import show_driver_self_assignment
+        has_self_assignment = True
+    except:
+        has_self_assignment = False
     
-    with tabs[0]:  # Dashboard
+    # Tabs for different sections
+    tab_names = ["📊 Dashboard", "🎯 Self-Assign", "🚚 My Moves", "💰 Payments", "📄 Documents", "📚 Help Guide"]
+    if not has_self_assignment:
+        tab_names.remove("🎯 Self-Assign")
+    
+    tabs = st.tabs(tab_names)
+    
+    # Adjust tab indices based on self-assignment availability
+    tab_idx = 0
+    
+    with tabs[tab_idx]:  # Dashboard
         st.markdown("## Your Performance Summary")
         
         # Key metrics
@@ -111,7 +119,14 @@ def show_driver_contractor_portal(username):
                 status_emoji = "✅" if status == "completed" else "🚚"
                 st.markdown(f"{status_emoji} **{move_id}** - {pickup} → {delivery} ({miles} mi) - ${pay:.2f}")
     
-    with tabs[1]:  # My Moves
+    # Self-Assignment Tab (if available)
+    if has_self_assignment:
+        tab_idx += 1
+        with tabs[tab_idx]:
+            show_driver_self_assignment(username)
+    
+    tab_idx += 1
+    with tabs[tab_idx]:  # My Moves
         st.markdown("## Your Move History")
         
         # Get all moves
