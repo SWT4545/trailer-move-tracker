@@ -77,8 +77,11 @@ def show_driver_self_assignment(username):
                         """)
                     
                     with col2:
-                        st.metric("Estimated Pay", f"${estimated_pay:.2f}")
-                        st.caption("$2.10/mile - $6 service fee")
+                        # Calculate with 3% factoring fee estimate
+                        factoring_fee = estimated_pay * 0.03
+                        net_estimate = estimated_pay - factoring_fee
+                        st.metric("Estimated Net Pay", f"${net_estimate:.2f}")
+                        st.caption("After ~3% factoring (estimate)")
                     
                     with col3:
                         if st.button(f"✅ Accept Move", key=f"accept_{move_id_db}"):

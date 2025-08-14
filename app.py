@@ -1815,11 +1815,15 @@ else:
         st.header("💰 Payment Management")
         
         try:
-            from payment_receipt_system import show_payment_receipt_interface
-            show_payment_receipt_interface()
+            from payment_processing_enhanced import show_payment_processing
+            show_payment_processing()
         except Exception as e:
-            st.info("Payment system loading...")
-            st.caption(f"Debug: {e}")
+            try:
+                from payment_receipt_system import show_payment_receipt_interface
+                show_payment_receipt_interface()
+            except:
+                st.info("Payment system loading...")
+                st.caption(f"Debug: {e}")
     
     elif page == "Data Entry" and st.session_state.user_role in ["data_entry", "DataEntry", "Owner", "Admin"]:
         st.header("📝 Data Entry System")
