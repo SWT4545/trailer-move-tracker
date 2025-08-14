@@ -43,13 +43,13 @@ def check_password():
     
     def login_submitted():
         """Checks user credentials and sets role."""
-        username = st.session_state.get("username", "")
+        username = st.session_state.get("user", "")
         password = st.session_state.get("password", "")
         
         # Check against auth_config
         if auth_config.validate_user(username, password):
             st.session_state["authenticated"] = True
-            st.session_state["username"] = username
+            st.session_state["user"] = username
             st.session_state["user_role"] = auth_config.USERS[username]['role']
             st.session_state["user_name"] = auth_config.USERS[username]['name']
             del st.session_state["password"]  # Don't store password
@@ -72,7 +72,7 @@ def check_password():
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             with st.form("login_form"):
-                st.text_input("Username", key="username", placeholder="Enter username")
+                st.text_input("Username", key="user", placeholder="Enter username")
                 st.text_input("Password", type="password", key="password", placeholder="Enter password")
                 submitted = st.form_submit_button("🔓 Login", use_container_width=True)
                 
@@ -113,7 +113,7 @@ def main():
     st.sidebar.caption("Trailer Move Tracker")
     
     # Display user info
-    username = st.session_state.get("username", "")
+    username = st.session_state.get("user", "")
     user_role = st.session_state.get("user_role", "")
     user_name = st.session_state.get("user_name", "")
     

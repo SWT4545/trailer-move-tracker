@@ -248,7 +248,7 @@ def validate_user(username, password):
         cursor.execute("""
             SELECT username, role, name 
             FROM users 
-            WHERE username = ? AND password = ? AND active = 1
+            WHERE user = ? AND password = ? AND active = 1
         """, (username, hashed_pw))
         
         user = cursor.fetchone()
@@ -326,8 +326,8 @@ def get_all_users():
         
         # Add name field if available
         for _, row in df.iterrows():
-            if row['username'] in USERS:
-                df.loc[df['username'] == row['username'], 'name'] = USERS[row['username']].get('name', 'N/A')
+            if row['user'] in USERS:
+                df.loc[df['user'] == row['user'], 'name'] = USERS[row['user']].get('name', 'N/A')
         
         return df
     except:
@@ -335,7 +335,7 @@ def get_all_users():
         users_list = []
         for username, info in USERS.items():
             users_list.append({
-                'username': username,
+                'user': username,
                 'role': info['role'],
                 'name': info.get('name', 'N/A'),
                 'created_at': 'Static User'
@@ -358,7 +358,7 @@ def reset_user_password(username, new_password):
         cursor.execute("""
             UPDATE users 
             SET password = ? 
-            WHERE username = ?
+            WHERE user = ?
         """, (hashed_pw, username))
         
         conn.commit()
@@ -383,7 +383,7 @@ def update_user_role(username, new_role):
         cursor.execute("""
             UPDATE users 
             SET role = ? 
-            WHERE username = ?
+            WHERE user = ?
         """, (new_role, username))
         
         conn.commit()
@@ -457,7 +457,7 @@ def deactivate_user(username):
         cursor.execute("""
             UPDATE users 
             SET active = 0 
-            WHERE username = ?
+            WHERE user = ?
         """, (username,))
         
         conn.commit()
@@ -482,7 +482,7 @@ def activate_user(username):
         cursor.execute("""
             UPDATE users 
             SET active = 1 
-            WHERE username = ?
+            WHERE user = ?
         """, (username,))
         
         conn.commit()
@@ -517,7 +517,7 @@ def is_user_owner(username):
         conn = sqlite3.connect('trailer_tracker_streamlined.db')
         cursor = conn.cursor()
         
-        cursor.execute("SELECT is_owner FROM users WHERE username = ?", (username,))
+        cursor.execute("SELECT is_owner FROM users WHERE user = ?", (username,))
         result = cursor.fetchone()
         conn.close()
         
@@ -645,7 +645,7 @@ def show_login():
                     # Get user role
                     conn = sqlite3.connect('trailer_tracker_streamlined.db')
                     cursor = conn.cursor()
-                    cursor.execute("SELECT role FROM users WHERE username = ?", (username,))
+                    cursor.execute("SELECT role FROM users WHERE user = ?", (username,))
                     result = cursor.fetchone()
                     conn.close()
                     

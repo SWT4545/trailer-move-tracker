@@ -21,7 +21,7 @@ def show_driver_self_assignment(username):
     
     # Get driver info
     cursor.execute('''SELECT driver_name, company_name, coi_uploaded, w9_uploaded 
-                     FROM drivers WHERE username = ? OR driver_name = ?''', 
+                     FROM drivers WHERE user = ? OR driver_name = ?''', 
                   (username, username))
     driver_info = cursor.fetchone()
     

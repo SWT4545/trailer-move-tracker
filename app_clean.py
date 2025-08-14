@@ -151,7 +151,7 @@ def show_login():
             if submitted:
                 if auth_config.validate_user(username, password):
                     st.session_state["authenticated"] = True
-                    st.session_state["username"] = username
+                    st.session_state["user"] = username
                     
                     if username in auth_config.USERS:
                         user_data = auth_config.USERS[username]
@@ -284,7 +284,7 @@ def show_settings():
     
     with col1:
         st.subheader("User Information")
-        st.write(f"**Username:** {st.session_state.get('username', 'N/A')}")
+        st.write(f"**Username:** {st.session_state.get('user', 'N/A')}")
         st.write(f"**Name:** {st.session_state.get('user_name', 'N/A')}")
         st.write(f"**Role:** {st.session_state.get('user_role', 'N/A')}")
         st.write(f"**Email:** {st.session_state.get('user_email', 'N/A')}")

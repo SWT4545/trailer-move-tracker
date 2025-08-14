@@ -13,7 +13,7 @@ def show_settings_page():
     
     # Check if user is admin or executive for user management tab
     user_role = st.session_state.get("user_role", "")
-    username = st.session_state.get("username", "")
+    username = st.session_state.get("user", "")
     
     if user_role in ["admin", "executive"]:
         tabs = st.tabs(["👥 User Management", "📧 Email Settings", "🎨 Branding", "📊 System Info"])

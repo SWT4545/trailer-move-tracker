@@ -24,7 +24,7 @@ def add_driver_capabilities_to_brandon():
         cursor.execute("""
             UPDATE users 
             SET role = 'Owner+Driver'
-            WHERE username = 'Brandon'
+            WHERE user = 'Brandon'
         """)
         
         if cursor.rowcount > 0:
@@ -33,7 +33,7 @@ def add_driver_capabilities_to_brandon():
         # Check if Brandon already has a driver profile
         cursor.execute("""
             SELECT id FROM drivers 
-            WHERE username = 'Brandon' OR driver_name = 'Brandon'
+            WHERE user = 'Brandon' OR driver_name = 'Brandon'
         """)
         existing_driver = cursor.fetchone()
         
@@ -65,7 +65,7 @@ def add_driver_capabilities_to_brandon():
             # Get Brandon's info from users table
             cursor.execute("""
                 SELECT name, email, phone, password 
-                FROM users WHERE username = 'Brandon'
+                FROM users WHERE user = 'Brandon'
             """)
             user_info = cursor.fetchone()
             
@@ -77,7 +77,7 @@ def add_driver_capabilities_to_brandon():
                 columns = [col[1] for col in cursor.fetchall()]
                 
                 required_columns = [
-                    ('username', 'TEXT UNIQUE'),
+                    ('user', 'TEXT UNIQUE'),
                     ('password_hash', 'TEXT'),
                     ('driver_type', "TEXT DEFAULT 'contractor'"),
                     ('can_self_assign', 'BOOLEAN DEFAULT 1'),

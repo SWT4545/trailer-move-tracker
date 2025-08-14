@@ -44,7 +44,7 @@ def save_users_to_config(users_dict):
         new_users_section.append(f"    '{username}': {{\n")
         new_users_section.append(f"        'password': '{user_data['password']}',\n")
         new_users_section.append(f"        'role': '{user_data['role']}',\n")
-        new_users_section.append(f"        'name': '{user_data['name']}'")
+        new_users_section.append(f"        'driver_name': '{user_data['name']}'")
         if 'title' in user_data:
             new_users_section.append(f",\n        'title': '{user_data['title']}'")
         if 'email' in user_data:
@@ -247,7 +247,7 @@ def show_user_management():
                     new_user = {
                         'password': password,
                         'role': new_role,
-                        'name': new_name,
+                        'driver_name': new_name,
                         'email': new_email
                     }
                     

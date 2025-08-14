@@ -62,7 +62,7 @@ def get_smtp_config() -> Dict[str, any]:
     return {
         'server': config.get('smtp_server', 'smtp.gmail.com'),
         'port': config.get('smtp_port', 587),
-        'username': config.get('smtp_username', ''),
+        'user': config.get('smtp_username', ''),
         'password': config.get('smtp_password', '')
     }
 

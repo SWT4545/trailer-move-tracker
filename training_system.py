@@ -1862,11 +1862,11 @@ def show_module(module_key, role):
     
     # Get user-specific information
     user_info = {
-        'admin': {'username': 'admin', 'password': 'admin123'},
-        'manager': {'username': 'manager', 'password': 'manager123'},
-        'viewer': {'username': 'viewer', 'password': 'view123'},
-        'client': {'username': 'client', 'password': 'client123'}
-    }.get(role, {'username': 'user', 'password': 'password'})
+        'admin': {'user': 'admin', 'password': 'admin123'},
+        'manager': {'user': 'manager', 'password': 'manager123'},
+        'viewer': {'user': 'viewer', 'password': 'view123'},
+        'client': {'user': 'client', 'password': 'client123'}
+    }.get(role, {'user': 'user', 'password': 'password'})
     
     # Format content with user-specific data
     content = module.get('content', '').format(**user_info)

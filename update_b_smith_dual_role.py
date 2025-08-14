@@ -53,7 +53,7 @@ def update_b_smith_profile():
                 phone = ?,
                 is_owner = 1,
                 active = 1
-            WHERE username = ?
+            WHERE user = ?
         """, (real_name, email, phone, username))
         
         # If user doesn't exist in users table, create it
@@ -78,7 +78,7 @@ def update_b_smith_profile():
         else:
             # Update password if changed
             if change_password:
-                cursor.execute("UPDATE users SET password = ? WHERE username = ?", 
+                cursor.execute("UPDATE users SET password = ? WHERE user = ?", 
                              (password_hash, username))
             print("Updated existing user account to dual role")
         
@@ -95,7 +95,7 @@ def update_b_smith_profile():
                 preferred_locations = ?,
                 notification_preferences = ?,
                 active = 1
-            WHERE username = ?
+            WHERE user = ?
         """, (
             real_name,
             phone,
@@ -112,7 +112,7 @@ def update_b_smith_profile():
         ))
         
         # Get driver ID
-        cursor.execute("SELECT id FROM drivers WHERE username = ?", (username,))
+        cursor.execute("SELECT id FROM drivers WHERE user = ?", (username,))
         driver_result = cursor.fetchone()
         
         if driver_result:

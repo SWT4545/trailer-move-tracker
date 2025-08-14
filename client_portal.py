@@ -151,7 +151,7 @@ class ClientPortal:
         except Exception as e:
             st.error("Unable to retrieve moves. Please contact support.")
             self.log_client_action(
-                st.session_state.get('username', 'unknown'),
+                st.session_state.get('user', 'unknown'),
                 client_company,
                 'ERROR_FETCHING_MOVES',
                 details=str(e)
@@ -245,7 +245,7 @@ class ClientPortal:
             st.title("📋 Move Status Portal")
             
             # Get client info from session
-            username = st.session_state.get('username', 'Client')
+            username = st.session_state.get('user', 'Client')
             client_company = st.session_state.get('client_company', username)
             
             # Security check - ensure user has client_viewer role
@@ -320,7 +320,7 @@ class ClientPortal:
         except Exception as e:
             st.error("An unexpected error occurred. Please refresh the page or contact support.")
             self.log_client_action(
-                st.session_state.get('username', 'unknown'),
+                st.session_state.get('user', 'unknown'),
                 st.session_state.get('client_company', 'unknown'),
                 'CRITICAL_ERROR',
                 details=str(e)

@@ -24,7 +24,7 @@ def show_driver_contractor_portal(username):
     cursor.execute('''SELECT driver_name, company_name, insurance_info, ein, 
                             total_miles, total_earnings, coi_uploaded, w9_uploaded,
                             phone, email
-                     FROM drivers WHERE username = ? OR driver_name = ?''', 
+                     FROM drivers WHERE user = ? OR driver_name = ?''', 
                   (username, username))
     driver_info = cursor.fetchone()
     

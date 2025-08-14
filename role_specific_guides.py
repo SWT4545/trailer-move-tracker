@@ -9,7 +9,7 @@ from datetime import datetime
 def show_role_based_walkthrough():
     """Display role-specific walkthrough based on user's role"""
     role = st.session_state.get('user_role', 'viewer')
-    username = st.session_state.get('username', 'User')
+    username = st.session_state.get('user', 'User')
     
     st.title("📚 Role-Specific Training Guide")
     st.caption(f"Customized for: {username} ({role.replace('_', ' ').title()})")

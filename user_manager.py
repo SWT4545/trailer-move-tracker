@@ -20,7 +20,7 @@ def load_users():
                 "Brandon": {
                     "password": "owner123",
                     "roles": ["business_administrator"],
-                    "name": "Brandon (Owner)",
+                    "driver_name": "Brandon (Owner)",
                     "is_owner": True
                 }
             }
@@ -112,7 +112,7 @@ def show_user_management():
                         users[new_username] = {
                             "password": new_password,
                             "roles": roles,
-                            "name": new_name,
+                            "driver_name": new_name,
                             "is_owner": False
                         }
                         if save_users(user_data):
@@ -201,7 +201,7 @@ def show_user_management():
         
         # Can't remove owner or yourself
         removable_users = {}
-        current_user = st.session_state.get('username', '')
+        current_user = st.session_state.get('user', '')
         
         for username, info in users.items():
             if username != current_user and not info.get('is_owner', False):

@@ -35,7 +35,7 @@ def get_driver_info():
         query = """
             SELECT name, phone, email, status, active, created_at 
             FROM drivers 
-            ORDER BY name
+            ORDER BY driver_name
         """
         df = pd.read_sql_query(query, conn)
         conn.close()
@@ -113,7 +113,7 @@ def show_enhanced_user_management():
     with main_tabs[0]:
         user_data = load_users()
         users = user_data['users']
-        is_owner = users.get(st.session_state.get('username', ''), {}).get('is_owner', False)
+        is_owner = users.get(st.session_state.get('user', ''), {}).get('is_owner', False)
         
         user_tabs = st.tabs(["📋 View All", "➕ Add", "✏️ Edit", "🔐 Password", "🗑️ Remove"])
         
@@ -204,7 +204,7 @@ def show_enhanced_user_management():
                                 users[new_username] = {
                                     "password": new_password,
                                     "roles": roles,
-                                    "name": new_name,
+                                    "driver_name": new_name,
                                     "email": new_email or "",
                                     "phone": new_phone or "",
                                     "client_company": client_company if "client_viewer" in roles else "",
@@ -296,7 +296,7 @@ def show_enhanced_user_management():
                         if st.form_submit_button("💾 Save Changes", type="primary", use_container_width=True):
                             if new_name and new_roles:
                                 users[selected_user].update({
-                                    'name': new_name,
+                                    'driver_name': new_name,
                                     'email': new_email,
                                     'phone': new_phone,
                                     'roles': new_roles,
@@ -345,7 +345,7 @@ def show_enhanced_user_management():
             st.markdown("### Remove User")
             st.warning("⚠️ This permanently removes the user")
             
-            current_user = st.session_state.get('username', '')
+            current_user = st.session_state.get('user', '')
             removable = {u: i for u, i in users.items() 
                         if u != current_user and not i.get('is_owner')}
             

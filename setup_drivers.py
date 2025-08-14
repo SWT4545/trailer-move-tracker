@@ -33,7 +33,7 @@ def create_driver_accounts():
     
     # Driver 1: Justin Duckett
     justin_data = {
-        'username': 'j_duckett',
+        'user': 'j_duckett',
         'password': hash_password('duck123'),
         'role': 'driver',
         'full_name': 'Justin Duckett',
@@ -51,7 +51,7 @@ def create_driver_accounts():
     
     # Driver 2: Carl Strickland  
     carl_data = {
-        'username': 'c_strickland',
+        'user': 'c_strickland',
         'password': hash_password('strik123'),
         'role': 'driver',
         'full_name': 'Carl Strickland',
@@ -69,7 +69,7 @@ def create_driver_accounts():
     
     # Add Owner as Driver account
     owner_driver_data = {
-        'username': 'brandon_driver',
+        'user': 'brandon_driver',
         'password': hash_password('owner2024'),
         'role': 'owner_driver',
         'full_name': 'Brandon Smith',
@@ -89,7 +89,7 @@ def create_driver_accounts():
     for driver in drivers:
         try:
             # Check if user exists
-            cursor.execute("SELECT id FROM users WHERE username = ?", (driver['username'],))
+            cursor.execute("SELECT id FROM users WHERE user = ?", (driver['user'],))
             existing = cursor.fetchone()
             
             if not existing:
@@ -97,13 +97,13 @@ def create_driver_accounts():
                 cursor.execute("""
                     INSERT INTO users (username, password, role)
                     VALUES (?, ?, ?)
-                """, (driver['username'], driver['password'], driver['role']))
+                """, (driver['user'], driver['password'], driver['role']))
                 
                 user_id = cursor.lastrowid
                 print(f"Created user account for {driver['full_name']} (ID: {user_id})")
             else:
                 user_id = existing[0]
-                print(f"User {driver['username']} already exists (ID: {user_id})")
+                print(f"User {driver['user']} already exists (ID: {user_id})")
             
             # Check if profile exists
             cursor.execute("SELECT id FROM driver_profiles WHERE user_id = ?", (user_id,))
@@ -151,7 +151,7 @@ def create_driver_accounts():
             """, (user_id, driver['full_name']))
             
         except Exception as e:
-            print(f"Error processing {driver['username']}: {e}")
+            print(f"Error processing {driver['user']}: {e}")
     
     conn.commit()
     conn.close()

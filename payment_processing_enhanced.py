@@ -157,7 +157,7 @@ def show_payment_processing():
                                            VALUES (?, ?, ?, ?, ?, ?)''',
                                          (move_id, 'Payment Receipt', 
                                           f'receipt_{move_id}_{datetime.now().strftime("%Y%m%d")}.pdf',
-                                          receipt, st.session_state.get('username', 'System'), 1))
+                                          receipt, st.session_state.get('user', 'System'), 1))
                             
                             conn.commit()
                             st.success(f"✅ Payment processed: ${net_pay:.2f} to {driver}")

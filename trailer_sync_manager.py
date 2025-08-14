@@ -164,7 +164,7 @@ class TrailerSyncManager:
         st.sidebar.markdown("### 🔄 Sync Status")
         
         # Check for pending updates
-        username = st.session_state.get('username', 'unknown')
+        username = st.session_state.get('user', 'unknown')
         updates_count = len(self.get_pending_updates(username))
         
         if updates_count > 0:
@@ -214,7 +214,7 @@ def with_sync(func):
         result = func(*args, **kwargs)
         
         # Trigger sync check
-        if 'username' in st.session_state:
+        if 'user' in st.session_state:
             check_for_updates(st.session_state.username)
         
         return result

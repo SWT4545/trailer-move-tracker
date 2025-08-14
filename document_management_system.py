@@ -476,7 +476,7 @@ def show_document_management_interface():
             if uploaded_file:
                 # Prepare kwargs
                 kwargs = {
-                    'uploaded_by': st.session_state.get('username', 'System'),
+                    'uploaded_by': st.session_state.get('user', 'System'),
                     'notes': notes,
                     'tags': tags,
                     'reference_number': reference_number
@@ -533,14 +533,14 @@ def show_document_management_interface():
                                 st.success(f"✅ Verified by {doc['verified_by']}")
                             else:
                                 if st.button(f"Verify", key=f"verify_{doc['id']}"):
-                                    doc_system.verify_document(doc['id'], st.session_state.get('username', 'System'))
+                                    doc_system.verify_document(doc['id'], st.session_state.get('user', 'System'))
                                     st.success("Document verified!")
                                     st.rerun()
                         
                         with col3:
                             if st.button(f"📥 Download", key=f"download_{doc['id']}"):
                                 file_data, file_name = doc_system.download_document(
-                                    doc['id'], st.session_state.get('username', 'System')
+                                    doc['id'], st.session_state.get('user', 'System')
                                 )
                                 if file_data:
                                     st.download_button(

@@ -346,7 +346,7 @@ def show_driver_progress():
     """Driver's personal progress dashboard"""
     st.markdown("# 🚛 Driver Dashboard")
     
-    driver_name = st.session_state.get('username', 'Driver')
+    driver_name = st.session_state.get('user', 'Driver')
     
     conn = get_connection()
     cursor = conn.cursor()

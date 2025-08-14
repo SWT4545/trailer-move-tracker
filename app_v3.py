@@ -130,7 +130,7 @@ def check_login(username, password):
         cursor = conn.cursor()
         hashed = hash_password(password)
         cursor.execute(
-            "SELECT role FROM users WHERE username = ? AND password = ?",
+            "SELECT role FROM users WHERE user = ? AND password = ?",
             (username, hashed)
         )
         result = cursor.fetchone()
@@ -327,7 +327,7 @@ else:
         # Logout
         st.markdown("---")
         if st.button("🚪 Logout", use_container_width=True):
-            for key in ['authenticated', 'username', 'user_role', 'page']:
+            for key in ['authenticated', 'user', 'user_role', 'page']:
                 if key in st.session_state:
                     del st.session_state[key]
             st.rerun()

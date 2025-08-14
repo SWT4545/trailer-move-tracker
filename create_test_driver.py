@@ -30,7 +30,7 @@ def create_test_driver():
         existing_columns = [col[1] for col in cursor.fetchall()]
         
         # Add missing columns if needed
-        if 'username' not in existing_columns:
+        if 'user' not in existing_columns:
             cursor.execute("ALTER TABLE drivers ADD COLUMN username TEXT UNIQUE")
         if 'password_hash' not in existing_columns:
             cursor.execute("ALTER TABLE drivers ADD COLUMN password_hash TEXT")
@@ -52,7 +52,7 @@ def create_test_driver():
             cursor.execute("ALTER TABLE drivers ADD COLUMN notification_preferences TEXT")
         
         # Check if driver already exists
-        cursor.execute("SELECT id FROM drivers WHERE username = ?", (username,))
+        cursor.execute("SELECT id FROM drivers WHERE user = ?", (username,))
         existing = cursor.fetchone()
         
         if existing:

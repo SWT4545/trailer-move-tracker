@@ -33,7 +33,7 @@ def create_driver_profile():
         
         # Add any missing columns
         columns_to_add = [
-            ('username', 'TEXT UNIQUE'),
+            ('user', 'TEXT UNIQUE'),
             ('password_hash', 'TEXT'),
             ('driver_type', "TEXT DEFAULT 'contractor'"),
             ('active', 'BOOLEAN DEFAULT 1'),
@@ -51,7 +51,7 @@ def create_driver_profile():
                 print(f"Added column: {col_name}")
         
         # Check if driver exists
-        cursor.execute("SELECT id FROM drivers WHERE username = ? OR driver_name = ?", (username, driver_name))
+        cursor.execute("SELECT id FROM drivers WHERE user = ? OR driver_name = ?", (username, driver_name))
         existing = cursor.fetchone()
         
         if existing:

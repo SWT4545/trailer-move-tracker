@@ -51,7 +51,7 @@ def check_login(username, password):
         cursor = conn.cursor()
         hashed = hash_password(password)
         cursor.execute(
-            "SELECT role FROM users WHERE username = ? AND password = ?",
+            "SELECT role FROM users WHERE user = ? AND password = ?",
             (username, hashed)
         )
         result = cursor.fetchone()

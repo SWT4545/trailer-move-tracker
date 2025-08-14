@@ -571,7 +571,7 @@ def show_driver_profile(driver_id):
             else:
                 # Verify current password
                 current_hash = hash_password(current_password)
-                if db.authenticate_driver(driver.get('username'), current_hash):
+                if db.authenticate_driver(driver.get('user'), current_hash):
                     # Update password
                     new_hash = hash_password(new_password)
                     db.update_driver_profile(driver_id, {'password_hash': new_hash})

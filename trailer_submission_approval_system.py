@@ -644,7 +644,7 @@ def show_submissions_by_status(status, submission_system):
                         if client_name:
                             success, msg = submission_system.review_submission(
                                 submission['submission_id'],
-                                st.session_state.get('username', 'Coordinator'),
+                                st.session_state.get('user', 'Coordinator'),
                                 'verify_client',
                                 notes=f"Contacting {client_name} for verification",
                                 client_name=client_name
@@ -664,7 +664,7 @@ def show_submissions_by_status(status, submission_system):
                             notes = st.session_state.get(f"notes_{submission['submission_id']}", "")
                             success, msg = submission_system.review_submission(
                                 submission['submission_id'],
-                                st.session_state.get('username', 'Coordinator'),
+                                st.session_state.get('user', 'Coordinator'),
                                 'approve',
                                 notes=notes or "Client verified",
                                 client_verified=True
@@ -683,7 +683,7 @@ def show_submissions_by_status(status, submission_system):
                             if reason:
                                 success, msg = submission_system.review_submission(
                                     submission['submission_id'],
-                                    st.session_state.get('username', 'Coordinator'),
+                                    st.session_state.get('user', 'Coordinator'),
                                     'reject',
                                     notes=reason
                                 )

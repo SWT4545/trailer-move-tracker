@@ -183,7 +183,7 @@ def show_vernon_chat_interface():
                 padding: 1.5rem; border-radius: 12px; color: white;">
         <h2>{vernon.avatar} Chat with SUPER VERNON - IT Superhero</h2>
         <p style="font-size: 0.9rem; opacity: 0.8;">Current Superpower: {vernon.superpower}</p>
-        <p style="opacity: 0.9;">{vernon.get_greeting(st.session_state.get('username'))}</p>
+        <p style="opacity: 0.9;">{vernon.get_greeting(st.session_state.get('user'))}</p>
     </div>
     """, unsafe_allow_html=True)
     

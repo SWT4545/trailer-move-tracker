@@ -228,7 +228,7 @@ def save_document(move_id, doc_type, file_obj):
                      (move_id, document_type, file_name, file_data, file_size, uploaded_by)
                      VALUES (?, ?, ?, ?, ?, ?)''',
                   (move_id, doc_type, file_name, file_data, file_size, 
-                   st.session_state.get('username', 'System')))
+                   st.session_state.get('user', 'System')))
     
     # Update document requirements
     cursor.execute('''INSERT OR REPLACE INTO document_requirements (move_id)
@@ -363,7 +363,7 @@ def show_document_verification():
                                            verified_by = ?,
                                            verified_at = CURRENT_TIMESTAMP
                                        WHERE id = ?''',
-                                     (st.session_state.get('username', 'System'), doc_id))
+                                     (st.session_state.get('user', 'System'), doc_id))
                         conn.commit()
                         st.success("Document verified!")
                         st.rerun()
@@ -494,7 +494,7 @@ def show_factoring_ready():
                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
                                  (batch_number, submission_date, factoring_company,
                                   total_amount, len(selected_moves), 'submitted', notes,
-                                  st.session_state.get('username', 'System')))
+                                  st.session_state.get('user', 'System')))
                     
                     conn.commit()
                     st.success(f"""

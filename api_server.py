@@ -49,7 +49,7 @@ def verify_user(credentials: HTTPBasicCredentials = Depends(security)):
     
     hashed_pw = hash_password(credentials.password)
     cursor.execute(
-        "SELECT username, role FROM users WHERE username = ? AND password = ? AND active = 1",
+        "SELECT username, role FROM users WHERE user = ? AND password = ? AND active = 1",
         (credentials.username, hashed_pw)
     )
     user = cursor.fetchone()
@@ -62,7 +62,7 @@ def verify_user(credentials: HTTPBasicCredentials = Depends(security)):
             headers={"WWW-Authenticate": "Basic"},
         )
     
-    return {"username": user["username"], "role": user["role"]}
+    return {"user": user["user"], "role": user["role"]}
 
 # ===== MODELS =====
 class LoginRequest(BaseModel):
@@ -110,7 +110,7 @@ def login(request: LoginRequest):
     
     hashed_pw = hash_password(request.password)
     cursor.execute(
-        "SELECT username, role, name FROM users WHERE username = ? AND password = ? AND active = 1",
+        "SELECT username, role, name FROM users WHERE user = ? AND password = ? AND active = 1",
         (request.username, hashed_pw)
     )
     user = cursor.fetchone()
@@ -119,9 +119,9 @@ def login(request: LoginRequest):
     if user:
         return LoginResponse(
             success=True,
-            username=user["username"],
+            username=user["user"],
             role=user["role"],
-            message=f"Welcome {user['name'] if user['name'] else user['username']}!"
+            message=f"Welcome {user['name'] if user['name'] else user['user']}!"
         )
     else:
         raise HTTPException(status_code=401, detail="Invalid username or password")
@@ -200,7 +200,7 @@ def create_trailer(
         """, (
             trailer.trailer_number, trailer.trailer_type, trailer.status,
             trailer.condition, trailer.current_location, trailer.customer_owner,
-            trailer.notes, current_user["username"], datetime.now()
+            trailer.notes, current_user["user"], datetime.now()
         ))
         conn.commit()
         conn.close()
@@ -225,7 +225,7 @@ def update_trailer_status(
     
     cursor.execute(
         "UPDATE trailer_inventory SET status = ?, notes = ?, updated_by = ?, last_updated = ? WHERE trailer_number = ?",
-        (update.status, update.notes, current_user["username"], datetime.now(), trailer_number)
+        (update.status, update.notes, current_user["user"], datetime.now(), trailer_number)
     )
     
     if cursor.rowcount == 0:
@@ -316,7 +316,7 @@ def create_move(
             move.order_number, move.customer_name, move.origin_city, move.origin_state,
             move.destination_city, move.destination_state, move.pickup_date, 
             move.delivery_date, move.amount, move.driver_name, move.status,
-            datetime.now(), current_user["username"]
+            datetime.now(), current_user["user"]
         ))
         conn.commit()
         conn.close()

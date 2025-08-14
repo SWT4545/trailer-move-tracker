@@ -90,7 +90,7 @@ def populate_locations(conn):
     
     locations = [
         {
-            'name': 'FedEx Memphis',
+            'driver_name': 'FedEx Memphis',
             'address': '2874 Business Park Drive',
             'city': 'Memphis',
             'state': 'TN',
@@ -99,7 +99,7 @@ def populate_locations(conn):
             'notes': 'Main FedEx hub - Memphis'
         },
         {
-            'name': 'FedEx Indy',
+            'driver_name': 'FedEx Indy',
             'address': '6920 Network Place',
             'city': 'Indianapolis',
             'state': 'IN',
@@ -108,7 +108,7 @@ def populate_locations(conn):
             'notes': 'FedEx Indianapolis hub'
         },
         {
-            'name': 'Fleet Memphis',
+            'driver_name': 'Fleet Memphis',
             'address': '3195 Airways Blvd',
             'city': 'Memphis',
             'state': 'TN',
@@ -117,7 +117,7 @@ def populate_locations(conn):
             'notes': 'Fleet Services Memphis - All new trailers originate here'
         },
         {
-            'name': 'Chicago',
+            'driver_name': 'Chicago',
             'address': 'TBD',
             'city': 'Chicago',
             'state': 'IL',

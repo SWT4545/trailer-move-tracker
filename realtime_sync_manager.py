@@ -87,7 +87,7 @@ class RealtimeSyncManager:
                 action,
                 json.dumps(old_value) if old_value else None,
                 json.dumps(new_value) if new_value else None,
-                user or st.session_state.get('username', 'system'),
+                user or st.session_state.get('user', 'system'),
                 datetime.now()
             ))
             
@@ -279,7 +279,7 @@ class DataChangeTracker:
                 self.sync_manager.track_change(
                     'trailer', trailer_id, action,
                     old_value, new_value,
-                    st.session_state.get('username')
+                    st.session_state.get('user')
                 )
                 
                 return result
@@ -303,7 +303,7 @@ class DataChangeTracker:
                 self.sync_manager.track_change(
                     'move', move_id, action,
                     old_value, new_value,
-                    st.session_state.get('username')
+                    st.session_state.get('user')
                 )
                 
                 # Update driver availability if assignment changed
@@ -415,7 +415,7 @@ def show_realtime_notifications():
     
     # Get notifications for current user
     role = st.session_state.get('user_role')
-    username = st.session_state.get('username')
+    username = st.session_state.get('user')
     
     notifications = sync_manager.get_pending_notifications(role, username)
     

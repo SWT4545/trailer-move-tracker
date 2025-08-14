@@ -124,15 +124,15 @@ class EnhancedDriverManager:
             # Step 1: Create user account
             user_data = self.load_users()
             
-            if user_credentials['username'] in user_data['users']:
-                st.error(f"Username '{user_credentials['username']}' already exists!")
+            if user_credentials['user'] in user_data['users']:
+                st.error(f"Username '{user_credentials['user']}' already exists!")
                 return False
             
             # Add user with driver role
-            user_data['users'][user_credentials['username']] = {
+            user_data['users'][user_credentials['user']] = {
                 'password': user_credentials['password'],
                 'roles': ['driver'],
-                'name': driver_data['driver_name'],
+                'driver_name': driver_data['driver_name'],
                 'email': driver_data.get('email', ''),
                 'phone': driver_data.get('phone', ''),
                 'is_owner': False,
@@ -508,7 +508,7 @@ class EnhancedDriverManager:
                     }
                     
                     user_credentials = {
-                        'username': username,
+                        'user': username,
                         'password': password
                     }
                     

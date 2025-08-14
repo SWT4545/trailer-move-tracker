@@ -166,7 +166,7 @@ def store_communication_log(driver_name, move_id, message_type, message_content,
     cursor.execute("""
         INSERT INTO communication_log (driver_name, move_id, message_type, message_content, token, sent_by)
         VALUES (?, ?, ?, ?, ?, ?)
-    """, (driver_name, move_id, message_type, message_content, token, st.session_state.get('username', 'Coordinator')))
+    """, (driver_name, move_id, message_type, message_content, token, st.session_state.get('user', 'Coordinator')))
     
     conn.commit()
     conn.close()

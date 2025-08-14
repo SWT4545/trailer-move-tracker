@@ -66,7 +66,7 @@ def authenticate_driver(username, password):
         cursor.execute("""
             SELECT id, driver_name, driver_type, can_self_assign
             FROM drivers
-            WHERE username = ? AND password_hash = ?
+            WHERE user = ? AND password_hash = ?
             AND (active = 1 OR active IS NULL)
         """, (username, password_hash))
         

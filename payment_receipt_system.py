@@ -381,7 +381,7 @@ class PaymentReceiptSystem:
             ) VALUES (?, ?, ?, ?, ?, ?)
         """, (
             driver_name, doc_type, os.path.basename(file_path), 
-            file_path, tax_year, st.session_state.get('username', 'System')
+            file_path, tax_year, st.session_state.get('user', 'System')
         ))
         
         conn.commit()
@@ -545,7 +545,7 @@ def show_payment_receipt_interface():
                         'payment_method': payment_method,
                         'check_number': check_number,
                         'notes': notes,
-                        'created_by': st.session_state.get('username', 'System')
+                        'created_by': st.session_state.get('user', 'System')
                     }
                     
                     # Save receipt

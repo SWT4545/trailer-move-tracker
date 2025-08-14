@@ -118,7 +118,7 @@ class DataManager:
             'active': ('INTEGER', 1),
             'created_at': ('TIMESTAMP', 'CURRENT_TIMESTAMP'),
             'updated_at': ('TIMESTAMP', 'CURRENT_TIMESTAMP'),
-            'username': ('TEXT', "''"),
+            'user': ('TEXT', "''"),
             'home_address': ('TEXT', "''"),
             'business_address': ('TEXT', "''"),
             'is_owner': ('INTEGER', 0)
@@ -482,7 +482,7 @@ def show_add_owner_interface(manager):
                                                    home_address, business_address, is_owner, username)
                                 VALUES (?, ?, ?, 'available', 1, ?, ?, 1, ?)
                             """, (owner_name, owner_phone, owner_email, owner_home_address, 
-                                  owner_business_address, st.session_state.get('username', '')))
+                                  owner_business_address, st.session_state.get('user', '')))
                             
                             # Add to drivers_extended if contractor
                             if driver_type == "contractor":

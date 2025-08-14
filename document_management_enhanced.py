@@ -449,7 +449,7 @@ def show_admin_document_management(move_id):
                         success, msg = doc_manager.upload_document(
                             move_id, 'bol', file_data,
                             bol_file.name, 
-                            st.session_state.get('username', 'Admin'),
+                            st.session_state.get('user', 'Admin'),
                             st.session_state.get('user_role', 'Admin')
                         )
                         if success:
@@ -473,7 +473,7 @@ def show_admin_document_management(move_id):
                         success, msg = doc_manager.upload_document(
                             move_id, 'rate_con', file_data,
                             rate_con_file.name,
-                            st.session_state.get('username', 'Admin'),
+                            st.session_state.get('user', 'Admin'),
                             st.session_state.get('user_role', 'Admin')
                         )
                         if success:

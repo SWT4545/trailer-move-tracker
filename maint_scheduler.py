@@ -119,7 +119,7 @@ def show_schedule_maintenance():
                  vendor, cost, notes, created_by)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (equipment_type, equipment_id, service_type, scheduled_date,
-                  vendor, estimated_cost, notes, st.session_state.get('username', 'System')))
+                  vendor, estimated_cost, notes, st.session_state.get('user', 'System')))
             
             conn.commit()
             conn.close()
