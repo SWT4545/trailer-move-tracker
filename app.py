@@ -15,6 +15,10 @@ import base64
 import io
 import time
 
+# Clear all caches on app restart
+st.cache_data.clear()
+st.cache_resource.clear()
+
 # Import PDF generator - try professional version first
 try:
     from professional_pdf_generator import PDFReportGenerator, generate_status_report_for_profile
@@ -831,11 +835,22 @@ def main():
     if not check_authentication():
         login()
     else:
-        # Logout button
+        # Sidebar controls
         with st.sidebar:
-            if st.button("Logout"):
-                st.session_state.clear()
-                st.rerun()
+            st.markdown("### System Controls")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🚪 Logout"):
+                    st.session_state.clear()
+                    st.rerun()
+            
+            with col2:
+                if st.button("🔄 Clear Cache"):
+                    st.cache_data.clear()
+                    st.cache_resource.clear()
+                    st.success("Cache cleared!")
+                    st.rerun()
         
         # Show dashboard with proper initialization
         show_dashboard()
