@@ -44,18 +44,22 @@ def show_driver_self_assignment(username):
     with tabs[0]:  # Available Moves
         st.markdown("### Available for Assignment")
         
-        # Get unassigned moves
-        cursor.execute('''SELECT id, move_id, pickup_location, delivery_location, 
-                                total_miles, move_date, notes
-                         FROM moves 
-                         WHERE (driver_name IS NULL OR driver_name = '') 
-                         AND status IN ('pending', 'available')
-                         ORDER BY move_date ASC''')
+        # Get unassigned moves that are marked as available by management
+        cursor.execute('''SELECT m.id, m.move_id, m.pickup_location, m.delivery_location, 
+                                m.total_miles, m.move_date, m.notes, m.new_trailer, m.old_trailer
+                         FROM moves m
+                         LEFT JOIN trailers t1 ON m.new_trailer = t1.trailer_number
+                         LEFT JOIN trailers t2 ON m.old_trailer = t2.trailer_number
+                         WHERE (m.driver_name IS NULL OR m.driver_name = '') 
+                         AND m.status IN ('pending', 'available')
+                         AND (t1.is_reserved = 0 OR t1.is_reserved IS NULL)
+                         AND (t2.is_reserved = 0 OR t2.is_reserved IS NULL)
+                         ORDER BY m.move_date ASC''')
         available_moves = cursor.fetchall()
         
         if available_moves:
             for move in available_moves:
-                move_id_db, move_id, pickup, delivery, miles, date, notes = move
+                move_id_db, move_id, pickup, delivery, miles, date, notes, new_trailer, old_trailer = move
                 
                 # Calculate estimated pay
                 rate_per_mile = 2.10
@@ -78,15 +82,33 @@ def show_driver_self_assignment(username):
                     
                     with col3:
                         if st.button(f"✅ Accept Move", key=f"accept_{move_id_db}"):
-                            # Assign move to driver
+                            # Assign move to driver and reserve trailers
                             cursor.execute('''UPDATE moves 
                                            SET driver_name = ?, 
                                                status = 'assigned',
                                                assigned_at = ?
                                            WHERE id = ?''',
                                          (driver_name, datetime.now(), move_id_db))
+                            
+                            # Reserve the trailers for this driver
+                            if new_trailer:
+                                cursor.execute('''UPDATE trailers 
+                                               SET is_reserved = 1, 
+                                                   reserved_by_driver = ?,
+                                                   reserved_until = ?
+                                               WHERE trailer_number = ?''',
+                                             (driver_name, datetime.now() + timedelta(days=7), new_trailer))
+                            
+                            if old_trailer:
+                                cursor.execute('''UPDATE trailers 
+                                               SET is_reserved = 1,
+                                                   reserved_by_driver = ?,
+                                                   reserved_until = ?
+                                               WHERE trailer_number = ?''',
+                                             (driver_name, datetime.now() + timedelta(days=7), old_trailer))
+                            
                             conn.commit()
-                            st.success(f"✅ Move {move_id} assigned to you!")
+                            st.success(f"✅ Move {move_id} assigned to you! Trailers reserved.")
                             st.balloons()
                             st.rerun()
         else:
@@ -142,12 +164,28 @@ def show_driver_self_assignment(username):
                                 st.rerun()
                                 
                             if st.button(f"❌ Release Move", key=f"release_{move_id_db}"):
+                                # Get trailer numbers from move
+                                cursor.execute('SELECT new_trailer, old_trailer FROM moves WHERE id = ?', (move_id_db,))
+                                trailers = cursor.fetchone()
+                                
+                                # Release the move
                                 cursor.execute('''UPDATE moves 
                                                SET driver_name = NULL,
                                                    status = 'available'
                                                WHERE id = ?''', (move_id_db,))
+                                
+                                # Release trailer reservations
+                                if trailers:
+                                    for trailer in trailers:
+                                        if trailer:
+                                            cursor.execute('''UPDATE trailers 
+                                                           SET is_reserved = 0,
+                                                               reserved_by_driver = NULL,
+                                                               reserved_until = NULL
+                                                           WHERE trailer_number = ?''', (trailer,))
+                                
                                 conn.commit()
-                                st.info("Move released back to pool")
+                                st.info("Move and trailers released back to pool")
                                 st.rerun()
                         
                         elif status == 'in_progress':
