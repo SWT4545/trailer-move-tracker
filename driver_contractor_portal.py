@@ -20,18 +20,38 @@ def show_driver_contractor_portal(username):
     conn = get_connection()
     cursor = conn.cursor()
     
-    # Get driver profile
+    # Get driver profile - check both username and driver_name
     cursor.execute('''SELECT driver_name, company_name, insurance_info, ein, 
-                            total_miles, total_earnings, coi_uploaded, w9_uploaded
+                            total_miles, total_earnings, coi_uploaded, w9_uploaded,
+                            phone, email
                      FROM drivers WHERE username = ? OR driver_name = ?''', 
                   (username, username))
     driver_info = cursor.fetchone()
+    
+    # If not found by username, check contractor_info table
+    if not driver_info:
+        cursor.execute('''SELECT driver_name FROM contractor_info WHERE driver_name LIKE ?''',
+                      (f'%{username}%',))
+        contractor = cursor.fetchone()
+        if contractor:
+            cursor.execute('''SELECT d.driver_name, c.company_name, c.insurance_company || ' - ' || c.insurance_policy,
+                                    d.ein, d.total_miles, d.total_earnings, d.coi_uploaded, d.w9_uploaded,
+                                    c.phone, c.email
+                             FROM contractor_info c
+                             LEFT JOIN drivers d ON c.driver_name = d.driver_name
+                             WHERE c.driver_name = ?''', (contractor[0],))
+            driver_info = cursor.fetchone()
     
     if not driver_info:
         st.error("Driver profile not found")
         return
     
-    driver_name, company_name, insurance_info, ein, total_miles, total_earnings, coi_uploaded, w9_uploaded = driver_info
+    # Unpack driver info with new fields
+    if len(driver_info) == 10:
+        driver_name, company_name, insurance_info, ein, total_miles, total_earnings, coi_uploaded, w9_uploaded, phone, email = driver_info
+    else:
+        driver_name, company_name, insurance_info, ein, total_miles, total_earnings, coi_uploaded, w9_uploaded = driver_info[:8]
+        phone = email = None
     
     # Header with driver info
     st.markdown(f"# 🚛 Driver Portal - {driver_name}")
@@ -80,30 +100,55 @@ def show_driver_contractor_portal(username):
             avg_per_move = (total_earnings / completed_count) if completed_count > 0 else 0
             st.metric("Avg Per Move", f"${avg_per_move:,.2f}")
         
-        # Contractor Information
+        # Contractor Information - Get full details
+        cursor.execute('''SELECT * FROM contractor_info WHERE driver_name = ?''', (driver_name,))
+        contractor_details = cursor.fetchone()
+        
         st.markdown("### Your Contractor Information")
         
         info_cols = st.columns(2)
         with info_cols[0]:
-            st.info(f"""
-            **Company:** {company_name or 'Not Set'}  
-            **EIN:** {ein or 'Not Provided'}  
-            **Insurance:** {insurance_info or 'Not Provided'}
-            """)
+            if contractor_details:
+                # Full contractor info available
+                st.info(f"""
+                **Company:** {contractor_details[2]}  
+                **DOT #:** {contractor_details[6]}  
+                **MC #:** {contractor_details[7]}  
+                **Phone:** {contractor_details[3]}  
+                **Email:** {contractor_details[5]}  
+                **Address:** {contractor_details[4]}
+                """)
+            else:
+                st.info(f"""
+                **Company:** {company_name or 'Not Set'}  
+                **Phone:** {phone or 'Not Provided'}  
+                **Email:** {email or 'Not Provided'}  
+                **Insurance:** {insurance_info or 'Not Provided'}
+                """)
         
         with info_cols[1]:
-            doc_status = []
-            if coi_uploaded:
-                doc_status.append("✅ COI Uploaded")
+            if contractor_details:
+                # Show insurance info
+                st.info(f"""
+                **Insurance Company:** {contractor_details[8]}  
+                **Policy #:** {contractor_details[9]}  
+                **Expires:** {contractor_details[10]}  
+                **COI Status:** {'✅ On File' if coi_uploaded else '❌ Required'}  
+                **W9 Status:** {'✅ On File' if w9_uploaded else '❌ Required'}
+                """)
             else:
-                doc_status.append("❌ COI Required")
-            
-            if w9_uploaded:
-                doc_status.append("✅ W9 Uploaded")
-            else:
-                doc_status.append("❌ W9 Required")
-            
-            st.info("**Document Status:**\n" + "\n".join(doc_status))
+                doc_status = []
+                if coi_uploaded:
+                    doc_status.append("✅ COI Uploaded")
+                else:
+                    doc_status.append("❌ COI Required")
+                
+                if w9_uploaded:
+                    doc_status.append("✅ W9 Uploaded")
+                else:
+                    doc_status.append("❌ W9 Required")
+                
+                st.info("**Document Status:**\n" + "\n".join(doc_status))
         
         # Recent Activity
         st.markdown("### Recent Activity")
