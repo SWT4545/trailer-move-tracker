@@ -1,7 +1,8 @@
 """
-Smith & Williams Trucking - FINAL COMPLETE VERSION
+Smith & Williams Trucking - FINAL COMPLETE VERSION v2.1
 With ALL Owner management controls and oversight options
 Original formatting preserved - DO NOT CHANGE
+Last Updated: January 13, 2025
 """
 
 import streamlit as st
