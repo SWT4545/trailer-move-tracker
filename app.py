@@ -423,6 +423,7 @@ else:
                 "User Management",
                 "Role Management", 
                 "System Admin",
+                "System Architecture",
                 "Oversight",
                 "Data Entry",
                 "Vernon CDSO",
@@ -1823,6 +1824,17 @@ else:
         except Exception as e:
             st.info("Data entry system loading...")
             st.caption(f"Debug: {e}")
+    
+    elif page == "System Architecture" and (st.session_state.is_owner or st.session_state.user_role in ["Owner", "Admin"]):
+        try:
+            from system_architecture_visualizer import show_system_architecture
+            show_system_architecture()
+        except Exception as e:
+            st.error(f"System Architecture module loading error: {e}")
+            st.info("Installing required dependencies...")
+            import subprocess
+            subprocess.run(["pip", "install", "graphviz"], capture_output=True)
+            st.rerun()
     
     elif page == "Vernon CDSO" and st.session_state.user_role in ["data_entry", "DataEntry", "Owner"]:
         st.header("🦸‍♂️ Vernon - Chief Data Security Officer")

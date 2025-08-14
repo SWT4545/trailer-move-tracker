@@ -32,6 +32,7 @@
       "Bash(curl:*)",
       "Bash(pip config:*)"
     ],
-    "deny": []
+    "deny": [],
+    "defaultMode": "acceptEdits"
   }
 }
