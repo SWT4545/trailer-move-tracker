@@ -114,12 +114,22 @@ def show_login_animation():
     animation_file = "company_logo_animation.mp4.MOV"
     white_logo = "swt_logo_white.png"
     
-    if os.path.exists(animation_file):
-        # Show video animation
-        with open(animation_file, 'rb') as f:
-            video_bytes = f.read()
-        st.video(video_bytes)
-        time.sleep(1)
+    # Check if animation has already played this session
+    if 'animation_played' not in st.session_state:
+        st.session_state.animation_played = False
+    
+    if os.path.exists(animation_file) and not st.session_state.animation_played:
+        # Show video animation with autoplay and fade
+        video_html = f"""
+        <div id="video-container" style="position: relative; width: 100%; transition: opacity 2s ease-out;">
+            <video width="100%" autoplay muted onended="this.style.opacity='0'; setTimeout(() => this.style.display='none', 2000);">
+                <source src="data:video/mp4;base64,{base64.b64encode(open(animation_file, 'rb').read()).decode()}" type="video/mp4">
+            </video>
+        </div>
+        """
+        st.markdown(video_html, unsafe_allow_html=True)
+        st.session_state.animation_played = True
+        time.sleep(3)  # Wait for video to play
     
     # Show white logo after animation
     if os.path.exists(white_logo):
@@ -136,6 +146,26 @@ def init_database():
     """Initialize all required database tables with fixes"""
     conn = get_connection()
     cursor = conn.cursor()
+    
+    # Create moves table first (CRITICAL FIX)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS moves (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            move_date TEXT,
+            trailer_id INTEGER,
+            origin TEXT,
+            destination TEXT,
+            client TEXT,
+            driver TEXT,
+            status TEXT DEFAULT 'pending',
+            delivery_status TEXT DEFAULT 'Pending',
+            delivery_location TEXT,
+            delivery_date TIMESTAMP,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (trailer_id) REFERENCES trailers(id)
+        )
+    ''')
     
     # Create document_requirements table (FIX #9)
     cursor.execute('''
