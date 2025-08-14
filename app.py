@@ -488,89 +488,92 @@ else:
             try:
                 from driver_contractor_portal import show_driver_contractor_portal
                 show_driver_contractor_portal(st.session_state.username)
-                return  # Exit early for drivers
             except Exception as e:
                 st.error(f"Driver portal error: {e}")
-        
-        st.header("📊 Executive Dashboard")
-        
-        # Quick actions - Full suite for Owner
-        if st.session_state.is_owner:
-            col1, col2, col3, col4, col5 = st.columns(5)
-            with col1:
-                if st.button("➕ Add Move", use_container_width=True):
-                    selected_page = "Moves"
-            with col2:
-                if st.button("🚚 Add Trailer", use_container_width=True):
-                    selected_page = "Trailers"
-            with col3:
-                if st.button("👥 Users", use_container_width=True):
-                    selected_page = "User Management"
-            with col4:
-                if st.button("🔧 System", use_container_width=True):
-                    selected_page = "System Admin"
-            with col5:
-                if PDF_AVAILABLE:
-                    try:
-                        pdf_buffer = generate_status_report_for_profile(st.session_state.username, "Owner")
-                        # Convert to base64 for safer download
-                        b64 = base64.b64encode(pdf_buffer.getvalue()).decode()
-                        href = f'<a href="data:application/pdf;base64,{b64}" download="Executive_Report_{datetime.now().strftime("%Y%m%d")}.pdf">📄 Download Report</a>'
-                        st.markdown(href, unsafe_allow_html=True)
-                    except:
-                        st.button("📄 Report", use_container_width=True)
-        
-        # Enhanced metrics for Owner
-        st.markdown("### Key Performance Indicators")
-        
-        if st.session_state.is_owner:
-            # Owner sees everything
-            col1, col2, col3, col4, col5, col6 = st.columns(6)
         else:
-            col1, col2, col3, col4 = st.columns(4)
-        
-        try:
-            conn = get_connection()
-            cursor = conn.cursor()
+            # Only show Executive Dashboard for Brandon (Owner)
+            if st.session_state.username == "Brandon" and st.session_state.is_owner:
+                st.header("📊 Executive Dashboard")
+            else:
+                st.header("📊 Dashboard")
             
-            cursor.execute("SELECT COUNT(*) FROM moves WHERE status = 'pending'")
-            pending = cursor.fetchone()[0]
-            
-            cursor.execute("SELECT COUNT(*) FROM moves WHERE status = 'in_progress'")
-            in_progress = cursor.fetchone()[0]
-            
-            cursor.execute("SELECT COUNT(*) FROM moves WHERE status = 'completed'")
-            completed = cursor.fetchone()[0]
-            
-            cursor.execute("SELECT COUNT(*) FROM trailers")
-            total_trailers = cursor.fetchone()[0]
-            
+            # Quick actions - Full suite for Owner
             if st.session_state.is_owner:
-                cursor.execute("SELECT SUM(amount) FROM moves WHERE status = 'completed'")
-                revenue = cursor.fetchone()[0] or 0
-                
-                cursor.execute("SELECT COUNT(DISTINCT customer_name) FROM moves")
-                customers = cursor.fetchone()[0]
-            
-            conn.close()
-            
-            with col1:
-                st.metric("📋 Pending", pending, delta="2 new")
-            with col2:
-                st.metric("🚛 Active", in_progress)
-            with col3:
-                st.metric("✅ Complete", completed)
-            with col4:
-                st.metric("🚚 Trailers", total_trailers)
-            
-            if st.session_state.is_owner:
+                col1, col2, col3, col4, col5 = st.columns(5)
+                with col1:
+                    if st.button("➕ Add Move", use_container_width=True):
+                        selected_page = "Moves"
+                with col2:
+                    if st.button("🚚 Add Trailer", use_container_width=True):
+                        selected_page = "Trailers"
+                with col3:
+                    if st.button("👥 Users", use_container_width=True):
+                        selected_page = "User Management"
+                with col4:
+                    if st.button("🔧 System", use_container_width=True):
+                        selected_page = "System Admin"
                 with col5:
-                    st.metric("💰 Revenue", f"${revenue:,.0f}")
-                with col6:
-                    st.metric("🏢 Customers", customers)
+                    if PDF_AVAILABLE:
+                        try:
+                            pdf_buffer = generate_status_report_for_profile(st.session_state.username, "Owner")
+                            # Convert to base64 for safer download
+                            b64 = base64.b64encode(pdf_buffer.getvalue()).decode()
+                            href = f'<a href="data:application/pdf;base64,{b64}" download="Executive_Report_{datetime.now().strftime("%Y%m%d")}.pdf">📄 Download Report</a>'
+                            st.markdown(href, unsafe_allow_html=True)
+                        except:
+                            st.button("📄 Report", use_container_width=True)
             
-        except:
-            st.info("Dashboard initializing...")
+            # Enhanced metrics for Owner
+            st.markdown("### Key Performance Indicators")
+            
+            if st.session_state.is_owner:
+                # Owner sees everything
+                col1, col2, col3, col4, col5, col6 = st.columns(6)
+            else:
+                col1, col2, col3, col4 = st.columns(4)
+            
+            try:
+                conn = get_connection()
+                cursor = conn.cursor()
+                
+                cursor.execute("SELECT COUNT(*) FROM moves WHERE status = 'pending'")
+                pending = cursor.fetchone()[0]
+                
+                cursor.execute("SELECT COUNT(*) FROM moves WHERE status = 'in_progress'")
+                in_progress = cursor.fetchone()[0]
+                
+                cursor.execute("SELECT COUNT(*) FROM moves WHERE status = 'completed'")
+                completed = cursor.fetchone()[0]
+                
+                cursor.execute("SELECT COUNT(*) FROM trailers")
+                total_trailers = cursor.fetchone()[0]
+                
+                if st.session_state.is_owner:
+                    cursor.execute("SELECT SUM(amount) FROM moves WHERE status = 'completed'")
+                    revenue = cursor.fetchone()[0] or 0
+                    
+                    cursor.execute("SELECT COUNT(DISTINCT customer_name) FROM moves")
+                    customers = cursor.fetchone()[0]
+                
+                conn.close()
+                
+                with col1:
+                    st.metric("📋 Pending", pending, delta="2 new")
+                with col2:
+                    st.metric("🚛 Active", in_progress)
+                with col3:
+                    st.metric("✅ Complete", completed)
+                with col4:
+                    st.metric("🚚 Trailers", total_trailers)
+                
+                if st.session_state.is_owner:
+                    with col5:
+                        st.metric("💰 Revenue", f"${revenue:,.0f}")
+                    with col6:
+                        st.metric("🏢 Customers", customers)
+                
+            except:
+                st.info("Dashboard initializing...")
     
     elif page == "User Management" and (st.session_state.is_owner or st.session_state.user_role in ["Owner", "Admin"]):
         st.header("👥 User Management System")
