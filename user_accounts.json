@@ -1,45 +1,100 @@
 {
-  "users": {
-    "brandon": {
-      "password": "owner2024",
-      "roles": [
-        "Owner",
-        "business_administrator"
-      ],
-      "name": "Brandon Smith",
-      "is_owner": true,
-      "permissions": ["all"]
-    },
-    "brandon_driver": {
-      "password": "owner2024",
-      "roles": [
-        "owner_driver",
-        "driver"
-      ],
-      "name": "Brandon Smith (Driver Mode)",
-      "is_owner": true,
-      "driver_mode": true,
-      "permissions": ["all"]
-    },
-    "j_duckett": {
-      "password": "duck123",
-      "roles": [
-        "driver"
-      ],
-      "name": "Justin Duckett",
-      "is_owner": false,
-      "company": "L&P Solutions",
-      "permissions": ["driver_access"]
-    },
-    "c_strickland": {
-      "password": "strik123",
-      "roles": [
-        "driver"
-      ],
-      "name": "Carl Strickland",
-      "is_owner": false,
-      "company": "Cross State Logistics Inc.",
-      "permissions": ["driver_access"]
+    "users": {
+        "Brandon": {
+            "password": "owner123",
+            "roles": [
+                "Owner",
+                "business_administrator",
+                "driver"
+            ],
+            "name": "Brandon Smith",
+            "is_owner": true,
+            "permissions": [
+                "ALL"
+            ]
+        },
+        "admin": {
+            "password": "admin123",
+            "roles": [
+                "business_administrator"
+            ],
+            "name": "System Admin",
+            "permissions": [
+                "manage_users",
+                "manage_trailers",
+                "manage_moves",
+                "view_reports"
+            ]
+        },
+        "coordinator": {
+            "password": "coord123",
+            "roles": [
+                "operations_coordinator"
+            ],
+            "name": "Ops Coordinator",
+            "permissions": [
+                "manage_moves",
+                "manage_documents",
+                "view_reports"
+            ]
+        },
+        "dataentry": {
+            "password": "data123",
+            "roles": [
+                "data_entry"
+            ],
+            "name": "Data Entry Clerk",
+            "permissions": [
+                "create_moves",
+                "update_moves",
+                "upload_documents"
+            ]
+        },
+        "j_duckett": {
+            "password": "driver123",
+            "roles": [
+                "driver"
+            ],
+            "name": "Justin Duckett",
+            "permissions": [
+                "view_own_moves",
+                "update_own_moves",
+                "upload_pod"
+            ]
+        },
+        "c_strickland": {
+            "password": "driver123",
+            "roles": [
+                "driver"
+            ],
+            "name": "Carl Strickland",
+            "permissions": [
+                "view_own_moves",
+                "update_own_moves",
+                "upload_pod"
+            ]
+        },
+        "viewer": {
+            "password": "viewer123",
+            "roles": [
+                "viewer"
+            ],
+            "name": "System Viewer",
+            "permissions": [
+                "view_only"
+            ]
+        },
+        "metro_client": {
+            "password": "metro123",
+            "roles": [
+                "client"
+            ],
+            "name": "Metro Logistics Representative",
+            "client_company": "Metro Logistics, Inc.",
+            "permissions": [
+                "view_own_shipments",
+                "view_documents"
+            ]
+        }
     }
-  }
 }
