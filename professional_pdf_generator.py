@@ -6,6 +6,25 @@ import io
 import os
 from datetime import datetime, timedelta
 import sqlite3
+import streamlit as st
+
+# Import company configuration
+try:
+    from company_config import get_company_info, get_invoice_header
+except:
+    def get_company_info():
+        return {
+            'company_name': 'Smith & Williams Trucking',
+            'company_email': 'Dispatch@smithwilliamstrucking.com',
+            'company_phone': '(901) 555-SHIP',
+            'company_website': 'www.smithwilliamstrucking.com',
+            'company_address': '3716 Hwy 78, Memphis, TN 38109',
+            'company_tagline': 'Your cargo. Our mission. Moving forward.',
+            'dot_number': 'DOT #1234567',
+            'mc_number': 'MC #987654',
+            'ein': '12-3456789',
+            'company_logo': 'swt_logo_white.png'
+        }
 
 def get_connection():
     return sqlite3.connect('trailer_tracker_streamlined.db')
@@ -23,44 +42,64 @@ def generate_status_report_for_profile(username, role):
         
         buffer = io.BytesIO()
         
+        # Get company info for letterhead
+        company_info = get_company_info()
+        
         # Custom page with letterhead
         def add_letterhead(canvas, doc):
             canvas.saveState()
             
-            # Add logo if exists
-            logo_path = "swt_logo.png"
-            if os.path.exists(logo_path):
-                try:
-                    canvas.drawImage(logo_path, 50, 720, width=100, height=60, preserveAspectRatio=True)
-                except:
-                    pass
+            # Add logo if exists - try multiple paths
+            logo_paths = [
+                company_info.get('company_logo', 'swt_logo_white.png'),
+                'swt_logo_white.png',
+                'swt_logo.png',
+                'logo.png'
+            ]
+            
+            logo_added = False
+            for logo_path in logo_paths:
+                if os.path.exists(logo_path):
+                    try:
+                        canvas.drawImage(logo_path, 50, 720, width=100, height=60, preserveAspectRatio=True)
+                        logo_added = True
+                        break
+                    except:
+                        continue
             
             # Company name and info
             canvas.setFont("Helvetica-Bold", 16)
-            canvas.setFillColor(colors.HexColor('#1e3a8a'))
-            canvas.drawString(170, 750, "SMITH & WILLIAMS TRUCKING")
+            canvas.setFillColor(colors.HexColor('#DC143C'))  # Company red color
+            canvas.drawString(170 if logo_added else 50, 750, company_info['company_name'].upper())
             
-            canvas.setFont("Helvetica", 10)
+            canvas.setFont("Helvetica-Oblique", 11)
+            canvas.setFillColor(colors.HexColor('#666666'))
+            canvas.drawString(170 if logo_added else 50, 735, f'"{company_info["company_tagline"]}"')
+            
+            canvas.setFont("Helvetica", 9)
             canvas.setFillColor(colors.black)
-            canvas.drawString(170, 735, "Professional Transportation Services")
-            canvas.drawString(170, 720, "DOT: 123456 | MC: 789012")
+            canvas.drawString(170 if logo_added else 50, 720, f"{company_info['dot_number']} | {company_info['mc_number']} | EIN: {company_info['ein']}")
             
             # Contact info on right
             canvas.setFont("Helvetica", 9)
-            canvas.drawRightString(550, 750, "Phone: (555) 123-4567")
-            canvas.drawRightString(550, 735, "Email: dispatch@swtrucking.com")
-            canvas.drawRightString(550, 720, "Website: www.swtrucking.com")
+            canvas.drawRightString(550, 750, f"Phone: {company_info['company_phone']}")
+            canvas.drawRightString(550, 735, f"Email: {company_info['company_email']}")
+            canvas.drawRightString(550, 720, f"Web: {company_info['company_website']}")
             
-            # Line separator
-            canvas.setStrokeColor(colors.HexColor('#1e3a8a'))
+            # Address below contact info
+            canvas.setFont("Helvetica", 8)
+            canvas.drawRightString(550, 705, company_info['company_address'])
+            
+            # Line separator with company color
+            canvas.setStrokeColor(colors.HexColor('#DC143C'))
             canvas.setLineWidth(2)
-            canvas.line(50, 710, 550, 710)
+            canvas.line(50, 695, 550, 695)
             
             # Footer
             canvas.setFont("Helvetica", 8)
             canvas.setFillColor(colors.grey)
             canvas.drawString(50, 30, f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}")
-            canvas.drawCentredString(300, 30, "© 2025 Smith & Williams Trucking - Confidential")
+            canvas.drawCentredString(300, 30, f"© {datetime.now().year} {company_info['company_name']} - Confidential")
             canvas.drawRightString(550, 30, f"Page {doc.page}")
             
             # Vernon watermark
