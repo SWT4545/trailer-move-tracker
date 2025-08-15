@@ -135,9 +135,12 @@ class RouteLearningSystem:
         
         # Get location names
         cursor.execute('SELECT location_title FROM locations WHERE id = ?', (origin_id,))
-        origin = cursor.fetchone()[0]
+        origin_result = cursor.fetchone()
+        origin = origin_result[0] if origin_result else 'Fleet Memphis'
+        
         cursor.execute('SELECT location_title FROM locations WHERE id = ?', (dest_id,))
-        dest = cursor.fetchone()[0]
+        dest_result = cursor.fetchone()
+        dest = dest_result[0] if dest_result else 'FedEx Memphis'
         
         route_key = f"{origin}->{dest}"
         

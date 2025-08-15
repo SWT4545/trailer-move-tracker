@@ -858,7 +858,7 @@ def create_new_move():
         for loc_id, title, city, state, has_addr, trailer_count in all_locations:
             # Build display string
             if trailer_count > 0:
-                display = f"✅ {title} - {trailer_count} OLD trailer{'s' if trailer_count > 1 else ''} ready"
+                display = f"[AVAILABLE] {title} - {trailer_count} OLD trailer{'s' if trailer_count > 1 else ''} ready"
                 locations_with_trailers.append((display, title))
             else:
                 display = f"📍 {title} - No OLD trailers available"
@@ -883,7 +883,7 @@ def create_new_move():
         destination_display = st.selectbox(
             "📍 Select FedEx Destination",
             options=[opt for opt in all_location_options if not opt.startswith("---")],
-            help="✅ = OLD trailers available for pickup | 📍 = No OLD trailers currently"
+            help="[AVAILABLE] = OLD trailers ready for pickup | [LOCATION] = No OLD trailers currently"
         )
         
         # Extract actual location name
@@ -975,7 +975,7 @@ def create_new_move():
                 # Extract trailer number
                 swap_trailer = selected_old_display.split("#")[1].split(" ")[0] if selected_old_display else None
             else:
-                st.warning(f"⚠️ No OLD trailers currently at {destination}")
+                st.warning(f"WARNING: No OLD trailers currently at {destination}")
                 st.info("💡 You can still create the move and specify which trailer to pick up later")
                 swap_trailer = st.text_input(
                     "Enter OLD Trailer # to Pick Up (optional)",
@@ -1982,7 +1982,7 @@ def show_dashboard():
             cursor = conn.cursor()
             
             # Quick Add New FedEx Location (Simplified)
-            st.markdown("### ➕ Quick Add New FedEx Location")
+            st.markdown("### Quick Add New FedEx Location")
             with st.form("quick_add_location"):
                 col1, col2, col3 = st.columns(3)
                 
@@ -2008,7 +2008,7 @@ def show_dashboard():
                             ''', (location_title, 'Address TBD', quick_city, quick_state, 
                                   '', 'fedex_hub', 0, datetime.now()))
                             conn.commit()
-                            st.success(f"✅ Added {location_title}! You can add the address details below.")
+                            st.success(f"Added {location_title}! You can add the address details below.")
                             st.rerun()
                     else:
                         st.error("City and State are required")
@@ -2041,7 +2041,7 @@ def show_dashboard():
                 st.markdown("#### 🏢 Fleet Base")
                 for loc in fleet_locations:
                     loc_id, title, address, city, state, zip_code, loc_type, is_base, total, new, old = loc
-                    with st.expander(f"✅ {title} - {city}, {state} (Base Location) - {new} NEW, {old} OLD trailers"):
+                    with st.expander(f"[BASE] {title} - {city}, {state} (Base Location) - {new} NEW, {old} OLD trailers"):
                         with st.form(f"location_{loc_id}"):
                             col1, col2 = st.columns(2)
                             with col1:
@@ -2082,10 +2082,10 @@ def show_dashboard():
                     
                     # Status indicator
                     if address and address != 'Address TBD':
-                        status = "✅"
+                        status = "[OK]"
                         expand_text = f"{status} {title} - {city}, {state}"
                     else:
-                        status = "⚠️"
+                        status = "[NEEDS ADDRESS]"
                         expand_text = f"{status} {title} - {city}, {state} (Address needed)"
                     
                     # Add trailer count if any
@@ -2263,7 +2263,7 @@ def show_dashboard():
                 with col3:
                     st.success(f"**YOUR NET:** ${total_net:,.2f}")
                 
-                st.caption("⚠️ **IMPORTANT:** Service fees are NOT included in these totals. Only the 3% factoring fee has been deducted.")
+                st.caption("**IMPORTANT:** Service fees are NOT included in these totals. Only the 3% factoring fee has been deducted.")
                 
                 conn.close()
             
