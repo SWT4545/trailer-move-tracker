@@ -533,39 +533,96 @@ def manage_mlbl_numbers():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Get moves without MLBL
+    # Get ALL moves (active and completed) without MLBL
     cursor.execute('''
-        SELECT m.system_id, m.move_date, m.client, m.driver_name
+        SELECT m.system_id, m.move_date, m.client, m.driver_name, m.status, m.payment_status
         FROM moves m
         WHERE m.mlbl_number IS NULL
-        ORDER BY m.created_at DESC
+        ORDER BY m.move_date DESC, m.system_id
     ''')
     
     pending_moves = cursor.fetchall()
     
     if pending_moves:
-        st.write("### Moves Awaiting MLBL Numbers")
+        st.write(f"### {len(pending_moves)} Moves Awaiting MLBL Numbers")
         
-        for move in pending_moves:
-            with st.expander(f"Move {move[0]} - {move[2] or 'No Client'} ({move[1]})"):
-                st.write(f"**Driver:** {move[3]}")
-                
-                mlbl = st.text_input(f"MLBL Number", key=f"mlbl_{move[0]}")
-                if st.button("✅ Add MLBL", key=f"btn_{move[0]}"):
-                    if mlbl:
-                        try:
-                            cursor.execute('''
-                                UPDATE moves 
-                                SET mlbl_number = ?
-                                WHERE system_id = ?
-                            ''', (mlbl, move[0]))
-                            conn.commit()
-                            st.success(f"MLBL {mlbl} added successfully!")
-                            st.rerun()
-                        except:
-                            st.error("MLBL already exists or error occurred")
+        # Group by status for better organization
+        active_moves = [m for m in pending_moves if m[4] == 'active']
+        completed_unpaid = [m for m in pending_moves if m[4] == 'completed' and m[5] == 'pending']
+        completed_paid = [m for m in pending_moves if m[4] == 'completed' and m[5] == 'paid']
+        
+        if active_moves:
+            st.write("#### 🚛 Active Moves")
+            for move in active_moves:
+                with st.expander(f"Move {move[0]} - {move[2] or 'FedEx'} - Driver: {move[3]} ({move[1]})"):
+                    mlbl = st.text_input(f"Enter MLBL Number", key=f"mlbl_{move[0]}")
+                    if st.button("✅ Add MLBL", key=f"btn_{move[0]}"):
+                        if mlbl:
+                            try:
+                                cursor.execute('''
+                                    UPDATE moves 
+                                    SET mlbl_number = ?
+                                    WHERE system_id = ?
+                                ''', (mlbl, move[0]))
+                                conn.commit()
+                                st.success(f"MLBL {mlbl} added successfully!")
+                                st.rerun()
+                            except:
+                                st.error("MLBL already exists or error occurred")
+        
+        if completed_unpaid:
+            st.write("#### 📦 Completed - Awaiting Payment")
+            for move in completed_unpaid:
+                with st.expander(f"Move {move[0]} - {move[2] or 'FedEx'} - Driver: {move[3]} ({move[1]})"):
+                    mlbl = st.text_input(f"Enter MLBL Number", key=f"mlbl_{move[0]}")
+                    if st.button("✅ Add MLBL", key=f"btn_{move[0]}"):
+                        if mlbl:
+                            try:
+                                cursor.execute('''
+                                    UPDATE moves 
+                                    SET mlbl_number = ?
+                                    WHERE system_id = ?
+                                ''', (mlbl, move[0]))
+                                conn.commit()
+                                st.success(f"MLBL {mlbl} added successfully!")
+                                st.rerun()
+                            except:
+                                st.error("MLBL already exists or error occurred")
+        
+        if completed_paid:
+            st.write("#### ✅ Completed & Paid")
+            for move in completed_paid:
+                with st.expander(f"Move {move[0]} - {move[2] or 'FedEx'} - Driver: {move[3]} ({move[1]})"):
+                    mlbl = st.text_input(f"Enter MLBL Number", key=f"mlbl_{move[0]}")
+                    if st.button("✅ Add MLBL", key=f"btn_{move[0]}"):
+                        if mlbl:
+                            try:
+                                cursor.execute('''
+                                    UPDATE moves 
+                                    SET mlbl_number = ?
+                                    WHERE system_id = ?
+                                ''', (mlbl, move[0]))
+                                conn.commit()
+                                st.success(f"MLBL {mlbl} added successfully!")
+                                st.rerun()
+                            except:
+                                st.error("MLBL already exists or error occurred")
     else:
-        st.info("No moves pending MLBL numbers")
+        st.success("✅ All moves have MLBL numbers assigned!")
+    
+    # Show moves with MLBL numbers
+    cursor.execute('''
+        SELECT m.system_id, m.mlbl_number, m.driver_name, m.status, m.payment_status
+        FROM moves m
+        WHERE m.mlbl_number IS NOT NULL
+        ORDER BY m.mlbl_number
+    ''')
+    
+    mlbl_moves = cursor.fetchall()
+    if mlbl_moves:
+        st.write("### Moves with MLBL Numbers")
+        df = pd.DataFrame(mlbl_moves, columns=['System ID', 'MLBL', 'Driver', 'Status', 'Payment'])
+        st.dataframe(df, use_container_width=True, hide_index=True)
     
     conn.close()
 
@@ -579,7 +636,7 @@ def show_active_moves():
         SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name,
                m.client, m.status, m.estimated_miles, m.estimated_earnings
         FROM moves m
-        WHERE m.status IN ('active', 'assigned')
+        WHERE m.status IN ('active', 'assigned', 'in_transit')
         ORDER BY m.move_date DESC
     ''')
     
@@ -597,6 +654,43 @@ def show_active_moves():
     
     conn.close()
 
+# Show completed moves
+def show_completed_moves():
+    """Display completed moves"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name,
+               m.client, m.payment_status, m.estimated_miles, m.estimated_earnings
+        FROM moves m
+        WHERE m.status = 'completed'
+        ORDER BY m.move_date DESC
+    ''')
+    
+    moves = cursor.fetchall()
+    
+    if moves:
+        df = pd.DataFrame(moves, columns=[
+            'System ID', 'MLBL', 'Date', 'Driver', 'Client',
+            'Payment Status', 'Miles', 'Est. Earnings'
+        ])
+        
+        # Color code payment status
+        def highlight_payment(val):
+            if val == 'paid':
+                return 'background-color: #90EE90'
+            elif val == 'pending':
+                return 'background-color: #FFE4B5'
+            return ''
+        
+        styled_df = df.style.applymap(highlight_payment, subset=['Payment Status'])
+        st.dataframe(styled_df, use_container_width=True, hide_index=True)
+    else:
+        st.info("No completed moves")
+    
+    conn.close()
+
 # Main dashboard
 def show_dashboard():
     """Display role-specific dashboard"""
@@ -609,8 +703,8 @@ def show_dashboard():
     
     if role == "Owner":
         tabs = st.tabs([
-            "📊 Overview", "🚛 Create Move", "📋 Active Moves",
-            "🔢 MLBL Management", "💰 Financials", "🔧 Admin"
+            "📊 Overview", "🚛 Create Move", "📋 Active Moves", 
+            "✅ Completed Moves", "🔢 MLBL Management", "💰 Financials", "🔧 Admin"
         ])
         
         with tabs[0]:
@@ -620,11 +714,13 @@ def show_dashboard():
         with tabs[2]:
             show_active_moves()
         with tabs[3]:
-            manage_mlbl_numbers()
+            show_completed_moves()
         with tabs[4]:
+            manage_mlbl_numbers()
+        with tabs[5]:
             st.subheader("💰 Financial Management")
             st.info("Financial management interface")
-        with tabs[5]:
+        with tabs[6]:
             st.subheader("🔧 System Administration")
             if st.button("🔄 Reload Production Data"):
                 load_initial_data()
@@ -633,7 +729,7 @@ def show_dashboard():
     
     elif role == "Manager":
         tabs = st.tabs([
-            "📊 Overview", "🚛 Create Move", "📋 Active Moves", "🔢 MLBL Management"
+            "📊 Overview", "🚛 Create Move", "📋 Active Moves", "✅ Completed Moves", "🔢 MLBL Management"
         ])
         
         with tabs[0]:
@@ -643,6 +739,8 @@ def show_dashboard():
         with tabs[2]:
             show_active_moves()
         with tabs[3]:
+            show_completed_moves()
+        with tabs[4]:
             manage_mlbl_numbers()
     
     elif role == "Coordinator":

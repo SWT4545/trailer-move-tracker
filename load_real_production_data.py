@@ -118,10 +118,10 @@ def load_real_production_data():
         ('6231', 'Roller Bed', loc_map['FedEx Indy'], 'available', 0),
     ]
     
-    # New trailers (delivered or in process)
+    # New trailers (delivered or active/in transit)
     new_trailers = [
         ('190033', 'Roller Bed', loc_map['FedEx Indy'], 'delivered', 1),
-        ('190046', 'Roller Bed', loc_map['Fleet Memphis'], 'in_transit', 1),  # In process to FedEx Indy
+        ('190046', 'Roller Bed', loc_map['Fleet Memphis'], 'in_transit', 1),  # Active move to FedEx Indy
         ('18V00298', 'Roller Bed', loc_map['FedEx Indy'], 'delivered', 1),
         ('7728', 'Roller Bed', loc_map['FedEx Chicago'], 'delivered', 1),
         ('190011', 'Roller Bed', loc_map['FedEx Indy'], 'delivered', 1),
@@ -130,7 +130,7 @@ def load_real_production_data():
         ('18V00406', 'Roller Bed', loc_map['FedEx Memphis'], 'delivered', 1),
         ('18V00409', 'Roller Bed', loc_map['FedEx Memphis'], 'delivered', 1),
         ('18V00414', 'Roller Bed', loc_map['FedEx Memphis'], 'delivered', 1),
-        ('18V00407', 'Roller Bed', loc_map['Fleet Memphis'], 'in_transit', 1),  # In process to FedEx Indy
+        ('18V00407', 'Roller Bed', loc_map['Fleet Memphis'], 'in_transit', 1),  # Active move to FedEx Indy
     ]
     
     # Old trailers that were swapped (now at Fleet Memphis)
@@ -272,14 +272,14 @@ def load_real_production_data():
         },
     ]
     
-    # IN PROCESS MOVES
+    # IN PROCESS MOVES (ACTIVE)
     in_process_moves = [
         {
             'system_id': get_system_id(),
             'new_trailer': '190046', 'old_trailer': '6837',
             'origin': 'Fleet Memphis', 'destination': 'FedEx Indy',
             'driver': 'Carl Strickland', 'date': date(2025, 8, 14),
-            'delivered': None, 'status': 'in_transit',
+            'delivered': None, 'status': 'active',  # Changed to active
             'payment_status': 'pending', 'miles': 385 * 2
         },
         {
@@ -287,7 +287,7 @@ def load_real_production_data():
             'new_trailer': '18V00407', 'old_trailer': '6094',
             'origin': 'Fleet Memphis', 'destination': 'FedEx Indy',
             'driver': 'Brandon Smith', 'date': date(2025, 8, 14),
-            'delivered': None, 'status': 'in_transit',
+            'delivered': None, 'status': 'active',  # Changed to active
             'payment_status': 'pending', 'miles': 385 * 2
         },
     ]
@@ -347,7 +347,7 @@ def load_real_production_data():
     print(f"[OK] Loaded {len(all_moves)} moves")
     print(f"  - {len(completed_paid_moves)} completed and paid")
     print(f"  - {len(completed_unpaid_moves)} completed awaiting payment")
-    print(f"  - {len(in_process_moves)} in process")
+    print(f"  - {len(in_process_moves)} active (in process)")
     
     # 5. FINANCIAL SUMMARY
     print("\n5. Financial Summary:")
