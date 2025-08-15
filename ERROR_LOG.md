@@ -234,13 +234,26 @@ grep -r "✓" *.py
 **Solution:** 
   - Check for `is_new` column in trailers table
   - If exists, use it to separate old (is_new=0) and new (is_new=1)
-  - If not, estimate based on trailer number patterns (19*, 18V*, 77*)
-  - Added two-row metric display with 7 total metrics
+  - If not, identify based on ACTUAL production data patterns
 **Files Affected:** `app.py` - `show_overview_metrics()` function
 **Benefits:**
   - Better visibility into trailer swap inventory
   - Helps track old trailer pickup needs
   - Shows new trailer delivery availability
+
+### 19. Incorrect Trailer Pattern Recognition (RESOLVED)
+**Date:** 2025-08-15
+**Issue:** Wrong trailer split - incorrect pattern matching for old/new
+**Root Cause:** Initial pattern was guessed, not based on actual data
+**Actual Data Analysis:**
+  - **NEW trailers (is_new=1)**: 190xxx, 18Vxxxxx, and special case 7728
+  - **OLD trailers (is_new=0)**: 3xxx, 4xxx, 5xxx, 6xxx, 7xxx (except 7728)
+**Evidence from moves:**
+  - All `new_trailer` fields: 18V00327, 190030, 190011, 7728, 190033, etc.
+  - All `old_trailer` fields: 6014, 7144, 7131, 5906, 7162, etc.
+**Solution:** Updated pattern matching to match actual production data
+**Files Affected:** `app.py` lines 527-548
+**Prevention:** Always analyze actual data before implementing pattern matching
 
 ---
 

@@ -524,14 +524,28 @@ def show_overview_metrics():
         # If no is_new column, just get total
         cursor.execute('SELECT COUNT(*) FROM trailers WHERE status = "available"')
         total_trailers = cursor.fetchone()[0]
-        # Estimate based on trailer number patterns
+        # Identify NEW trailers based on actual data patterns:
+        # NEW: 190xxx, 18Vxxxxx, or specific 7728
         cursor.execute('''
             SELECT COUNT(*) FROM trailers 
             WHERE status = "available" 
-            AND (trailer_number LIKE '19%' OR trailer_number LIKE '18V%' OR trailer_number LIKE '77%')
+            AND (trailer_number LIKE '190%' 
+                 OR trailer_number LIKE '18V%' 
+                 OR trailer_number = '7728')
         ''')
         new_trailers = cursor.fetchone()[0]
-        old_trailers = total_trailers - new_trailers
+        # Identify OLD trailers based on actual data patterns:
+        # OLD: 3xxx, 4xxx, 5xxx, 6xxx, 7xxx (except 7728)
+        cursor.execute('''
+            SELECT COUNT(*) FROM trailers 
+            WHERE status = "available" 
+            AND ((trailer_number LIKE '3%' AND LENGTH(trailer_number) = 4)
+                 OR (trailer_number LIKE '4%' AND LENGTH(trailer_number) = 4)
+                 OR (trailer_number LIKE '5%' AND LENGTH(trailer_number) = 4)
+                 OR (trailer_number LIKE '6%' AND LENGTH(trailer_number) = 4)
+                 OR (trailer_number LIKE '7%' AND LENGTH(trailer_number) = 4 AND trailer_number != '7728'))
+        ''')
+        old_trailers = cursor.fetchone()[0]
     
     cursor.execute('SELECT COUNT(*) FROM drivers WHERE status = "active"')
     active_drivers = cursor.fetchone()[0]
