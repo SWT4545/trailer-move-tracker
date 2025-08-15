@@ -255,6 +255,33 @@ grep -r "✓" *.py
 **Files Affected:** `app.py` lines 527-548
 **Prevention:** Always analyze actual data before implementing pattern matching
 
+### 20. Trailer Count Should Include ALL Status Types (RESOLVED)
+**Date:** 2025-08-15
+**Issue:** Dashboard only counting "available" trailers, not total fleet
+**User Clarification:** Count should include ALL trailers regardless of status
+**Actual Fleet Inventory:**
+  - **NEW trailers (11 total)**: 
+    - 190033 (at FedEx Indy)
+    - 190046 (in process to FedEx Indy)
+    - 18V00298 (at FedEx Indy)
+    - 7728 (at FedEx Chicago)
+    - 190011 (at FedEx Indy)
+    - 190030 (at FedEx Memphis)
+    - 18V00327 (at FedEx Memphis)
+    - 18V00406 (at FedEx Memphis)
+    - 18V00409 (at FedEx Memphis)
+    - 18V00414 (at FedEx Memphis)
+    - 18V00407 (in process to FedEx Indy)
+  - **OLD trailers (21 total)**:
+    - At FedEx locations (12): 7155, 7146, 5955, 6024, 6061, 3170, 7153, 6015, 7160, 6783, 3083, 6231
+    - At Fleet Memphis (9): 7162, 7131, 5906, 7144, 6014, 6981, 5950, 5876, 4427
+**Solution:** 
+  - Count ALL trailers regardless of status (available, in_transit, delivered)
+  - Show total count with available count in parentheses
+  - Display format: "21 (9 avail)" for old, "11 (2 avail)" for new
+**Files Affected:** `app.py` show_overview_metrics() function
+**Benefits:** Accurate fleet inventory visibility
+
 ---
 
 Last Updated: 2025-08-15

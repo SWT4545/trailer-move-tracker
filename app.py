@@ -507,25 +507,54 @@ def show_overview_metrics():
     cursor.execute('SELECT COUNT(*) FROM moves WHERE status IN ("active", "assigned")')
     active_moves = cursor.fetchone()[0]
     
-    # Get trailer counts - split by old and new
+    # Get trailer counts - split by old and new (ALL trailers, not just available)
+    # NEW TRAILERS (10 total): 190033, 190046, 18V00298, 7728, 190011, 190030, 18V00327, 18V00406, 18V00409, 18V00414
+    # OLD TRAILERS (12 at FedEx): 7155, 7146, 5955, 6024, 6061, 3170, 7153, 6015, 7160, 6783, 3083, 6231
+    # OLD TRAILERS (9 at Fleet): 7162, 7131, 5906, 7144, 6014, 6981, 5950, 5876, 4427
     trailer_columns = get_table_columns(cursor, 'trailers') if table_exists(cursor, 'trailers') else []
     
     if 'is_new' in trailer_columns:
-        # Count old trailers (is_new = 0)
+        # Count ALL old trailers (is_new = 0) - available, in_transit, delivered, etc.
+        cursor.execute('SELECT COUNT(*) FROM trailers WHERE is_new = 0')
+        old_trailers_total = cursor.fetchone()[0]
+        
+        # Count ALL new trailers (is_new = 1) - available, in_transit, delivered, etc.
+        cursor.execute('SELECT COUNT(*) FROM trailers WHERE is_new = 1')
+        new_trailers_total = cursor.fetchone()[0]
+        
+        # Count only AVAILABLE for operations
         cursor.execute('SELECT COUNT(*) FROM trailers WHERE status = "available" AND is_new = 0')
-        old_trailers = cursor.fetchone()[0]
+        old_available = cursor.fetchone()[0]
         
-        # Count new trailers (is_new = 1)
         cursor.execute('SELECT COUNT(*) FROM trailers WHERE status = "available" AND is_new = 1')
-        new_trailers = cursor.fetchone()[0]
+        new_available = cursor.fetchone()[0]
         
-        total_trailers = old_trailers + new_trailers
+        total_trailers = old_trailers_total + new_trailers_total
     else:
-        # If no is_new column, just get total
-        cursor.execute('SELECT COUNT(*) FROM trailers WHERE status = "available"')
-        total_trailers = cursor.fetchone()[0]
-        # Identify NEW trailers based on actual data patterns:
+        # If no is_new column, count ALL trailers by pattern
+        # Count ALL NEW trailers based on actual data patterns:
         # NEW: 190xxx, 18Vxxxxx, or specific 7728
+        cursor.execute('''
+            SELECT COUNT(*) FROM trailers 
+            WHERE trailer_number LIKE '190%' 
+               OR trailer_number LIKE '18V%' 
+               OR trailer_number = '7728'
+        ''')
+        new_trailers_total = cursor.fetchone()[0]
+        
+        # Count ALL OLD trailers based on actual data patterns:
+        # OLD: 3xxx, 4xxx, 5xxx, 6xxx, 7xxx (except 7728)
+        cursor.execute('''
+            SELECT COUNT(*) FROM trailers 
+            WHERE (trailer_number LIKE '3%' AND LENGTH(trailer_number) = 4)
+               OR (trailer_number LIKE '4%' AND LENGTH(trailer_number) = 4)
+               OR (trailer_number LIKE '5%' AND LENGTH(trailer_number) = 4)
+               OR (trailer_number LIKE '6%' AND LENGTH(trailer_number) = 4)
+               OR (trailer_number LIKE '7%' AND LENGTH(trailer_number) = 4 AND trailer_number != '7728')
+        ''')
+        old_trailers_total = cursor.fetchone()[0]
+        
+        # Count available for operations
         cursor.execute('''
             SELECT COUNT(*) FROM trailers 
             WHERE status = "available" 
@@ -533,9 +562,8 @@ def show_overview_metrics():
                  OR trailer_number LIKE '18V%' 
                  OR trailer_number = '7728')
         ''')
-        new_trailers = cursor.fetchone()[0]
-        # Identify OLD trailers based on actual data patterns:
-        # OLD: 3xxx, 4xxx, 5xxx, 6xxx, 7xxx (except 7728)
+        new_available = cursor.fetchone()[0]
+        
         cursor.execute('''
             SELECT COUNT(*) FROM trailers 
             WHERE status = "available" 
@@ -545,7 +573,9 @@ def show_overview_metrics():
                  OR (trailer_number LIKE '6%' AND LENGTH(trailer_number) = 4)
                  OR (trailer_number LIKE '7%' AND LENGTH(trailer_number) = 4 AND trailer_number != '7728'))
         ''')
-        old_trailers = cursor.fetchone()[0]
+        old_available = cursor.fetchone()[0]
+        
+        total_trailers = old_trailers_total + new_trailers_total
     
     cursor.execute('SELECT COUNT(*) FROM drivers WHERE status = "active"')
     active_drivers = cursor.fetchone()[0]
@@ -566,13 +596,18 @@ def show_overview_metrics():
         st.metric("Active Moves", active_moves)
     
     with col2:
-        st.metric("Old Trailers", old_trailers, help="Available old trailers for pickup")
+        # Show total old trailers with available count
+        st.metric("Old Trailers", f"{old_trailers_total} ({old_available} avail)", 
+                  help=f"Total old trailers: {old_trailers_total}\nAvailable for pickup: {old_available}")
     
     with col3:
-        st.metric("New Trailers", new_trailers, help="Available new trailers for delivery")
+        # Show total new trailers with available count
+        st.metric("New Trailers", f"{new_trailers_total} ({new_available} avail)", 
+                  help=f"Total new trailers: {new_trailers_total}\nAvailable for delivery: {new_available}")
     
     with col4:
-        st.metric("Total Available", total_trailers, help="Total available trailers")
+        st.metric("Total Fleet", total_trailers, 
+                  help=f"Total fleet size: {total_trailers}\nTotal available: {old_available + new_available}")
     
     # Second row: Driver and revenue metrics
     col1, col2, col3 = st.columns(3)
@@ -586,8 +621,9 @@ def show_overview_metrics():
     with col3:
         # Calculate swap ratio
         if total_trailers > 0:
-            new_ratio = (new_trailers / total_trailers) * 100
-            st.metric("New Trailer %", f"{new_ratio:.1f}%", help="Percentage of new trailers available")
+            new_ratio = (new_trailers_total / total_trailers) * 100
+            st.metric("New Trailer %", f"{new_ratio:.1f}%", 
+                     help=f"Percentage of new trailers in fleet: {new_trailers_total}/{total_trailers}")
         else:
             st.metric("New Trailer %", "N/A")
     
