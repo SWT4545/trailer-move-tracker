@@ -196,7 +196,7 @@ def load_real_production_data():
             'origin': 'Fleet Memphis', 'destination': 'FedEx Indy',
             'driver': 'Justin Duckett', 'date': date(2025, 8, 12),
             'delivered': date(2025, 8, 13), 'status': 'completed',
-            'payment_status': 'paid', 'miles': 933.33  # Actual round trip from Metro Logistics  # Round trip
+            'payment_status': 'paid', 'miles': 933.333333  # Exactly $1960 / $2.10 = 933.333333
         },
         {
             'system_id': get_system_id(),
@@ -212,7 +212,7 @@ def load_real_production_data():
             'origin': 'Fleet Memphis', 'destination': 'FedEx Indy',
             'driver': 'Justin Duckett', 'date': date(2025, 8, 12),
             'delivered': date(2025, 8, 13), 'status': 'completed',
-            'payment_status': 'paid', 'miles': 933.33  # Actual round trip from Metro Logistics
+            'payment_status': 'paid', 'miles': 933.333333  # Exactly $1960 / $2.10
         },
         
         # Brandon Smith move
@@ -232,7 +232,7 @@ def load_real_production_data():
             'origin': 'Fleet Memphis', 'destination': 'FedEx Indy',
             'driver': 'Carl Strickland', 'date': date(2025, 8, 12),
             'delivered': date(2025, 8, 13), 'status': 'completed',
-            'payment_status': 'paid', 'miles': 933.33  # Actual round trip from Metro Logistics
+            'payment_status': 'paid', 'miles': 933.333333  # Exactly $1960 / $2.10
         },
     ]
     
@@ -268,7 +268,7 @@ def load_real_production_data():
             'origin': 'Fleet Memphis', 'destination': 'FedEx Indy',
             'driver': 'Brandon Smith', 'date': date(2025, 8, 12),
             'delivered': date(2025, 8, 13), 'status': 'completed',
-            'payment_status': 'pending', 'miles': 385 * 2
+            'payment_status': 'pending', 'miles': 933.333333  # Exactly $1960 / $2.10
         },
     ]
     
@@ -280,7 +280,7 @@ def load_real_production_data():
             'origin': 'Fleet Memphis', 'destination': 'FedEx Indy',
             'driver': 'Carl Strickland', 'date': date(2025, 8, 14),
             'delivered': None, 'status': 'active',  # Changed to active
-            'payment_status': 'pending', 'miles': 385 * 2
+            'payment_status': 'pending', 'miles': 933.333333  # Exactly $1960 / $2.10
         },
         {
             'system_id': get_system_id(),
@@ -288,7 +288,7 @@ def load_real_production_data():
             'origin': 'Fleet Memphis', 'destination': 'FedEx Indy',
             'driver': 'Brandon Smith', 'date': date(2025, 8, 14),
             'delivered': None, 'status': 'active',  # Changed to active
-            'payment_status': 'pending', 'miles': 385 * 2
+            'payment_status': 'pending', 'miles': 933.333333  # Exactly $1960 / $2.10
         },
     ]
     
@@ -297,7 +297,7 @@ def load_real_production_data():
     
     for move in all_moves:
         # Calculate financial details
-        # For Indy routes: $1960.00 payment for 933.33 miles
+        # For Indy routes: $1960.00 payment for 933.333333 miles
         # After 3% factoring: $1960 * 0.97 = $1901.20
         estimated_earnings = move['miles'] * 2.10
         

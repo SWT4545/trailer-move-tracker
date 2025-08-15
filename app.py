@@ -464,7 +464,7 @@ def create_new_move():
         3. **Return** - Bring the swapped trailer BACK to Fleet Memphis
         4. **Payment** - Get paid for total round-trip mileage at $2.10/mile
         
-        **Example:** Fleet Memphis -> FedEx Indy -> Fleet Memphis = 933.33 miles total = $1,960
+        **Example:** Fleet Memphis -> FedEx Indy -> Fleet Memphis = 933.333333 miles = $1,960.00
         """)
     
     conn = sqlite3.connect(DB_PATH)
@@ -534,7 +534,7 @@ def create_new_move():
         
         # Auto-calculate miles based on route - REAL-TIME UPDATE
         if destination == "FedEx Indy":
-            default_miles = 933.33
+            default_miles = 933.333333  # Exactly $1960 / $2.10
         elif destination == "FedEx Chicago":
             default_miles = 1080.0
         elif destination == "FedEx Memphis":
