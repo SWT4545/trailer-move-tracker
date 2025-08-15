@@ -215,6 +215,18 @@ def init_database():
         )
     ''')
     
+    # Create users table for system admin
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            role TEXT NOT NULL,
+            active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
     # Ensure moves table has all required columns
     try:
         cursor.execute("ALTER TABLE moves ADD COLUMN delivery_status TEXT DEFAULT 'Pending'")
@@ -240,8 +252,85 @@ def init_database():
     conn.commit()
     conn.close()
 
+def populate_initial_data():
+    """Populate database with initial sample data"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # Add sample trailers
+    sample_trailers = [
+        ('SWT-001', 'Standard', 'Memphis, TN', 'available', 0),
+        ('SWT-002', 'Refrigerated', 'Nashville, TN', 'available', 0),
+        ('SWT-003', 'Flatbed', 'Atlanta, GA', 'in_transit', 0),
+        ('SWT-004', 'Standard', 'Dallas, TX', 'available', 1),
+        ('SWT-005', 'Standard', 'Memphis, TN', 'available', 1),
+    ]
+    
+    for trailer in sample_trailers:
+        try:
+            cursor.execute('''
+                INSERT OR IGNORE INTO trailers (trailer_number, trailer_type, current_location, status, is_new)
+                VALUES (?, ?, ?, ?, ?)
+            ''', trailer)
+        except:
+            pass
+    
+    # Add sample drivers
+    sample_drivers = [
+        ('Brandon Smith', 'Smith Trucking LLC', '901-555-0101', 'brandon@smithtrucking.com'),
+        ('John Davis', 'Davis Transport', '901-555-0102', 'john@davistransport.com'),
+        ('Mike Wilson', 'Wilson Logistics', '901-555-0103', 'mike@wilsonlogistics.com'),
+        ('Robert Johnson', 'Johnson Freight', '901-555-0104', 'robert@johnsonfreight.com'),
+    ]
+    
+    for driver in sample_drivers:
+        try:
+            cursor.execute('''
+                INSERT OR IGNORE INTO drivers (driver_name, company_name, phone, email)
+                VALUES (?, ?, ?, ?)
+            ''', driver)
+        except:
+            pass
+    
+    # Add sample users
+    sample_users = [
+        ('Brandon', 'owner123', 'Owner', 1),
+        ('admin', 'admin123', 'Admin', 1),
+        ('manager', 'manager123', 'Manager', 1),
+        ('coordinator', 'coord123', 'Coordinator', 1),
+    ]
+    
+    for user in sample_users:
+        try:
+            cursor.execute('''
+                INSERT OR IGNORE INTO users (username, password, role, active)
+                VALUES (?, ?, ?, ?)
+            ''', user)
+        except:
+            pass
+    
+    # Add sample moves
+    sample_moves = [
+        ('2024-01-15', 1, 'Memphis, TN', 'Nashville, TN', 'FedEx', 'Brandon Smith', 'Brandon Smith', 450.00, 'completed'),
+        ('2024-01-16', 2, 'Nashville, TN', 'Atlanta, GA', 'Amazon', 'John Davis', 'John Davis', 550.00, 'in_transit'),
+        ('2024-01-17', 3, 'Atlanta, GA', 'Dallas, TX', 'Walmart', 'Mike Wilson', 'Mike Wilson', 750.00, 'pending'),
+    ]
+    
+    for move in sample_moves:
+        try:
+            cursor.execute('''
+                INSERT OR IGNORE INTO moves (move_date, trailer_id, origin, destination, client, driver, driver_name, driver_pay, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', move)
+        except:
+            pass
+    
+    conn.commit()
+    conn.close()
+
 # Initialize on startup
 init_database()
+populate_initial_data()
 
 # Load user accounts
 def load_user_accounts():

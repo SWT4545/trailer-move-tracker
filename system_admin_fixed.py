@@ -26,15 +26,39 @@ def render_system_admin():
 
 def manage_users():
     """User management"""
-    conn = sqlite3.connect('trailer_tracker_streamlined.db')
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, username, role, active FROM users")
-    users = cursor.fetchall()
-    conn.close()
+    st.subheader("User Management")
     
-    if users:
-        df = pd.DataFrame(users, columns=['ID', 'Username', 'Role', 'Active'])
-        st.dataframe(df)
+    try:
+        conn = sqlite3.connect('trailer_tracker_streamlined.db')
+        cursor = conn.cursor()
+        
+        # Ensure users table exists
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                role TEXT NOT NULL,
+                active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        conn.commit()
+        
+        cursor.execute("SELECT id, username, role, active FROM users")
+        users = cursor.fetchall()
+        conn.close()
+        
+        if users:
+            df = pd.DataFrame(users, columns=['ID', 'Username', 'Role', 'Active'])
+            df['Active'] = df['Active'].apply(lambda x: '✅' if x else '❌')
+            st.dataframe(df, use_container_width=True)
+        else:
+            st.info("No users found in the database. Initial users have been created from user_accounts.json")
+            
+    except Exception as e:
+        st.error(f"Error loading users: {str(e)}")
+        conn.close()
 
 def manage_email():
     """Email configuration"""
