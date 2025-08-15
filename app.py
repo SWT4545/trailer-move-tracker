@@ -1378,26 +1378,50 @@ def manage_mlbl_numbers():
     # Show moves with MLBL numbers
     try:
         if 'origin_location_id' in move_columns:
-            cursor.execute('''
-                SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name, 
-                       t.trailer_number,
-                       orig.location_title || ' -> ' || dest.location_title as route,
-                       m.status, m.payment_status
-                FROM moves m
-                LEFT JOIN trailers t ON m.trailer_id = t.id
-                LEFT JOIN locations orig ON m.origin_location_id = orig.id
-                LEFT JOIN locations dest ON m.destination_location_id = dest.id
-                WHERE m.mlbl_number IS NOT NULL
-                ORDER BY m.mlbl_number
-            ''')
+            if 'old_trailer' in move_columns:
+                cursor.execute('''
+                    SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name, 
+                           m.new_trailer, m.old_trailer,
+                           orig.location_title || ' -> ' || dest.location_title as route,
+                           m.status, m.payment_status
+                    FROM moves m
+                    LEFT JOIN locations orig ON m.origin_location_id = orig.id
+                    LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                    WHERE m.mlbl_number IS NOT NULL
+                    ORDER BY m.mlbl_number
+                ''')
+            else:
+                cursor.execute('''
+                    SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name, 
+                           t.trailer_number, '-',
+                           orig.location_title || ' -> ' || dest.location_title as route,
+                           m.status, m.payment_status
+                    FROM moves m
+                    LEFT JOIN trailers t ON m.trailer_id = t.id
+                    LEFT JOIN locations orig ON m.origin_location_id = orig.id
+                    LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                    WHERE m.mlbl_number IS NOT NULL
+                    ORDER BY m.mlbl_number
+                ''')
         else:
             # Check schema before accessing new_trailer
             move_columns = get_table_columns(cursor, 'moves')
-            if 'new_trailer' in move_columns:
+            if 'new_trailer' in move_columns and 'old_trailer' in move_columns:
                 cursor.execute('''
                     SELECT m.order_number, m.order_number as mlbl_number, 
                            m.pickup_date, m.driver_name, 
-                           m.new_trailer,
+                           m.new_trailer, m.old_trailer,
+                           m.pickup_location || ' -> ' || m.delivery_location as route,
+                           m.status, 'pending' as payment_status
+                    FROM moves m
+                    WHERE m.order_number IS NOT NULL
+                    ORDER BY m.order_number
+                ''')
+            elif 'new_trailer' in move_columns:
+                cursor.execute('''
+                    SELECT m.order_number, m.order_number as mlbl_number, 
+                           m.pickup_date, m.driver_name, 
+                           m.new_trailer, '-',
                            m.pickup_location || ' -> ' || m.delivery_location as route,
                            m.status, 'pending' as payment_status
                     FROM moves m
@@ -1408,7 +1432,7 @@ def manage_mlbl_numbers():
                 cursor.execute('''
                     SELECT m.order_number, m.order_number as mlbl_number, 
                            m.pickup_date, m.driver_name, 
-                           m.order_number as trailer,
+                           m.order_number as trailer, '-',
                            m.pickup_location || ' -> ' || m.delivery_location as route,
                            m.status, 'pending' as payment_status
                     FROM moves m
@@ -1421,7 +1445,7 @@ def manage_mlbl_numbers():
     if mlbl_moves:
         st.write("### Moves with MLBL Numbers Assigned")
         df = pd.DataFrame(mlbl_moves, columns=[
-            'System ID', 'MLBL', 'Date', 'Driver', 'Trailer', 'Route', 'Status', 'Payment'
+            'System ID', 'MLBL', 'Date', 'Driver', 'New Trailer', 'Return Trailer', 'Route', 'Status', 'Payment'
         ])
         
         # Prevent truncation with column configuration
@@ -1648,18 +1672,35 @@ def show_dashboard():
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
             
-            cursor.execute('''
-                SELECT m.system_id, m.mlbl_number, m.move_date,
-                       t.trailer_number,
-                       orig.location_title || ' -> ' || dest.location_title as route,
-                       m.status, m.payment_status, m.estimated_earnings
-                FROM moves m
-                LEFT JOIN trailers t ON m.trailer_id = t.id
-                LEFT JOIN locations orig ON m.origin_location_id = orig.id
-                LEFT JOIN locations dest ON m.destination_location_id = dest.id
-                WHERE m.driver_name = ?
-                ORDER BY m.move_date DESC
-            ''', (driver_name,))
+            # Check if we have new_trailer/old_trailer columns
+            cursor.execute("PRAGMA table_info(moves)")
+            columns = [col[1] for col in cursor.fetchall()]
+            
+            if 'new_trailer' in columns and 'old_trailer' in columns:
+                cursor.execute('''
+                    SELECT m.system_id, m.mlbl_number, m.move_date,
+                           m.new_trailer, m.old_trailer,
+                           orig.location_title || ' -> ' || dest.location_title as route,
+                           m.status, m.payment_status, m.estimated_earnings
+                    FROM moves m
+                    LEFT JOIN locations orig ON m.origin_location_id = orig.id
+                    LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                    WHERE m.driver_name = ?
+                    ORDER BY m.move_date DESC
+                ''', (driver_name,))
+            else:
+                cursor.execute('''
+                    SELECT m.system_id, m.mlbl_number, m.move_date,
+                           t.trailer_number, '-',
+                           orig.location_title || ' -> ' || dest.location_title as route,
+                           m.status, m.payment_status, m.estimated_earnings
+                    FROM moves m
+                    LEFT JOIN trailers t ON m.trailer_id = t.id
+                    LEFT JOIN locations orig ON m.origin_location_id = orig.id
+                    LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                    WHERE m.driver_name = ?
+                    ORDER BY m.move_date DESC
+                ''', (driver_name,))
             
             moves = cursor.fetchall()
             
@@ -1669,19 +1710,19 @@ def show_dashboard():
                 # Summary metrics
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    active_count = sum(1 for m in moves if m[5] == 'active')
+                    active_count = sum(1 for m in moves if m[6] == 'active')
                     st.metric("Active Moves", active_count)
                 with col2:
-                    completed_count = sum(1 for m in moves if m[5] == 'completed')
+                    completed_count = sum(1 for m in moves if m[6] == 'completed')
                     st.metric("Completed Moves", completed_count)
                 with col3:
-                    total_earnings = sum(m[7] for m in moves if m[7])
+                    total_earnings = sum(m[8] for m in moves if m[8])
                     st.metric("Total Earnings", f"${total_earnings:,.2f}")
                 
                 st.divider()
                 
                 df = pd.DataFrame(moves, columns=[
-                    'System ID', 'MLBL', 'Date', 'Trailer', 'Route', 
+                    'System ID', 'MLBL', 'Date', 'New Trailer', 'Return Trailer', 'Route', 
                     'Status', 'Payment', 'Earnings'
                 ])
                 
@@ -1907,24 +1948,41 @@ def show_dashboard():
                 conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
                 
-                cursor.execute('''
-                    SELECT m.system_id, m.mlbl_number, m.move_date,
-                           t.trailer_number,
-                           orig.location_title || ' -> ' || dest.location_title as route,
-                           m.estimated_miles, m.estimated_earnings
-                    FROM moves m
-                    LEFT JOIN trailers t ON m.trailer_id = t.id
-                    LEFT JOIN locations orig ON m.origin_location_id = orig.id
-                    LEFT JOIN locations dest ON m.destination_location_id = dest.id
-                    WHERE m.driver_name = ? AND m.status = 'active'
-                    ORDER BY m.move_date DESC
-                ''', (driver_name,))
+                # Check if we have new_trailer/old_trailer columns
+                cursor.execute("PRAGMA table_info(moves)")
+                columns = [col[1] for col in cursor.fetchall()]
+                
+                if 'new_trailer' in columns and 'old_trailer' in columns:
+                    cursor.execute('''
+                        SELECT m.system_id, m.mlbl_number, m.move_date,
+                               m.new_trailer, m.old_trailer,
+                               orig.location_title || ' -> ' || dest.location_title as route,
+                               m.estimated_miles, m.estimated_earnings
+                        FROM moves m
+                        LEFT JOIN locations orig ON m.origin_location_id = orig.id
+                        LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                        WHERE m.driver_name = ? AND m.status = 'active'
+                        ORDER BY m.move_date DESC
+                    ''', (driver_name,))
+                else:
+                    cursor.execute('''
+                        SELECT m.system_id, m.mlbl_number, m.move_date,
+                               t.trailer_number, '-',
+                               orig.location_title || ' -> ' || dest.location_title as route,
+                               m.estimated_miles, m.estimated_earnings
+                        FROM moves m
+                        LEFT JOIN trailers t ON m.trailer_id = t.id
+                        LEFT JOIN locations orig ON m.origin_location_id = orig.id
+                        LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                        WHERE m.driver_name = ? AND m.status = 'active'
+                        ORDER BY m.move_date DESC
+                    ''', (driver_name,))
                 
                 active_moves = cursor.fetchall()
                 
                 if active_moves:
                     df = pd.DataFrame(active_moves, columns=[
-                        'System ID', 'MLBL', 'Date', 'Trailer', 'Route', 'Miles', 'Earnings'
+                        'System ID', 'MLBL', 'Date', 'New Trailer', 'Return Trailer', 'Route', 'Miles', 'Earnings'
                     ])
                     df['Earnings'] = df['Earnings'].apply(lambda x: f"${x:,.2f}" if x else "")
                     df['Miles'] = df['Miles'].apply(lambda x: f"{x:,.2f}" if x else "")
@@ -1949,24 +2007,41 @@ def show_dashboard():
                 conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
                 
-                cursor.execute('''
-                    SELECT m.system_id, m.mlbl_number, m.move_date,
-                           t.trailer_number,
-                           orig.location_title || ' -> ' || dest.location_title as route,
-                           m.payment_status, m.estimated_earnings
-                    FROM moves m
-                    LEFT JOIN trailers t ON m.trailer_id = t.id
-                    LEFT JOIN locations orig ON m.origin_location_id = orig.id
-                    LEFT JOIN locations dest ON m.destination_location_id = dest.id
-                    WHERE m.driver_name = ? AND m.status = 'completed'
-                    ORDER BY m.move_date DESC
-                ''', (driver_name,))
+                # Check if we have new_trailer/old_trailer columns
+                cursor.execute("PRAGMA table_info(moves)")
+                columns = [col[1] for col in cursor.fetchall()]
+                
+                if 'new_trailer' in columns and 'old_trailer' in columns:
+                    cursor.execute('''
+                        SELECT m.system_id, m.mlbl_number, m.move_date,
+                               m.new_trailer, m.old_trailer,
+                               orig.location_title || ' -> ' || dest.location_title as route,
+                               m.payment_status, m.estimated_earnings
+                        FROM moves m
+                        LEFT JOIN locations orig ON m.origin_location_id = orig.id
+                        LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                        WHERE m.driver_name = ? AND m.status = 'completed'
+                        ORDER BY m.move_date DESC
+                    ''', (driver_name,))
+                else:
+                    cursor.execute('''
+                        SELECT m.system_id, m.mlbl_number, m.move_date,
+                               t.trailer_number, '-',
+                               orig.location_title || ' -> ' || dest.location_title as route,
+                               m.payment_status, m.estimated_earnings
+                        FROM moves m
+                        LEFT JOIN trailers t ON m.trailer_id = t.id
+                        LEFT JOIN locations orig ON m.origin_location_id = orig.id
+                        LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                        WHERE m.driver_name = ? AND m.status = 'completed'
+                        ORDER BY m.move_date DESC
+                    ''', (driver_name,))
                 
                 completed_moves = cursor.fetchall()
                 
                 if completed_moves:
                     df = pd.DataFrame(completed_moves, columns=[
-                        'System ID', 'MLBL', 'Date', 'Trailer', 'Route', 'Payment', 'Earnings'
+                        'System ID', 'MLBL', 'Date', 'New Trailer', 'Return Trailer', 'Route', 'Payment', 'Earnings'
                     ])
                     df['Earnings'] = df['Earnings'].apply(lambda x: f"${x:,.2f}" if x else "")
                     
