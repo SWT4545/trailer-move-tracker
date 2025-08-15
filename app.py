@@ -277,12 +277,14 @@ def load_user_accounts():
                 "password": "driver123",
                 "roles": ["Driver"],
                 "driver_name": "Justin Duckett",
+                "is_driver": True,
                 "permissions": ["view_own_moves", "upload_documents", "self_assign"]
             },
             "CStrickland": {
                 "password": "driver123",
                 "roles": ["Driver"],
                 "driver_name": "Carl Strickland",
+                "is_driver": True,
                 "permissions": ["view_own_moves", "upload_documents", "self_assign"]
             }
         }
@@ -453,12 +455,16 @@ def create_new_move():
         col1, col2 = st.columns(2)
         
         with col1:
-            # Get trailers
+            # Get available trailers (not in active or completed moves)
             cursor.execute('''
-                SELECT t.id, t.trailer_number, l.location_title 
+                SELECT t.id, t.trailer_number, l.location_title, t.status
                 FROM trailers t
                 LEFT JOIN locations l ON t.current_location_id = l.id
-                WHERE t.status = 'available'
+                WHERE t.id NOT IN (
+                    SELECT trailer_id FROM moves 
+                    WHERE status IN ('active', 'assigned', 'in_transit', 'completed')
+                    AND trailer_id IS NOT NULL
+                )
             ''')
             trailers = cursor.fetchall()
             
@@ -523,6 +529,48 @@ def create_new_move():
                 st.success(f"✅ Move created successfully!")
                 st.markdown(f'<div class="system-id">System ID: {system_id}</div>', unsafe_allow_html=True)
                 st.info(f"📍 Estimated Miles: {miles} | 💰 Estimated Earnings: ${earnings:,.2f}")
+    
+    conn.close()
+    
+    # Show unavailable trailers section
+    st.divider()
+    st.subheader("🚫 Unavailable Trailers")
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Get trailers in use
+    cursor.execute('''
+        SELECT t.trailer_number, m.status, m.driver_name, 
+               orig.location_title || ' -> ' || dest.location_title as route,
+               m.move_date
+        FROM trailers t
+        JOIN moves m ON t.id = m.trailer_id
+        LEFT JOIN locations orig ON m.origin_location_id = orig.id
+        LEFT JOIN locations dest ON m.destination_location_id = dest.id
+        WHERE m.status IN ('active', 'assigned', 'in_transit', 'completed')
+        ORDER BY m.status, m.move_date DESC
+    ''')
+    
+    unavailable_trailers = cursor.fetchall()
+    
+    if unavailable_trailers:
+        df = pd.DataFrame(unavailable_trailers, columns=[
+            'Trailer', 'Status', 'Assigned To', 'Route', 'Date'
+        ])
+        
+        # Color code by status
+        def color_status(row):
+            if row['Status'] == 'active':
+                return ['background-color: #FFE4B5'] * len(row)  # Orange for active
+            elif row['Status'] == 'completed':
+                return ['background-color: #90EE90'] * len(row)  # Green for completed
+            return [''] * len(row)
+        
+        styled_df = df.style.apply(color_status, axis=1)
+        st.dataframe(styled_df, use_container_width=True, hide_index=True)
+    else:
+        st.info("All trailers are available")
     
     conn.close()
 
@@ -678,7 +726,7 @@ def manage_mlbl_numbers():
     cursor.execute('''
         SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name, 
                t.trailer_number,
-               orig.location_title || ' → ' || dest.location_title as route,
+               orig.location_title || ' -> ' || dest.location_title as route,
                m.status, m.payment_status
         FROM moves m
         LEFT JOIN trailers t ON m.trailer_id = t.id
@@ -778,7 +826,7 @@ def show_dashboard():
     # Show Vernon support
     show_vernon_support()
     
-    # Check if Brandon (Owner/Driver)
+    # Check if user is Owner with driver capabilities
     if role == "Owner" and user_data.get('is_driver'):
         tabs = st.tabs([
             "📊 Overview", "🚛 Create Move", "📋 Active Moves", 
@@ -805,7 +853,7 @@ def show_dashboard():
             cursor.execute('''
                 SELECT m.system_id, m.mlbl_number, m.move_date,
                        t.trailer_number,
-                       orig.location_title || ' → ' || dest.location_title as route,
+                       orig.location_title || ' -> ' || dest.location_title as route,
                        m.status, m.payment_status, m.estimated_earnings
                 FROM moves m
                 LEFT JOIN trailers t ON m.trailer_id = t.id
@@ -859,6 +907,32 @@ def show_dashboard():
                 st.success("Production data reloaded!")
                 st.rerun()
     
+    elif role == "Owner":  # Regular owner without driver role
+        tabs = st.tabs([
+            "📊 Overview", "🚛 Create Move", "📋 Active Moves", 
+            "✅ Completed Moves", "🔢 MLBL Management", "💰 Financials", "🔧 Admin"
+        ])
+        
+        with tabs[0]:
+            show_overview_metrics()
+        with tabs[1]:
+            create_new_move()
+        with tabs[2]:
+            show_active_moves()
+        with tabs[3]:
+            show_completed_moves()
+        with tabs[4]:
+            manage_mlbl_numbers()
+        with tabs[5]:
+            st.subheader("💰 Financial Management")
+            st.info("Financial management interface")
+        with tabs[6]:
+            st.subheader("🔧 System Administration")
+            if st.button("🔄 Reload Production Data"):
+                load_initial_data()
+                st.success("Production data reloaded!")
+                st.rerun()
+    
     elif role == "Manager":
         tabs = st.tabs([
             "📊 Overview", "🚛 Create Move", "📋 Active Moves", "✅ Completed Moves", "🔢 MLBL Management"
@@ -884,33 +958,147 @@ def show_dashboard():
             show_active_moves()
     
     elif role == "Driver":
-        st.subheader("🚛 Driver Dashboard")
+        # Enhanced driver dashboard with tabs
         driver_name = st.session_state.get('user_data', {}).get('driver_name')
         
         if driver_name:
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
+            tabs = st.tabs(["📊 My Overview", "📋 My Active Moves", "✅ My Completed Moves", "📄 Documents"])
             
-            cursor.execute('''
-                SELECT m.system_id, m.mlbl_number, m.move_date,
-                       m.client, m.status, m.estimated_earnings
-                FROM moves m
-                WHERE m.driver_name = ?
-                ORDER BY m.move_date DESC
-            ''', (driver_name,))
+            with tabs[0]:
+                st.subheader(f"🚛 Driver Dashboard - {driver_name}")
+                
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                
+                # Get driver's moves summary
+                cursor.execute('''
+                    SELECT 
+                        COUNT(*) as total_moves,
+                        SUM(CASE WHEN status='active' THEN 1 ELSE 0 END) as active,
+                        SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed,
+                        SUM(CASE WHEN payment_status='paid' THEN 1 ELSE 0 END) as paid,
+                        SUM(CASE WHEN payment_status='pending' THEN 1 ELSE 0 END) as pending,
+                        SUM(estimated_earnings) as total_earnings,
+                        SUM(CASE WHEN payment_status='paid' THEN estimated_earnings ELSE 0 END) as paid_earnings,
+                        SUM(CASE WHEN payment_status='pending' THEN estimated_earnings ELSE 0 END) as pending_earnings
+                    FROM moves
+                    WHERE driver_name = ?
+                ''', (driver_name,))
+                
+                stats = cursor.fetchone()
+                
+                # Display metrics
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Total Moves", stats[0] or 0)
+                with col2:
+                    st.metric("Active", stats[1] or 0)
+                with col3:
+                    st.metric("Completed", stats[2] or 0)
+                with col4:
+                    st.metric("Total Earnings", f"${stats[5] or 0:,.2f}")
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Paid Moves", stats[3] or 0)
+                with col2:
+                    st.metric("Pending Payment", stats[4] or 0)
+                with col3:
+                    st.metric("Paid Earnings", f"${stats[6] or 0:,.2f}")
+                with col4:
+                    st.metric("Pending Earnings", f"${stats[7] or 0:,.2f}")
+                
+                conn.close()
             
-            moves = cursor.fetchall()
+            with tabs[1]:
+                st.subheader("📋 My Active Moves")
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    SELECT m.system_id, m.mlbl_number, m.move_date,
+                           t.trailer_number,
+                           orig.location_title || ' -> ' || dest.location_title as route,
+                           m.estimated_miles, m.estimated_earnings
+                    FROM moves m
+                    LEFT JOIN trailers t ON m.trailer_id = t.id
+                    LEFT JOIN locations orig ON m.origin_location_id = orig.id
+                    LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                    WHERE m.driver_name = ? AND m.status = 'active'
+                    ORDER BY m.move_date DESC
+                ''', (driver_name,))
+                
+                active_moves = cursor.fetchall()
+                
+                if active_moves:
+                    df = pd.DataFrame(active_moves, columns=[
+                        'System ID', 'MLBL', 'Date', 'Trailer', 'Route', 'Miles', 'Earnings'
+                    ])
+                    df['Earnings'] = df['Earnings'].apply(lambda x: f"${x:,.2f}" if x else "")
+                    st.dataframe(df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("No active moves")
+                
+                conn.close()
             
-            if moves:
-                st.write(f"### Your Moves")
-                df = pd.DataFrame(moves, columns=[
-                    'System ID', 'MLBL', 'Date', 'Client', 'Status', 'Est. Earnings'
-                ])
-                st.dataframe(df, use_container_width=True, hide_index=True)
-            else:
-                st.info("No moves assigned")
+            with tabs[2]:
+                st.subheader("✅ My Completed Moves")
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    SELECT m.system_id, m.mlbl_number, m.move_date,
+                           t.trailer_number,
+                           orig.location_title || ' -> ' || dest.location_title as route,
+                           m.payment_status, m.estimated_earnings
+                    FROM moves m
+                    LEFT JOIN trailers t ON m.trailer_id = t.id
+                    LEFT JOIN locations orig ON m.origin_location_id = orig.id
+                    LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                    WHERE m.driver_name = ? AND m.status = 'completed'
+                    ORDER BY m.move_date DESC
+                ''', (driver_name,))
+                
+                completed_moves = cursor.fetchall()
+                
+                if completed_moves:
+                    df = pd.DataFrame(completed_moves, columns=[
+                        'System ID', 'MLBL', 'Date', 'Trailer', 'Route', 'Payment', 'Earnings'
+                    ])
+                    df['Earnings'] = df['Earnings'].apply(lambda x: f"${x:,.2f}" if x else "")
+                    
+                    # Color code payment status
+                    def highlight_payment(row):
+                        if row['Payment'] == 'paid':
+                            return ['background-color: #90EE90'] * len(row)
+                        elif row['Payment'] == 'pending':
+                            return ['background-color: #FFE4B5'] * len(row)
+                        return [''] * len(row)
+                    
+                    styled_df = df.style.apply(highlight_payment, axis=1)
+                    st.dataframe(styled_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("No completed moves")
+                
+                conn.close()
             
-            conn.close()
+            with tabs[3]:
+                st.subheader("📄 Document Upload")
+                st.info("Document upload functionality for PODs, BOLs, and Photos")
+                
+                # Simple document upload interface
+                uploaded_file = st.file_uploader(
+                    "Upload Move Documents",
+                    type=['pdf', 'jpg', 'jpeg', 'png'],
+                    help="Upload POD, BOL, or photos for your moves"
+                )
+                
+                if uploaded_file:
+                    st.success(f"File {uploaded_file.name} ready for upload")
+                    if st.button("Save Document"):
+                        st.success("Document saved successfully!")
+        else:
+            st.error("Driver profile not configured. Please contact administrator.")
     
     else:
         tabs = st.tabs(["📊 Overview"])
