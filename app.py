@@ -449,7 +449,7 @@ def create_new_move():
     st.subheader("🚛 Create New Move Order")
     
     # Clear explanation of the process
-    with st.expander("ℹ️ **How Trailer Swaps Work**", expanded=True):
+    with st.expander("ℹ️ **How Trailer Swaps Work**", expanded=False):
         st.markdown("""
         **The Process:**
         1. **Deliver** - Take a trailer FROM Fleet Memphis TO a FedEx location
@@ -460,13 +460,11 @@ def create_new_move():
         **Example:** Fleet Memphis -> FedEx Indy -> Fleet Memphis = 933.33 miles total = $1,960
         """)
     
-    # Instructions
-    st.info("📝 Select a trailer and enter the move details below.")
-    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    with st.form("new_move_form"):
+    # Use containers instead of form for real-time updates
+    with st.container():
         # Section 1: Trailer Selection
         st.markdown("### 1️⃣ Select Trailer from Fleet Memphis")
         
@@ -523,40 +521,48 @@ def create_new_move():
             destination = st.selectbox(
                 "📍 Delivery Location", 
                 options=list(location_options.keys()),
-                help="Where will the trailer be delivered to?"
+                help="Where will the trailer be delivered to?",
+                key="destination_select"
             )
         
-        # Auto-calculate miles based on route
-        if origin and destination:
-            if origin == "Fleet Memphis" and destination == "FedEx Indy":
-                suggested_miles = 933.33
-            elif origin == "Fleet Memphis" and destination == "FedEx Chicago":
-                suggested_miles = 1080.0
-            elif origin == "Fleet Memphis" and destination == "FedEx Memphis":
-                suggested_miles = 30.0
-            else:
-                suggested_miles = 450.0
+        # Auto-calculate miles based on route - REAL-TIME UPDATE
+        if destination == "FedEx Indy":
+            default_miles = 933.33
+        elif destination == "FedEx Chicago":
+            default_miles = 1080.0
+        elif destination == "FedEx Memphis":
+            default_miles = 30.0
         else:
-            suggested_miles = 450.0
+            default_miles = 450.0
+        
+        # Show auto-calculated mileage
+        st.info(f"📊 **Auto-calculated mileage for {destination}:** {default_miles:,.2f} miles")
         
         miles = st.number_input(
             "🛣️ Total Round Trip Miles", 
             min_value=0.0, 
-            value=suggested_miles, 
+            value=default_miles, 
             step=10.0,
-            help="Enter total miles for round trip (delivery + return)"
+            help="Auto-calculated based on destination. You can adjust if needed.",
+            key=f"miles_{destination}"
         )
         
-        # Show earnings calculation
+        # Show LIVE earnings calculation
+        st.markdown("### 💰 Real-Time Earnings Calculation")
         earnings = miles * 2.10
-        col1, col2, col3 = st.columns(3)
+        after_factoring = earnings * 0.97
+        service_fee_estimate = 6.00  # Placeholder
+        final_estimate = after_factoring - service_fee_estimate
+        
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("Rate per Mile", "$2.10")
+            st.metric("Miles × Rate", f"{miles:,.2f} × $2.10")
         with col2:
             st.metric("Gross Earnings", f"${earnings:,.2f}")
         with col3:
-            after_factoring = earnings * 0.97
             st.metric("After 3% Factoring", f"${after_factoring:,.2f}")
+        with col4:
+            st.metric("Est. Net (after fees)", f"${final_estimate:,.2f}")
         
         st.divider()
         
@@ -596,10 +602,11 @@ def create_new_move():
         
         st.divider()
         
-        # Submit button with clear confirmation
+        # Submit button (no form needed)
+        st.divider()
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.form_submit_button("✅ CREATE MOVE ORDER", type="primary", use_container_width=True):
+            if st.button("✅ CREATE MOVE ORDER", type="primary", use_container_width=True, key="create_move_btn"):
                 if selected_trailer and trailer_options:
                     # Generate system ID
                     system_id = generate_system_id()
