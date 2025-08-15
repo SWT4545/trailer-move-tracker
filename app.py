@@ -1451,22 +1451,40 @@ def show_active_moves():
     
     try:
         if 'destination_location_id' in columns:
-            cursor.execute('''
-                SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name,
-                       dest.location_title, t.trailer_number, m.status, m.estimated_miles, m.estimated_earnings
-                FROM moves m
-                LEFT JOIN locations dest ON m.destination_location_id = dest.id
-                LEFT JOIN trailers t ON m.trailer_id = t.id
-                WHERE m.status IN ('active', 'assigned', 'in_transit')
-                ORDER BY m.move_date DESC
-            ''')
+            if 'old_trailer' in columns:
+                cursor.execute('''
+                    SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name,
+                           dest.location_title, m.new_trailer, m.old_trailer, m.status, m.estimated_miles, m.estimated_earnings
+                    FROM moves m
+                    LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                    WHERE m.status IN ('active', 'assigned', 'in_transit')
+                    ORDER BY m.move_date DESC
+                ''')
+            else:
+                cursor.execute('''
+                    SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name,
+                           dest.location_title, t.trailer_number, '-', m.status, m.estimated_miles, m.estimated_earnings
+                    FROM moves m
+                    LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                    LEFT JOIN trailers t ON m.trailer_id = t.id
+                    WHERE m.status IN ('active', 'assigned', 'in_transit')
+                    ORDER BY m.move_date DESC
+                ''')
         else:
             # Check schema for active moves
             move_columns = get_table_columns(cursor, 'moves')
-            if 'new_trailer' in move_columns:
+            if 'new_trailer' in move_columns and 'old_trailer' in move_columns:
                 cursor.execute('''
                     SELECT m.order_number, m.order_number, m.pickup_date, m.driver_name,
-                           m.delivery_location, m.new_trailer, m.status, 0, m.amount
+                           m.delivery_location, m.new_trailer, m.old_trailer, m.status, 0, m.amount
+                    FROM moves m
+                    WHERE m.status IN ('active', 'assigned', 'in_transit')
+                    ORDER BY m.pickup_date DESC
+                ''')
+            elif 'new_trailer' in move_columns:
+                cursor.execute('''
+                    SELECT m.order_number, m.order_number, m.pickup_date, m.driver_name,
+                           m.delivery_location, m.new_trailer, '-', m.status, 0, m.amount
                     FROM moves m
                     WHERE m.status IN ('active', 'assigned', 'in_transit')
                     ORDER BY m.pickup_date DESC
@@ -1474,7 +1492,7 @@ def show_active_moves():
             else:
                 cursor.execute('''
                     SELECT m.order_number, m.order_number, m.pickup_date, m.driver_name,
-                           m.delivery_location, m.order_number, m.status, 0, m.amount
+                           m.delivery_location, m.order_number, '-', m.status, 0, m.amount
                     FROM moves m
                     WHERE m.status IN ('active', 'assigned', 'in_transit')
                     ORDER BY m.pickup_date DESC
@@ -1487,7 +1505,7 @@ def show_active_moves():
     if moves:
         df = pd.DataFrame(moves, columns=[
             'System ID', 'MLBL', 'Date', 'Driver', 'Location',
-            'Trailer', 'Status', 'Miles', 'Est. Earnings'
+            'New Trailer', 'Return Trailer', 'Status', 'Miles', 'Est. Earnings'
         ])
         
         # Format currency column
@@ -1558,7 +1576,7 @@ def show_completed_moves():
     if moves:
         df = pd.DataFrame(moves, columns=[
             'System ID', 'MLBL', 'Date', 'Driver', 'Location',
-            'Trailer', 'Payment Status', 'Miles', 'Est. Earnings'
+            'New Trailer', 'Return Trailer', 'Payment Status', 'Miles', 'Est. Earnings'
         ])
         
         # Format currency and number columns
@@ -1831,7 +1849,7 @@ def show_dashboard():
         driver_name = st.session_state.get('user_data', {}).get('driver_name')
         
         if driver_name:
-            tabs = st.tabs([" My Overview", " My Active Moves", " My Completed Moves", " Documents"])
+            tabs = st.tabs([" My Overview", "Create Move", " My Active Moves", " My Completed Moves", " Documents"])
             
             with tabs[0]:
                 st.subheader(f" Driver Dashboard - {driver_name}")
@@ -1880,6 +1898,11 @@ def show_dashboard():
                 conn.close()
             
             with tabs[1]:
+                # Drivers can create their own moves
+                st.subheader("Create New Move")
+                create_new_move()
+            
+            with tabs[2]:
                 st.subheader(" My Active Moves")
                 conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
@@ -1921,7 +1944,7 @@ def show_dashboard():
                 
                 conn.close()
             
-            with tabs[2]:
+            with tabs[3]:
                 st.subheader(" My Completed Moves")
                 conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
@@ -1972,7 +1995,7 @@ def show_dashboard():
                 
                 conn.close()
             
-            with tabs[3]:
+            with tabs[4]:
                 st.subheader(" Document Upload")
                 st.info("Document upload functionality for PODs, BOLs, and Photos")
                 

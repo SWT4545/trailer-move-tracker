@@ -189,10 +189,18 @@ def load_real_production_data():
     
     # COMPLETED AND PAID MOVES (with trailer swap details)
     completed_paid_moves = [
-        # Justin Duckett moves - 2 Memphis + 1 Indy
+        # Justin Duckett moves - each move swaps trailers
         {
             'system_id': get_system_id(),
-            'new_trailer': '190030', 'old_trailer': '7144',  # Memphis local move
+            'new_trailer': '18V00327', 'old_trailer': '6014',  # Delivered 18V00327, picked up 6014
+            'origin': 'Fleet Memphis', 'destination': 'FedEx Indy',
+            'driver': 'Justin Duckett', 'date': date(2025, 8, 12),
+            'delivered': date(2025, 8, 13), 'status': 'completed',
+            'payment_status': 'paid', 'miles': 933.333333  # Exactly $1960 / $2.10 = 933.333333
+        },
+        {
+            'system_id': get_system_id(),
+            'new_trailer': '190030', 'old_trailer': '7144',
             'origin': 'Fleet Memphis', 'destination': 'FedEx Memphis',
             'driver': 'Justin Duckett', 'date': date(2025, 8, 12),
             'delivered': date(2025, 8, 13), 'status': 'completed',
@@ -200,15 +208,7 @@ def load_real_production_data():
         },
         {
             'system_id': get_system_id(),
-            'new_trailer': '18V00327', 'old_trailer': '5950',  # Memphis local move
-            'origin': 'Fleet Memphis', 'destination': 'FedEx Memphis',
-            'driver': 'Justin Duckett', 'date': date(2025, 8, 12),
-            'delivered': date(2025, 8, 13), 'status': 'completed',
-            'payment_status': 'paid', 'miles': 95.238095  # $200 flat rate / $2.10
-        },
-        {
-            'system_id': get_system_id(),
-            'new_trailer': '190011', 'old_trailer': '7131',  # Indy move
+            'new_trailer': '190011', 'old_trailer': '7131',
             'origin': 'Fleet Memphis', 'destination': 'FedEx Indy',
             'driver': 'Justin Duckett', 'date': date(2025, 8, 12),
             'delivered': date(2025, 8, 13), 'status': 'completed',
@@ -225,7 +225,7 @@ def load_real_production_data():
             'payment_status': 'paid', 'miles': 1130  # Updated: $2373 / $2.10 = 1130 miles total
         },
         
-        # Carl Strickland completed move
+        # Carl Strickland move
         {
             'system_id': get_system_id(),
             'new_trailer': '190033', 'old_trailer': '7162',
@@ -276,18 +276,18 @@ def load_real_production_data():
     in_process_moves = [
         {
             'system_id': get_system_id(),
-            'new_trailer': '190046', 'old_trailer': '3083',  # Carl's in-process Indy move
+            'new_trailer': '190046', 'old_trailer': '6837',
             'origin': 'Fleet Memphis', 'destination': 'FedEx Indy',
             'driver': 'Carl Strickland', 'date': date(2025, 8, 14),
-            'delivered': None, 'status': 'active',  # In process
+            'delivered': None, 'status': 'active',  # Changed to active
             'payment_status': 'pending', 'miles': 933.333333  # Exactly $1960 / $2.10
         },
         {
             'system_id': get_system_id(),
-            'new_trailer': '18V00407', 'old_trailer': '5955',  # Brandon's in-process Indy move
+            'new_trailer': '18V00407', 'old_trailer': '6094',
             'origin': 'Fleet Memphis', 'destination': 'FedEx Indy',
             'driver': 'Brandon Smith', 'date': date(2025, 8, 14),
-            'delivered': None, 'status': 'active',  # In process
+            'delivered': None, 'status': 'active',  # Changed to active
             'payment_status': 'pending', 'miles': 933.333333  # Exactly $1960 / $2.10
         },
     ]
