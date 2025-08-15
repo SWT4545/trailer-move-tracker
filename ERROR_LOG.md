@@ -210,6 +210,38 @@ grep -r "✓" *.py
   - Use helper functions for dynamic schema detection
   - Never assume database structure
 
+### 17. UnboundLocalError - trailer_options Not Initialized (RESOLVED)
+**Date:** 2025-08-15
+**Error:** `UnboundLocalError: cannot access local variable 'trailer_options' where it is not associated with a value`
+**Location:** `app.py` line 680 in `create_new_move()`
+**Cause:** Variables `trailer_options` and `trailer_numbers` only initialized inside conditional blocks
+**Root Issue:** If `trailers_at_fleet` was empty, variables were never initialized before use
+**Solution:** Initialize `trailer_options` and `trailer_numbers` at the start of the trailers block
+**Files Affected:** `app.py` (lines 656-686)
+**Prevention:**
+  - Always initialize variables before conditional blocks
+  - Ensure all code paths define required variables
+  - Initialize collections (dict, list) early in function scope
+
+### 18. Dashboard Metrics Enhancement (RESOLVED)
+**Date:** 2025-08-15
+**Request:** Split available trailer count into Old/New/Total on dashboard
+**Implementation:** Enhanced trailer metrics to show:
+  - Old Trailers count (for pickup)
+  - New Trailers count (for delivery)
+  - Total Available count
+  - New Trailer percentage
+**Solution:** 
+  - Check for `is_new` column in trailers table
+  - If exists, use it to separate old (is_new=0) and new (is_new=1)
+  - If not, estimate based on trailer number patterns (19*, 18V*, 77*)
+  - Added two-row metric display with 7 total metrics
+**Files Affected:** `app.py` - `show_overview_metrics()` function
+**Benefits:**
+  - Better visibility into trailer swap inventory
+  - Helps track old trailer pickup needs
+  - Shows new trailer delivery availability
+
 ---
 
 Last Updated: 2025-08-15

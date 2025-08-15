@@ -507,8 +507,31 @@ def show_overview_metrics():
     cursor.execute('SELECT COUNT(*) FROM moves WHERE status IN ("active", "assigned")')
     active_moves = cursor.fetchone()[0]
     
-    cursor.execute('SELECT COUNT(*) FROM trailers WHERE status = "available"')
-    available_trailers = cursor.fetchone()[0]
+    # Get trailer counts - split by old and new
+    trailer_columns = get_table_columns(cursor, 'trailers') if table_exists(cursor, 'trailers') else []
+    
+    if 'is_new' in trailer_columns:
+        # Count old trailers (is_new = 0)
+        cursor.execute('SELECT COUNT(*) FROM trailers WHERE status = "available" AND is_new = 0')
+        old_trailers = cursor.fetchone()[0]
+        
+        # Count new trailers (is_new = 1)
+        cursor.execute('SELECT COUNT(*) FROM trailers WHERE status = "available" AND is_new = 1')
+        new_trailers = cursor.fetchone()[0]
+        
+        total_trailers = old_trailers + new_trailers
+    else:
+        # If no is_new column, just get total
+        cursor.execute('SELECT COUNT(*) FROM trailers WHERE status = "available"')
+        total_trailers = cursor.fetchone()[0]
+        # Estimate based on trailer number patterns
+        cursor.execute('''
+            SELECT COUNT(*) FROM trailers 
+            WHERE status = "available" 
+            AND (trailer_number LIKE '19%' OR trailer_number LIKE '18V%' OR trailer_number LIKE '77%')
+        ''')
+        new_trailers = cursor.fetchone()[0]
+        old_trailers = total_trailers - new_trailers
     
     cursor.execute('SELECT COUNT(*) FROM drivers WHERE status = "active"')
     active_drivers = cursor.fetchone()[0]
@@ -521,23 +544,41 @@ def show_overview_metrics():
     
     conn.close()
     
-    # Display metrics
+    # Display metrics - two rows
+    # First row: Move and trailer metrics
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.metric("Active Moves", active_moves)
     
     with col2:
-        st.metric("Available Trailers", available_trailers)
+        st.metric("Old Trailers", old_trailers, help="Available old trailers for pickup")
     
     with col3:
-        st.metric("Active Drivers", active_drivers)
+        st.metric("New Trailers", new_trailers, help="Available new trailers for delivery")
     
     with col4:
+        st.metric("Total Available", total_trailers, help="Total available trailers")
+    
+    # Second row: Driver and revenue metrics
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("Active Drivers", active_drivers)
+    
+    with col2:
         st.metric("Monthly Revenue", f"${monthly_revenue:,.0f}")
     
+    with col3:
+        # Calculate swap ratio
+        if total_trailers > 0:
+            new_ratio = (new_trailers / total_trailers) * 100
+            st.metric("New Trailer %", f"{new_ratio:.1f}%", help="Percentage of new trailers available")
+        else:
+            st.metric("New Trailer %", "N/A")
+    
     # Add data initialization button if no data
-    if active_moves == 0 and available_trailers == 0 and active_drivers == 0:
+    if active_moves == 0 and total_trailers == 0 and active_drivers == 0:
         st.warning("No data found in the system!")
         if st.button("Load Production Data", type="primary"):
             try:
@@ -658,6 +699,10 @@ def create_new_move():
             trailers_at_fleet = []
             trailers_at_other = []
             
+            # Initialize trailer_options and trailer_numbers
+            trailer_options = {}
+            trailer_numbers = {}  # Map display key to trailer number
+            
             for t in trailers:
                 if 'Fleet Memphis' in t[2] or 'TBD' in t[2]:
                     trailers_at_fleet.append(t)
@@ -667,8 +712,6 @@ def create_new_move():
             # Show Fleet Memphis trailers first
             if trailers_at_fleet:
                 st.info(f"**Trailers at Fleet Memphis ({len(trailers_at_fleet)} available)**")
-                trailer_options = {}
-                trailer_numbers = {}  # Map display key to trailer number
                 for t in trailers_at_fleet:
                     key = f"Trailer #{t[1]} @ Fleet Memphis"
                     trailer_options[key] = t[0]  # trailer id
@@ -677,9 +720,6 @@ def create_new_move():
             # Show trailers at other locations
             if trailers_at_other:
                 st.warning(f" **Trailers at other locations ({len(trailers_at_other)} available)**")
-                if not trailer_options:
-                    trailer_options = {}
-                    trailer_numbers = {}
                 for t in trailers_at_other:
                     key = f"Trailer #{t[1]} @ {t[2]}"
                     trailer_options[key] = t[0]  # trailer id
