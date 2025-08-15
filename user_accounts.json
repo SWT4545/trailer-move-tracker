@@ -4,10 +4,9 @@
             "password": "owner123",
             "roles": [
                 "Owner",
-                "business_administrator",
-                "driver"
+                "business_administrator"
             ],
-            "name": "Brandon Smith",
+            "driver_name": "Brandon Smith",
             "is_owner": true,
             "permissions": [
                 "ALL"
@@ -16,84 +15,52 @@
         "admin": {
             "password": "admin123",
             "roles": [
-                "business_administrator"
+                "Admin"
             ],
-            "name": "System Admin",
+            "driver_name": "System Admin",
             "permissions": [
-                "manage_users",
-                "manage_trailers",
+                "ALL"
+            ]
+        },
+        "manager": {
+            "password": "manager123",
+            "roles": [
+                "Manager"
+            ],
+            "permissions": [
                 "manage_moves",
+                "manage_trailers",
                 "view_reports"
             ]
         },
         "coordinator": {
             "password": "coord123",
             "roles": [
-                "operations_coordinator"
+                "Coordinator"
             ],
-            "name": "Ops Coordinator",
             "permissions": [
                 "manage_moves",
-                "manage_documents",
-                "view_reports"
+                "view_trailers"
             ]
         },
-        "dataentry": {
-            "password": "data123",
-            "roles": [
-                "data_entry"
-            ],
-            "name": "Data Entry Clerk",
-            "permissions": [
-                "create_moves",
-                "update_moves",
-                "upload_documents"
-            ]
-        },
-        "j_duckett": {
+        "JDuckett": {
             "password": "driver123",
             "roles": [
-                "driver"
+                "Driver"
             ],
-            "name": "Justin Duckett",
+            "driver_name": "Justin Duckett",
             "permissions": [
-                "view_own_moves",
-                "update_own_moves",
-                "upload_pod"
+                "view_own_moves"
             ]
         },
-        "c_strickland": {
+        "CStrickland": {
             "password": "driver123",
             "roles": [
-                "driver"
+                "Driver"
             ],
-            "name": "Carl Strickland",
+            "driver_name": "Carl Strickland",
             "permissions": [
-                "view_own_moves",
-                "update_own_moves",
-                "upload_pod"
-            ]
-        },
-        "viewer": {
-            "password": "viewer123",
-            "roles": [
-                "viewer"
-            ],
-            "name": "System Viewer",
-            "permissions": [
-                "view_only"
-            ]
-        },
-        "metro_client": {
-            "password": "metro123",
-            "roles": [
-                "client"
-            ],
-            "name": "Metro Logistics Representative",
-            "client_company": "Metro Logistics, Inc.",
-            "permissions": [
-                "view_own_shipments",
-                "view_documents"
+                "view_own_moves"
             ]
         }
     }
