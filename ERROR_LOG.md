@@ -87,8 +87,20 @@ This log tracks all errors encountered during development to prevent recurring i
 **Cause:** Using Unicode emojis (🚛, ✅, 📊, etc.) throughout the app interface
 **Impact:** App works locally but fails on Streamlit Cloud deployment
 **Solution:** Removed ALL Unicode characters from app.py - replaced with text or removed entirely
-**Files Affected:** `app.py` (全 file - over 100 Unicode characters removed)
+**Files Affected:** `app.py` (entire file - over 100 Unicode characters removed)
 **Prevention:** NEVER use Unicode characters/emojis in production apps - use text only
+
+### 11. Database Column Name Mismatch on Streamlit Cloud (RESOLVED)
+**Date:** 2025-08-15
+**Error:** `sqlite3.OperationalError` on queries using t.current_location
+**Cause:** Database has different structures - normalized vs simple
+  - smith_williams_trucking.db: Uses `current_location_id` with foreign keys
+  - trailer_moves.db: Uses `current_location` as text field
+**Solution:** Added dynamic schema detection before queries
+  - Check table structure with PRAGMA table_info
+  - Build appropriate query based on available columns
+**Files Affected:** `app.py` (lines 481-515, 763-793, 832-857)
+**Prevention:** Always check table structure dynamically, don't assume column names
 
 ---
 

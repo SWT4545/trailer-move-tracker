@@ -478,19 +478,41 @@ def create_new_move():
         # Section 1: Trailer Selection
         st.markdown("### 1. Select Trailer to Deliver")
         
-        # Get available trailers - exclude those already used in moves
-        cursor.execute('''
-            SELECT t.id, t.trailer_number, 
-                   COALESCE(t.current_location, 'Fleet Memphis') as location,
-                   t.status
-            FROM trailers t
-            WHERE t.trailer_number NOT IN (
-                SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
-                UNION
-                SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
-            )
-            ORDER BY t.current_location, t.trailer_number
-        ''')
+        # Get available trailers - handle both database structures
+        # First, check which columns exist in trailers table
+        cursor.execute("PRAGMA table_info(trailers)")
+        columns = [col[1] for col in cursor.fetchall()]
+        
+        # Build query based on available columns
+        if 'current_location_id' in columns:
+            # Normalized structure with location_id
+            cursor.execute('''
+                SELECT t.id, t.trailer_number, 
+                       COALESCE(l.location_title, 'Fleet Memphis') as location,
+                       t.status
+                FROM trailers t
+                LEFT JOIN locations l ON t.current_location_id = l.id
+                WHERE t.trailer_number NOT IN (
+                    SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
+                    UNION
+                    SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
+                )
+                ORDER BY location, t.trailer_number
+            ''')
+        else:
+            # Simple structure with current_location text field
+            cursor.execute('''
+                SELECT t.id, t.trailer_number, 
+                       COALESCE(t.current_location, 'Fleet Memphis') as location,
+                       t.status
+                FROM trailers t
+                WHERE t.trailer_number NOT IN (
+                    SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
+                    UNION
+                    SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
+                )
+                ORDER BY t.current_location, t.trailer_number
+            ''')
         trailers = cursor.fetchall()
         
         if trailers:
@@ -738,18 +760,39 @@ def create_new_move():
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
-        # Get available trailers
-        cursor.execute('''
-            SELECT t.trailer_number, l.location_title, t.status
-            FROM trailers t
-            LEFT JOIN locations l ON t.current_location_id = l.id
-            WHERE t.id NOT IN (
-                SELECT trailer_id FROM moves 
-                WHERE status IN ('active', 'assigned', 'in_transit')
-                AND trailer_id IS NOT NULL
-            )
-            ORDER BY t.trailer_number
-        ''')
+        # Get available trailers - check database structure first
+        cursor.execute("PRAGMA table_info(trailers)")
+        columns = [col[1] for col in cursor.fetchall()]
+        
+        if 'current_location_id' in columns:
+            # Normalized structure
+            cursor.execute('''
+                SELECT t.trailer_number, 
+                       COALESCE(l.location_title, 'Fleet Memphis') as location, 
+                       t.status
+                FROM trailers t
+                LEFT JOIN locations l ON t.current_location_id = l.id
+                WHERE t.id NOT IN (
+                    SELECT trailer_id FROM moves 
+                    WHERE status IN ('active', 'assigned', 'in_transit')
+                    AND trailer_id IS NOT NULL
+                )
+                ORDER BY t.trailer_number
+            ''')
+        else:
+            # Simple structure
+            cursor.execute('''
+                SELECT t.trailer_number, 
+                       COALESCE(t.current_location, 'Fleet Memphis') as location, 
+                       t.status
+                FROM trailers t
+                WHERE t.id NOT IN (
+                    SELECT trailer_id FROM moves 
+                    WHERE status IN ('active', 'assigned', 'in_transit')
+                    AND trailer_id IS NOT NULL
+                )
+                ORDER BY t.trailer_number
+            ''')
         
         available_trailers = cursor.fetchall()
         
@@ -786,16 +829,32 @@ def create_new_move():
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
-        # Get trailers in use
-        cursor.execute('''
-            SELECT t.trailer_number, m.driver_name, m.status,
-                   dest.location_title as destination
-            FROM trailers t
-            JOIN moves m ON t.id = m.trailer_id
-            LEFT JOIN locations dest ON m.destination_location_id = dest.id
-            WHERE m.status IN ('active', 'assigned', 'in_transit')
-            ORDER BY m.status, m.move_date DESC
-        ''')
+        # Get trailers in use - check database structure
+        cursor.execute("PRAGMA table_info(moves)")
+        move_columns = [col[1] for col in cursor.fetchall()]
+        
+        if 'destination_location_id' in move_columns:
+            # Normalized structure with foreign keys
+            cursor.execute('''
+                SELECT t.trailer_number, m.driver_name, m.status,
+                       dest.location_title as destination
+                FROM trailers t
+                JOIN moves m ON t.id = m.trailer_id
+                LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                WHERE m.status IN ('active', 'assigned', 'in_transit')
+                ORDER BY m.status, m.move_date DESC
+            ''')
+        else:
+            # Simple structure - use new_trailer field
+            cursor.execute('''
+                SELECT DISTINCT m.new_trailer as trailer_number, 
+                       m.driver_name, m.status,
+                       m.delivery_location as destination
+                FROM moves m
+                WHERE m.status IN ('active', 'assigned', 'in_transit')
+                AND m.new_trailer IS NOT NULL
+                ORDER BY m.status, m.pickup_date DESC
+            ''')
         
         unavailable_trailers = cursor.fetchall()
         
