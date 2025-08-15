@@ -195,6 +195,21 @@ grep -r "→" *.py
 grep -r "✓" *.py
 ```
 
+### 16. Global Schema Detection Missing (RESOLVED)
+**Date:** 2025-08-15
+**Error:** `sqlite3.OperationalError: table moves has no column named new_trailer`
+**Cause:** App tried to access new_trailer/old_trailer columns without checking if they exist
+**Root Issue:** Different database schemas on local vs cloud deployments
+**Solution:** Added global schema detection functions:
+  - `get_table_columns()` - Gets column list for any table
+  - `table_exists()` - Checks if table exists
+  - Updated ALL queries to check schema before accessing columns
+**Files Affected:** `app.py` (20+ queries updated)
+**Prevention:** 
+  - ALWAYS check column existence before querying
+  - Use helper functions for dynamic schema detection
+  - Never assume database structure
+
 ---
 
 Last Updated: 2025-08-15

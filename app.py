@@ -211,6 +211,17 @@ def init_database():
     conn.commit()
     conn.close()
 
+# Global schema checker
+def get_table_columns(cursor, table_name):
+    """Get columns for a table dynamically"""
+    cursor.execute(f"PRAGMA table_info({table_name})")
+    return [col[1] for col in cursor.fetchall()]
+
+def table_exists(cursor, table_name):
+    """Check if table exists"""
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
+    return cursor.fetchone() is not None
+
 # Load initial data if needed
 def load_initial_data():
     """Load real production data and ensure basic data exists"""
@@ -239,6 +250,18 @@ def load_initial_data():
     # If no data, load production data
     if trailer_count == 0 or driver_count == 0:
         try:
+            # Check if moves table has proper columns before loading data
+            if table_exists(cursor, 'moves'):
+                move_columns = get_table_columns(cursor, 'moves')
+                if 'new_trailer' not in move_columns:
+                    # Add missing columns if needed
+                    try:
+                        cursor.execute('ALTER TABLE moves ADD COLUMN new_trailer TEXT')
+                        cursor.execute('ALTER TABLE moves ADD COLUMN old_trailer TEXT')
+                        conn.commit()
+                    except:
+                        pass  # Columns might already exist
+            
             # Try to import and run the real data loader
             from load_real_production_data import load_real_production_data
             load_real_production_data()
@@ -844,24 +867,39 @@ def create_new_move():
                     # Calculate earnings
                     earnings = miles * 2.10
                     
-                    # Create move
-                    cursor.execute('''
-                        INSERT INTO moves (
-                            system_id, move_date, trailer_id, new_trailer, old_trailer,
-                            origin_location_id, destination_location_id, 
-                            driver_id, driver_name, client,
-                            estimated_miles, base_rate, estimated_earnings, status
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2.10, ?, 'assigned')
-                    ''', (
-                        system_id, move_date, 
-                        trailer_options.get(selected_trailer),  # trailer_id
-                        trailer_numbers.get(selected_trailer),  # new_trailer number
-                        swap_trailer if swap_trailer else None,  # old_trailer to pick up
-                        1,  # origin_location_id (Fleet Memphis)
-                        location_options.get(destination),  # destination_location_id
-                        driver_options.get(selected_driver), selected_driver, client,
-                        miles, earnings
-                    ))
+                    # Create move - check schema first
+                    move_columns = get_table_columns(cursor, 'moves')
+                    
+                    if 'new_trailer' in move_columns:
+                        # Full schema with new_trailer/old_trailer
+                        cursor.execute('''
+                            INSERT INTO moves (
+                                system_id, move_date, trailer_id, new_trailer, old_trailer,
+                                origin_location_id, destination_location_id, 
+                                driver_id, driver_name, client,
+                                estimated_miles, base_rate, estimated_earnings, status
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2.10, ?, 'assigned')
+                        ''', (
+                            system_id, move_date, 
+                            trailer_options.get(selected_trailer),  # trailer_id
+                            trailer_numbers.get(selected_trailer),  # new_trailer number
+                            swap_trailer if swap_trailer else None,  # old_trailer to pick up
+                            1,  # origin_location_id (Fleet Memphis)
+                            location_options.get(destination),  # destination_location_id
+                            driver_options.get(selected_driver), selected_driver, client,
+                            miles, earnings
+                        ))
+                    else:
+                        # Simpler schema without new_trailer/old_trailer
+                        cursor.execute('''
+                            INSERT INTO moves (
+                                order_number, pickup_date, driver_name,
+                                pickup_location, delivery_location, status, amount
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ''', (
+                            system_id, move_date, selected_driver,
+                            'Fleet Memphis', destination, 'assigned', earnings
+                        ))
                     
                     # Update trailer status
                     cursor.execute('''
@@ -982,16 +1020,28 @@ def create_new_move():
                 ORDER BY m.status, m.move_date DESC
             ''')
         else:
-            # Simple structure - use new_trailer field
-            cursor.execute('''
-                SELECT DISTINCT m.new_trailer as trailer_number, 
-                       m.driver_name, m.status,
-                       m.delivery_location as destination
-                FROM moves m
-                WHERE m.status IN ('active', 'assigned', 'in_transit')
-                AND m.new_trailer IS NOT NULL
-                ORDER BY m.status, m.pickup_date DESC
-            ''')
+            # Simple structure - check if new_trailer field exists
+            move_columns = get_table_columns(cursor, 'moves')
+            if 'new_trailer' in move_columns:
+                cursor.execute('''
+                    SELECT DISTINCT m.new_trailer as trailer_number, 
+                           m.driver_name, m.status,
+                           m.delivery_location as destination
+                    FROM moves m
+                    WHERE m.status IN ('active', 'assigned', 'in_transit')
+                    AND m.new_trailer IS NOT NULL
+                    ORDER BY m.status, m.pickup_date DESC
+                ''')
+            else:
+                # Fallback for very simple schema
+                cursor.execute('''
+                    SELECT DISTINCT m.order_number as trailer_number, 
+                           m.driver_name, m.status,
+                           m.delivery_location as destination
+                    FROM moves m
+                    WHERE m.status IN ('active', 'assigned', 'in_transit')
+                    ORDER BY m.status, m.pickup_date DESC
+                ''')
         
         unavailable_trailers = cursor.fetchall()
         
@@ -1058,18 +1108,32 @@ def manage_mlbl_numbers():
                 ORDER BY m.move_date DESC, m.system_id
             ''')
         else:
-            # Simple structure
-            cursor.execute('''
-                SELECT m.order_number as system_id, m.pickup_date as move_date, 
-                       m.customer_name as client, m.driver_name, m.status, 
-                       'pending' as payment_status,
-                       m.new_trailer as trailer_number, 
-                       m.pickup_location as origin, m.delivery_location as destination,
-                       0 as estimated_miles, m.amount as estimated_earnings
-                FROM moves m
-                WHERE m.order_number NOT IN (SELECT mlbl_number FROM moves WHERE mlbl_number IS NOT NULL)
-                ORDER BY m.pickup_date DESC, m.order_number
-            ''')
+            # Simple structure - check schema
+            move_columns = get_table_columns(cursor, 'moves')
+            if 'new_trailer' in move_columns:
+                cursor.execute('''
+                    SELECT m.order_number as system_id, m.pickup_date as move_date, 
+                           m.customer_name as client, m.driver_name, m.status, 
+                           'pending' as payment_status,
+                           m.new_trailer as trailer_number, 
+                           m.pickup_location as origin, m.delivery_location as destination,
+                           0 as estimated_miles, m.amount as estimated_earnings
+                    FROM moves m
+                    WHERE m.order_number NOT IN (SELECT mlbl_number FROM moves WHERE mlbl_number IS NOT NULL)
+                    ORDER BY m.pickup_date DESC, m.order_number
+                ''')
+            else:
+                cursor.execute('''
+                    SELECT m.order_number as system_id, m.pickup_date as move_date, 
+                           'FedEx' as client, m.driver_name, m.status, 
+                           'pending' as payment_status,
+                           m.order_number as trailer_number, 
+                           m.pickup_location as origin, m.delivery_location as destination,
+                           0 as estimated_miles, m.amount as estimated_earnings
+                    FROM moves m
+                    WHERE m.order_number NOT IN (SELECT mlbl_number FROM moves WHERE mlbl_number IS NOT NULL)
+                    ORDER BY m.pickup_date DESC, m.order_number
+                ''')
         pending_moves = cursor.fetchall()
     except sqlite3.OperationalError as e:
         st.error(f"Database error: {str(e)}")
@@ -1216,16 +1280,30 @@ def manage_mlbl_numbers():
                 ORDER BY m.mlbl_number
             ''')
         else:
-            cursor.execute('''
-                SELECT m.order_number, m.order_number as mlbl_number, 
-                       m.pickup_date, m.driver_name, 
-                       m.new_trailer,
-                       m.pickup_location || ' -> ' || m.delivery_location as route,
-                       m.status, 'pending' as payment_status
-                FROM moves m
-                WHERE m.order_number IS NOT NULL
-                ORDER BY m.order_number
-            ''')
+            # Check schema before accessing new_trailer
+            move_columns = get_table_columns(cursor, 'moves')
+            if 'new_trailer' in move_columns:
+                cursor.execute('''
+                    SELECT m.order_number, m.order_number as mlbl_number, 
+                           m.pickup_date, m.driver_name, 
+                           m.new_trailer,
+                           m.pickup_location || ' -> ' || m.delivery_location as route,
+                           m.status, 'pending' as payment_status
+                    FROM moves m
+                    WHERE m.order_number IS NOT NULL
+                    ORDER BY m.order_number
+                ''')
+            else:
+                cursor.execute('''
+                    SELECT m.order_number, m.order_number as mlbl_number, 
+                           m.pickup_date, m.driver_name, 
+                           m.order_number as trailer,
+                           m.pickup_location || ' -> ' || m.delivery_location as route,
+                           m.status, 'pending' as payment_status
+                    FROM moves m
+                    WHERE m.order_number IS NOT NULL
+                    ORDER BY m.order_number
+                ''')
         mlbl_moves = cursor.fetchall()
     except sqlite3.OperationalError:
         mlbl_moves = []
@@ -1272,13 +1350,24 @@ def show_active_moves():
                 ORDER BY m.move_date DESC
             ''')
         else:
-            cursor.execute('''
-                SELECT m.order_number, m.order_number, m.pickup_date, m.driver_name,
-                       m.delivery_location, m.new_trailer, m.status, 0, m.amount
-                FROM moves m
-                WHERE m.status IN ('active', 'assigned', 'in_transit')
-                ORDER BY m.pickup_date DESC
-            ''')
+            # Check schema for active moves
+            move_columns = get_table_columns(cursor, 'moves')
+            if 'new_trailer' in move_columns:
+                cursor.execute('''
+                    SELECT m.order_number, m.order_number, m.pickup_date, m.driver_name,
+                           m.delivery_location, m.new_trailer, m.status, 0, m.amount
+                    FROM moves m
+                    WHERE m.status IN ('active', 'assigned', 'in_transit')
+                    ORDER BY m.pickup_date DESC
+                ''')
+            else:
+                cursor.execute('''
+                    SELECT m.order_number, m.order_number, m.pickup_date, m.driver_name,
+                           m.delivery_location, m.order_number, m.status, 0, m.amount
+                    FROM moves m
+                    WHERE m.status IN ('active', 'assigned', 'in_transit')
+                    ORDER BY m.pickup_date DESC
+                ''')
         moves = cursor.fetchall()
     except sqlite3.OperationalError as e:
         st.error(f"Database error in active moves: {str(e)}")
@@ -1332,13 +1421,24 @@ def show_completed_moves():
                 ORDER BY m.move_date DESC
             ''')
         else:
-            cursor.execute('''
-                SELECT m.order_number, m.order_number, m.completed_date, m.driver_name,
-                       m.delivery_location, m.new_trailer, 'pending', 0, m.amount
-                FROM moves m
-                WHERE m.status = 'completed'
-                ORDER BY m.completed_date DESC
-            ''')
+            # Check schema for completed moves
+            move_columns = get_table_columns(cursor, 'moves')
+            if 'new_trailer' in move_columns:
+                cursor.execute('''
+                    SELECT m.order_number, m.order_number, m.completed_date, m.driver_name,
+                           m.delivery_location, m.new_trailer, 'pending', 0, m.amount
+                    FROM moves m
+                    WHERE m.status = 'completed'
+                    ORDER BY m.completed_date DESC
+                ''')
+            else:
+                cursor.execute('''
+                    SELECT m.order_number, m.order_number, m.completed_date, m.driver_name,
+                           m.delivery_location, m.order_number, 'pending', 0, m.amount
+                    FROM moves m
+                    WHERE m.status = 'completed'
+                    ORDER BY m.completed_date DESC
+                ''')
         moves = cursor.fetchall()
     except sqlite3.OperationalError as e:
         st.error(f"Database error in completed moves: {str(e)}")
