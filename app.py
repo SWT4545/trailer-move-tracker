@@ -206,87 +206,15 @@ def init_database():
 
 # Load initial data if needed
 def load_initial_data():
-    """Load initial sample data"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    # Check if data exists
-    cursor.execute('SELECT COUNT(*) FROM drivers')
-    if cursor.fetchone()[0] > 0:
-        conn.close()
-        return
-    
-    # Insert drivers
-    drivers = [
-        ('Brandon Smith', 'Smith & Williams Trucking', '901-555-0001', 'brandon@swtrucking.com', 'owner'),
-        ('Justin Duckett', 'Duckett Transport LLC', '901-555-0002', 'jduckett@email.com', 'contractor'),
-        ('Carl Strickland', 'Strickland Logistics', '901-555-0003', 'cstrickland@email.com', 'contractor'),
-        ('Mike Johnson', 'Johnson Freight', '901-555-0004', 'mjohnson@email.com', 'contractor'),
-        ('Sarah Williams', 'Williams Transport', '901-555-0005', 'swilliams@email.com', 'company')
-    ]
-    
-    for driver in drivers:
-        cursor.execute('''
-            INSERT OR IGNORE INTO drivers (driver_name, company_name, phone, email, driver_type)
-            VALUES (?, ?, ?, ?, ?)
-        ''', driver)
-    
-    # Insert locations
-    locations = [
-        ('Fleet Memphis', '123 Fleet Way', 'Memphis', 'TN', '38103', 35.1495, -90.0490, 'base', 1),
-        ('FedEx Memphis Hub', '456 FedEx Pkwy', 'Memphis', 'TN', '38116', 35.0456, -89.9773, 'customer', 0),
-        ('FedEx Indianapolis', '789 Hub Dr', 'Indianapolis', 'IN', '46241', 39.7684, -86.1581, 'customer', 0),
-        ('Chicago Terminal', '321 Terminal Rd', 'Chicago', 'IL', '60606', 41.8781, -87.6298, 'customer', 0),
-        ('Nashville Hub', '555 Music City Dr', 'Nashville', 'TN', '37203', 36.1627, -86.7816, 'customer', 0),
-        ('Atlanta Distribution', '777 Peachtree Way', 'Atlanta', 'GA', '30301', 33.7490, -84.3880, 'customer', 0)
-    ]
-    
-    for loc in locations:
-        cursor.execute('''
-            INSERT OR IGNORE INTO locations (
-                location_title, address, city, state, zip_code,
-                latitude, longitude, location_type, is_base_location
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', loc)
-    
-    # Insert trailers
-    trailers = [
-        ('TRL-001', 'Standard', 1, 'available'),
-        ('TRL-002', 'Standard', 1, 'available'),
-        ('TRL-003', 'Refrigerated', 2, 'available'),
-        ('TRL-004', 'Standard', 3, 'in_transit'),
-        ('TRL-005', 'Flatbed', 1, 'available'),
-        ('TRL-006', 'Standard', 4, 'available'),
-        ('TRL-007', 'Refrigerated', 5, 'in_transit'),
-        ('TRL-008', 'Standard', 1, 'available')
-    ]
-    
-    for trailer in trailers:
-        cursor.execute('''
-            INSERT OR IGNORE INTO trailers (trailer_number, trailer_type, current_location_id, status)
-            VALUES (?, ?, ?, ?)
-        ''', trailer)
-    
-    # Insert sample moves
-    moves = [
-        ('SWT-2025-01-0001', 'MLBL58064', date(2025, 1, 6), 1, 1, 2, 'FedEx', 2, 'Justin Duckett', 450, 945.00, 'active'),
-        ('SWT-2025-01-0002', 'MLBL58065', date(2025, 1, 7), 2, 1, 3, 'FedEx', 2, 'Justin Duckett', 385, 808.50, 'active'),
-        ('SWT-2025-01-0003', 'MLBL58066', date(2025, 1, 8), 3, 1, 4, 'FedEx', 3, 'Carl Strickland', 520, 1092.00, 'active'),
-        ('SWT-2025-01-0004', 'MLBL58067', date(2025, 1, 9), 4, 2, 5, 'FedEx', 1, 'Brandon Smith', 280, 588.00, 'completed'),
-        ('SWT-2025-01-0005', None, date(2025, 1, 10), 5, 3, 1, 'UPS', 4, 'Mike Johnson', 610, 1281.00, 'assigned')
-    ]
-    
-    for move in moves:
-        cursor.execute('''
-            INSERT OR IGNORE INTO moves (
-                system_id, mlbl_number, move_date, trailer_id,
-                origin_location_id, destination_location_id, client,
-                driver_id, driver_name, estimated_miles, estimated_earnings, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', move)
-    
-    conn.commit()
-    conn.close()
+    """Load real production data only"""
+    # Import and run the real data loader
+    try:
+        from load_real_production_data import load_real_production_data
+        load_real_production_data()
+    except Exception as e:
+        # Log error but don't add any dummy data
+        print(f"Error loading real production data: {e}")
+        pass
 
 # Generate system ID
 def generate_system_id():
@@ -693,9 +621,9 @@ def show_dashboard():
             st.info("Financial management interface")
         with tabs[5]:
             st.subheader("🔧 System Administration")
-            if st.button("🔄 Initialize Sample Data"):
+            if st.button("🔄 Reload Production Data"):
                 load_initial_data()
-                st.success("Sample data loaded!")
+                st.success("Production data reloaded!")
                 st.rerun()
     
     elif role == "Manager":
