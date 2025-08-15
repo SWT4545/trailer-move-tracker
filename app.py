@@ -446,131 +446,280 @@ def show_overview_metrics():
 # Create new move
 def create_new_move():
     """Create new move with system ID"""
-    st.subheader("📦 Create New Move")
+    st.subheader("🚛 Create New Move Order")
+    
+    # Clear explanation of the process
+    with st.expander("ℹ️ **How Trailer Moves Work** - Click to understand", expanded=True):
+        st.markdown("""
+        **The Trailer Swap Process:**
+        1. **NEW Trailer** - You deliver a new/empty trailer FROM Fleet Memphis TO a FedEx location
+        2. **OLD Trailer** - You pick up a loaded/old trailer FROM that FedEx location 
+        3. **Return Trip** - You bring the old trailer BACK to Fleet Memphis
+        4. **Payment** - You get paid for the total round-trip mileage at $2.10/mile
+        
+        **Example:** Fleet Memphis → FedEx Indy (deliver new) → Pick up old → Return to Fleet Memphis = 933.33 miles total
+        """)
+    
+    # Instructions
+    st.info("📝 **Instructions:** Select an available trailer below and fill out the move details. The system will track both the delivery and return.")
     
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     with st.form("new_move_form"):
+        # Section 1: Trailer Selection
+        st.markdown("### 1️⃣ Select Trailer to Move")
+        
+        # Get available trailers (not in active or completed moves)
+        cursor.execute('''
+            SELECT t.id, t.trailer_number, l.location_title, t.status
+            FROM trailers t
+            LEFT JOIN locations l ON t.current_location_id = l.id
+            WHERE t.id NOT IN (
+                SELECT trailer_id FROM moves 
+                WHERE status IN ('active', 'assigned', 'in_transit', 'completed')
+                AND trailer_id IS NOT NULL
+            )
+        ''')
+        trailers = cursor.fetchall()
+        
+        if trailers:
+            trailer_options = {f"Trailer #{t[1]} - Currently at: {t[2] or 'Location TBD'}": t[0] for t in trailers}
+            selected_trailer = st.selectbox(
+                "Available Trailers", 
+                options=list(trailer_options.keys()),
+                help="Select the NEW trailer to be delivered"
+            )
+            st.success(f"✅ {len(trailers)} trailers available for assignment")
+        else:
+            st.error("❌ No trailers available - All trailers are currently assigned or in transit")
+            trailer_options = {}
+            selected_trailer = None
+        
+        st.divider()
+        
+        # Section 2: Route Information
+        st.markdown("### 2️⃣ Route Details")
         col1, col2 = st.columns(2)
         
         with col1:
-            # Get available trailers (not in active or completed moves)
-            cursor.execute('''
-                SELECT t.id, t.trailer_number, l.location_title, t.status
-                FROM trailers t
-                LEFT JOIN locations l ON t.current_location_id = l.id
-                WHERE t.id NOT IN (
-                    SELECT trailer_id FROM moves 
-                    WHERE status IN ('active', 'assigned', 'in_transit', 'completed')
-                    AND trailer_id IS NOT NULL
-                )
-            ''')
-            trailers = cursor.fetchall()
-            
-            if trailers:
-                trailer_options = {f"{t[1]} (at {t[2] or 'Unknown'})": t[0] for t in trailers}
-                selected_trailer = st.selectbox("Select Trailer", options=list(trailer_options.keys()))
-            else:
-                st.warning("No available trailers")
-                trailer_options = {}
-                selected_trailer = None
-            
             # Get locations
             cursor.execute('SELECT id, location_title FROM locations ORDER BY location_title')
             locations = cursor.fetchall()
             location_options = {l[1]: l[0] for l in locations}
             
-            origin = st.selectbox("Origin Location", options=list(location_options.keys()))
-            destination = st.selectbox("Destination Location", options=list(location_options.keys()))
+            origin = st.selectbox(
+                "📍 Pickup Location", 
+                options=list(location_options.keys()),
+                help="Where will the trailer be picked up from?",
+                index=list(location_options.keys()).index("Fleet Memphis") if "Fleet Memphis" in location_options else 0
+            )
         
         with col2:
+            destination = st.selectbox(
+                "📍 Delivery Location", 
+                options=list(location_options.keys()),
+                help="Where will the trailer be delivered to?"
+            )
+        
+        # Auto-calculate miles based on route
+        if origin and destination:
+            if origin == "Fleet Memphis" and destination == "FedEx Indy":
+                suggested_miles = 933.33
+            elif origin == "Fleet Memphis" and destination == "FedEx Chicago":
+                suggested_miles = 1080.0
+            elif origin == "Fleet Memphis" and destination == "FedEx Memphis":
+                suggested_miles = 30.0
+            else:
+                suggested_miles = 450.0
+        else:
+            suggested_miles = 450.0
+        
+        miles = st.number_input(
+            "🛣️ Total Round Trip Miles", 
+            min_value=0.0, 
+            value=suggested_miles, 
+            step=10.0,
+            help="Enter total miles for round trip (delivery + return)"
+        )
+        
+        # Show earnings calculation
+        earnings = miles * 2.10
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Rate per Mile", "$2.10")
+        with col2:
+            st.metric("Gross Earnings", f"${earnings:,.2f}")
+        with col3:
+            after_factoring = earnings * 0.97
+            st.metric("After 3% Factoring", f"${after_factoring:,.2f}")
+        
+        st.divider()
+        
+        # Section 3: Assignment Details
+        st.markdown("### 3️⃣ Assignment Information")
+        col1, col2 = st.columns(2)
+        
+        with col1:
             # Get drivers
             cursor.execute('SELECT id, driver_name FROM drivers WHERE status = "active"')
             drivers = cursor.fetchall()
             driver_options = {d[1]: d[0] for d in drivers}
-            selected_driver = st.selectbox("Assign Driver", options=list(driver_options.keys()))
+            selected_driver = st.selectbox(
+                "👤 Assign to Driver", 
+                options=list(driver_options.keys()),
+                help="Select the driver who will handle this move"
+            )
             
-            client = st.text_input("Client Name")
-            move_date = st.date_input("Move Date", value=date.today())
-            
-            # Estimated miles
-            miles = st.number_input("Estimated Miles", min_value=0.0, value=450.0, step=10.0)
+            move_date = st.date_input(
+                "📅 Move Date", 
+                value=date.today(),
+                help="When will this move take place?"
+            )
         
-        if st.form_submit_button("🚀 Create Move", type="primary", use_container_width=True):
-            if selected_trailer and trailer_options:
-                # Generate system ID
-                system_id = generate_system_id()
-                
-                # Calculate earnings
-                earnings = miles * 2.10
-                
-                # Create move
-                cursor.execute('''
-                    INSERT INTO moves (
-                        system_id, move_date, trailer_id, origin_location_id,
-                        destination_location_id, driver_id, driver_name, client,
-                        estimated_miles, base_rate, estimated_earnings, status
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 2.10, ?, 'assigned')
-                ''', (
-                    system_id, move_date, trailer_options[selected_trailer],
-                    location_options[origin], location_options[destination],
-                    driver_options[selected_driver], selected_driver, client,
-                    miles, earnings
-                ))
-                
-                # Update trailer status
-                cursor.execute('''
-                    UPDATE trailers SET status = 'in_transit'
-                    WHERE id = ?
-                ''', (trailer_options[selected_trailer],))
-                
-                conn.commit()
-                st.success(f"✅ Move created successfully!")
-                st.markdown(f'<div class="system-id">System ID: {system_id}</div>', unsafe_allow_html=True)
-                st.info(f"📍 Estimated Miles: {miles} | 💰 Estimated Earnings: ${earnings:,.2f}")
+        with col2:
+            client = st.text_input(
+                "🏢 Client/Customer", 
+                placeholder="e.g., Metro Logistics",
+                help="Enter the client name for this move"
+            )
+            
+            old_trailer = st.text_input(
+                "🔄 Return Trailer Number (Optional)",
+                placeholder="e.g., 6014",
+                help="Enter the OLD trailer number that will be picked up and returned"
+            )
+        
+        st.divider()
+        
+        # Submit button with clear confirmation
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.form_submit_button("✅ CREATE MOVE ORDER", type="primary", use_container_width=True):
+                if selected_trailer and trailer_options:
+                    # Generate system ID
+                    system_id = generate_system_id()
+                    
+                    # Calculate earnings
+                    earnings = miles * 2.10
+                    
+                    # Create move
+                    cursor.execute('''
+                        INSERT INTO moves (
+                            system_id, move_date, trailer_id, origin_location_id,
+                            destination_location_id, driver_id, driver_name, client,
+                            estimated_miles, base_rate, estimated_earnings, status
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 2.10, ?, 'assigned')
+                    ''', (
+                        system_id, move_date, trailer_options[selected_trailer],
+                        location_options[origin], location_options[destination],
+                        driver_options[selected_driver], selected_driver, client,
+                        miles, earnings
+                    ))
+                    
+                    # Update trailer status
+                    cursor.execute('''
+                        UPDATE trailers SET status = 'in_transit'
+                        WHERE id = ?
+                    ''', (trailer_options[selected_trailer],))
+                    
+                    conn.commit()
+                    st.success(f"✅ Move Order Created Successfully!")
+                    st.markdown(f'### Move Details:')
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.info(f"**System ID:** {system_id}")
+                        st.info(f"**Driver:** {selected_driver}")
+                        st.info(f"**Route:** {origin} → {destination}")
+                    with col2:
+                        st.info(f"**Miles:** {miles:,.2f}")
+                        st.info(f"**Gross Earnings:** ${earnings:,.2f}")
+                        st.info(f"**After Factoring:** ${earnings * 0.97:,.2f}")
+                else:
+                    st.error("❌ Please select an available trailer to create the move")
     
     conn.close()
     
-    # Show unavailable trailers section
+    # Show trailer status sections
     st.divider()
-    st.subheader("🚫 Unavailable Trailers")
     
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+    # Two columns for available and unavailable
+    col1, col2 = st.columns(2)
     
-    # Get trailers in use
-    cursor.execute('''
-        SELECT t.trailer_number, m.status, m.driver_name, 
-               orig.location_title || ' -> ' || dest.location_title as route,
-               m.move_date
-        FROM trailers t
-        JOIN moves m ON t.id = m.trailer_id
-        LEFT JOIN locations orig ON m.origin_location_id = orig.id
-        LEFT JOIN locations dest ON m.destination_location_id = dest.id
-        WHERE m.status IN ('active', 'assigned', 'in_transit', 'completed')
-        ORDER BY m.status, m.move_date DESC
-    ''')
-    
-    unavailable_trailers = cursor.fetchall()
-    
-    if unavailable_trailers:
-        df = pd.DataFrame(unavailable_trailers, columns=[
-            'Trailer', 'Status', 'Assigned To', 'Route', 'Date'
-        ])
+    with col1:
+        st.subheader("✅ Available Trailers")
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
         
-        # Color code by status
-        def color_status(row):
-            if row['Status'] == 'active':
-                return ['background-color: #FFE4B5'] * len(row)  # Orange for active
-            elif row['Status'] == 'completed':
-                return ['background-color: #90EE90'] * len(row)  # Green for completed
-            return [''] * len(row)
+        # Get available trailers
+        cursor.execute('''
+            SELECT t.trailer_number, l.location_title, t.status
+            FROM trailers t
+            LEFT JOIN locations l ON t.current_location_id = l.id
+            WHERE t.id NOT IN (
+                SELECT trailer_id FROM moves 
+                WHERE status IN ('active', 'assigned', 'in_transit')
+                AND trailer_id IS NOT NULL
+            )
+            ORDER BY t.trailer_number
+        ''')
         
-        styled_df = df.style.apply(color_status, axis=1)
-        st.dataframe(styled_df, use_container_width=True, hide_index=True)
-    else:
-        st.info("All trailers are available")
+        available_trailers = cursor.fetchall()
+        
+        if available_trailers:
+            st.success(f"📊 {len(available_trailers)} trailers ready for assignment")
+            df_avail = pd.DataFrame(available_trailers, columns=[
+                'Trailer #', 'Current Location', 'Status'
+            ])
+            
+            # Green highlighting for available
+            def highlight_available(row):
+                return ['background-color: #d4edda; color: #155724; font-weight: bold'] * len(row)
+            
+            styled_avail = df_avail.style.apply(highlight_available, axis=1)
+            st.dataframe(styled_avail, use_container_width=True, hide_index=True, height=300)
+        else:
+            st.warning("No trailers currently available")
+        
+        conn.close()
+    
+    with col2:
+        st.subheader("🚫 Assigned/In-Use Trailers")
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Get trailers in use
+        cursor.execute('''
+            SELECT t.trailer_number, m.driver_name, m.status,
+                   dest.location_title as destination
+            FROM trailers t
+            JOIN moves m ON t.id = m.trailer_id
+            LEFT JOIN locations dest ON m.destination_location_id = dest.id
+            WHERE m.status IN ('active', 'assigned', 'in_transit')
+            ORDER BY m.status, m.move_date DESC
+        ''')
+        
+        unavailable_trailers = cursor.fetchall()
+        
+        if unavailable_trailers:
+            st.warning(f"📊 {len(unavailable_trailers)} trailers currently assigned")
+            df_unavail = pd.DataFrame(unavailable_trailers, columns=[
+                'Trailer #', 'Assigned To', 'Status', 'Destination'
+            ])
+            
+            # Status-based coloring
+            def highlight_status(row):
+                if row['Status'] == 'active':
+                    return ['background-color: #fff3cd; color: #856404; font-weight: bold'] * len(row)  # Yellow
+                elif row['Status'] == 'assigned':
+                    return ['background-color: #d1ecf1; color: #0c5460; font-weight: bold'] * len(row)  # Blue
+                else:
+                    return ['background-color: #f8d7da; color: #721c24; font-weight: bold'] * len(row)  # Red
+            
+            styled_unavail = df_unavail.style.apply(highlight_status, axis=1)
+            st.dataframe(styled_unavail, use_container_width=True, hide_index=True, height=300)
+        else:
+            st.info("No trailers currently assigned")
     
     conn.close()
 
