@@ -348,13 +348,18 @@ def login():
 def show_sidebar():
     """Sidebar with user info and cache clear"""
     with st.sidebar:
-        # Logo
-        logo_path = "swt_logo.png"
+        # Logo - use white logo inside app
+        logo_path = "swt_logo_white.png"
         if os.path.exists(logo_path):
             try:
                 st.image(logo_path, use_container_width=True)
             except:
-                pass
+                # Fallback to regular logo if white not found
+                if os.path.exists("swt_logo.png"):
+                    try:
+                        st.image("swt_logo.png", use_container_width=True)
+                    except:
+                        pass
         
         # User info
         st.markdown("### 👤 User Information")
