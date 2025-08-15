@@ -240,7 +240,7 @@ def table_exists(cursor, table_name):
     return cursor.fetchone() is not None
 
 def fix_trailer_inventory(cursor):
-    """DEEP FIX: Ensure correct trailer inventory (38 total: 23 OLD, 15 NEW)"""
+    """DEEP FIX: Ensure minimum correct trailer inventory, but allow additions"""
     # Check current count
     cursor.execute("SELECT COUNT(*) FROM trailers")
     current_count = cursor.fetchone()[0]
@@ -251,8 +251,23 @@ def fix_trailer_inventory(cursor):
     cursor.execute("SELECT COUNT(*) FROM trailers WHERE is_new = 0")
     current_old = cursor.fetchone()[0]
     
-    # Only fix if counts are wrong (32 total from old data)
-    if current_count != 38 or current_new != 15 or current_old != 23:
+    # Check if we have a fix flag to prevent repeated fixes
+    cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='system_flags'")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute('''CREATE TABLE system_flags (
+            flag_name TEXT PRIMARY KEY,
+            flag_value TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
+        cursor.connection.commit()
+    
+    # Check if we've already fixed to 38
+    cursor.execute("SELECT flag_value FROM system_flags WHERE flag_name = 'trailer_fix_38_complete'")
+    fix_done = cursor.fetchone()
+    
+    # Only fix if we have the OLD wrong count (32) AND haven't fixed yet
+    # This allows manual additions beyond 38
+    if current_count == 32 and current_new == 11 and current_old == 21 and not fix_done:
         print(f"FIXING TRAILER INVENTORY: Current {current_count} -> Target 38")
         
         # Get location IDs
@@ -323,7 +338,16 @@ def fix_trailer_inventory(cursor):
             ''', (trailer_num, loc_id, status))
         
         cursor.connection.commit()
+        
+        # Mark fix as complete so it won't run again
+        cursor.execute('''
+            INSERT OR REPLACE INTO system_flags (flag_name, flag_value, updated_at)
+            VALUES ('trailer_fix_38_complete', 'true', CURRENT_TIMESTAMP)
+        ''')
+        cursor.connection.commit()
+        
         print("TRAILER INVENTORY FIXED: 38 trailers (23 OLD, 15 NEW)")
+        print("Fix marked complete - won't run again unless reset")
 
 # Load initial data if needed
 def load_initial_data():
