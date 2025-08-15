@@ -442,6 +442,15 @@ def login():
     st.title("Smith & Williams Trucking")
     st.subheader("Fleet Management System")
     
+    # Vernon protection notice
+    st.markdown("""
+    <div style='text-align: center; padding: 10px; background-color: #f0f2f6; border-radius: 5px; margin: 10px 0;'>
+        <small style='color: #28a745; font-weight: bold;'>
+            Data Protected by Vernon - Senior IT Security Manager
+        </small>
+    </div>
+    """, unsafe_allow_html=True)
+    
     with st.form("login_form"):
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
@@ -506,6 +515,17 @@ def show_sidebar():
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()
+        
+        # Vernon footer at bottom of sidebar
+        st.divider()
+        st.markdown("""
+        <div style='text-align: center; padding: 10px; background-color: #1e1e1e; border-radius: 5px; margin-top: 20px;'>
+            <small style='color: #28a745; font-weight: bold;'>
+                Data Protected by Vernon<br>
+                Senior IT Security Manager
+            </small>
+        </div>
+        """, unsafe_allow_html=True)
 
 # Vernon Support (Simplified)
 def show_vernon_support():
@@ -2299,6 +2319,17 @@ def main():
         
         # Show main dashboard
         show_dashboard()
+        
+        # Add Vernon footer to main content area
+        st.markdown("---")
+        st.markdown("""
+        <div style='text-align: center; padding: 15px; margin-top: 50px;'>
+            <p style='color: #666; font-size: 12px; margin: 0;'>
+                <strong>Data Protected by Vernon - Senior IT Security Manager</strong><br>
+                Smith & Williams Trucking - All Rights Reserved
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
