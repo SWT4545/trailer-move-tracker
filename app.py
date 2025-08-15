@@ -520,44 +520,13 @@ def check_authentication():
 
 def login():
     """Login page with video logo"""
-    # Show video logo if available - centered and muted loop
+    # Show video logo - centered and muted loop
     animation_file = "company_logo_animation.mp4.MOV"
-    if os.path.exists(animation_file):
-        try:
-            # Check file size - if too large for mobile, skip video
-            file_size = os.path.getsize(animation_file)
-            if file_size < 10 * 1024 * 1024:  # Less than 10MB
-                col1, col2, col3 = st.columns([1, 2, 1])
-                with col2:
-                    # Use Streamlit's native video player for better mobile compatibility
-                    st.video(animation_file, loop=True, autoplay=True, muted=True)
-            else:
-                # File too large, use static logo
-                logo_path = "swt_logo_white.png" if os.path.exists("swt_logo_white.png") else "swt_logo.png"
-                if os.path.exists(logo_path):
-                    col1, col2, col3 = st.columns([1, 2, 1])
-                    with col2:
-                        st.image(logo_path, use_container_width=True)
-        except Exception as e:
-            # Fallback to static logo if video fails
-            logo_path = "swt_logo_white.png" if os.path.exists("swt_logo_white.png") else "swt_logo.png"
-            if os.path.exists(logo_path):
-                col1, col2, col3 = st.columns([1, 2, 1])
-                with col2:
-                    try:
-                        st.image(logo_path, use_container_width=True)
-                    except:
-                        pass
-    else:
-        # Show static logo if no video
-        logo_path = "swt_logo_white.png" if os.path.exists("swt_logo_white.png") else "swt_logo.png"
-        if os.path.exists(logo_path):
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                try:
-                    st.image(logo_path, use_container_width=True)
-                except:
-                    pass
+    
+    # Display the video logo
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.video(animation_file, loop=True, autoplay=True, muted=True)
     
     st.title("Trailer Fleet Management System")
     st.subheader("Smith & Williams Trucking LLC")
