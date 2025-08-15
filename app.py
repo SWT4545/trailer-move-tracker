@@ -239,6 +239,92 @@ def table_exists(cursor, table_name):
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
     return cursor.fetchone() is not None
 
+def fix_trailer_inventory(cursor):
+    """DEEP FIX: Ensure correct trailer inventory (38 total: 23 OLD, 15 NEW)"""
+    # Check current count
+    cursor.execute("SELECT COUNT(*) FROM trailers")
+    current_count = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM trailers WHERE is_new = 1")
+    current_new = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM trailers WHERE is_new = 0")
+    current_old = cursor.fetchone()[0]
+    
+    # Only fix if counts are wrong (32 total from old data)
+    if current_count != 38 or current_new != 15 or current_old != 23:
+        print(f"FIXING TRAILER INVENTORY: Current {current_count} -> Target 38")
+        
+        # Get location IDs
+        cursor.execute("SELECT id FROM locations WHERE location_title = 'Fleet Memphis'")
+        fleet_id = cursor.fetchone()
+        fleet_id = fleet_id[0] if fleet_id else 1
+        
+        # Clear and rebuild with correct data
+        cursor.execute("DELETE FROM trailers")
+        
+        # Insert exact OLD trailers (23 total)
+        old_trailers = [
+            # Available at FedEx locations (12)
+            ('7155', 'FedEx Houston'), ('7146', 'FedEx Oakland'), ('5955', 'FedEx Indy'),
+            ('6024', 'FedEx Chicago'), ('6061', 'FedEx Dallas'), ('3170', 'FedEx Chicago'),
+            ('7153', 'FedEx Dulles VA'), ('6015', 'FedEx Hebron KY'), ('7160', 'FedEx Dallas'),
+            ('6783', 'FedEx Newark NJ'), ('3083', 'FedEx Indy'), ('6231', 'FedEx Indy'),
+            # At Fleet after swap (11)
+            ('6094', 'Fleet Memphis'), ('6837', 'Fleet Memphis'), ('5950', 'Fleet Memphis'),
+            ('5876', 'Fleet Memphis'), ('4427', 'Fleet Memphis'), ('6014', 'Fleet Memphis'),
+            ('7144', 'Fleet Memphis'), ('5906', 'Fleet Memphis'), ('7131', 'Fleet Memphis'),
+            ('7162', 'Fleet Memphis'), ('6981', 'Fleet Memphis')
+        ]
+        
+        for trailer_num, location in old_trailers:
+            cursor.execute("SELECT id FROM locations WHERE location_title = ?", (location,))
+            loc_id = cursor.fetchone()
+            loc_id = loc_id[0] if loc_id else fleet_id
+            
+            cursor.execute('''
+                INSERT INTO trailers (trailer_number, trailer_type, current_location_id, status, is_new)
+                VALUES (?, 'Roller Bed', ?, 'available', 0)
+            ''', (trailer_num, loc_id))
+        
+        # Insert exact NEW trailers (15 total)
+        # Available at Fleet (4)
+        new_available = [
+            ('18V00408', fleet_id), ('18V00600', fleet_id), 
+            ('18V00598', fleet_id), ('18V00599', fleet_id)
+        ]
+        
+        for trailer_num, loc_id in new_available:
+            cursor.execute('''
+                INSERT INTO trailers (trailer_number, trailer_type, current_location_id, status, is_new)
+                VALUES (?, 'Roller Bed', ?, 'available', 1)
+            ''', (trailer_num, loc_id))
+        
+        # Delivered/In-use NEW trailers (11)
+        new_delivered = [
+            ('18V00406', 'FedEx Memphis'), ('18V00409', 'FedEx Memphis'),
+            ('18V00414', 'FedEx Memphis'), ('190030', 'FedEx Memphis'),
+            ('190033', 'FedEx Indy'), ('18V00298', 'FedEx Indy'),
+            ('190011', 'FedEx Indy'), ('7728', 'FedEx Chicago'),
+            ('18V00327', 'FedEx Memphis'), ('18V00407', 'Fleet Memphis'),
+            ('190046', 'Fleet Memphis')
+        ]
+        
+        for trailer_num, location in new_delivered:
+            cursor.execute("SELECT id FROM locations WHERE location_title = ?", (location,))
+            loc_id = cursor.fetchone()
+            loc_id = loc_id[0] if loc_id else fleet_id
+            
+            status = 'in_transit' if trailer_num in ['18V00407', '190046'] else 'delivered'
+            
+            cursor.execute('''
+                INSERT INTO trailers (trailer_number, trailer_type, current_location_id, status, is_new)
+                VALUES (?, 'Roller Bed', ?, ?, 1)
+            ''', (trailer_num, loc_id, status))
+        
+        cursor.connection.commit()
+        print("TRAILER INVENTORY FIXED: 38 trailers (23 OLD, 15 NEW)")
+
 # Load initial data if needed
 def load_initial_data():
     """Load real production data and ensure basic data exists"""
@@ -263,6 +349,9 @@ def load_initial_data():
         driver_count = cursor.fetchone()[0]
     except:
         driver_count = 0
+    
+    # DEEP FIX: Force correct trailer inventory (38 total: 23 OLD, 15 NEW)
+    fix_trailer_inventory(cursor)
     
     # If no data, load production data
     if trailer_count == 0 or driver_count == 0:

@@ -226,6 +226,17 @@ grep -r "✓" *.py
 ### 18. Dashboard Metrics Enhancement (RESOLVED)
 **Date:** 2025-08-15
 **Request:** Split available trailer count into Old/New/Total on dashboard
+
+### 19. Trailer Inventory Mismatch on Streamlit Cloud (RESOLVED)
+**Date:** 2025-08-15
+**Issue:** Streamlit Cloud showing 32 trailers (11 NEW, 21 OLD) instead of 38 (15 NEW, 23 OLD)
+**Cause:** Update scripts not running on cloud deployment
+**Solution:** Added `fix_trailer_inventory()` function that runs on every app load
+  - Checks current counts
+  - If wrong (32 instead of 38), rebuilds with correct data
+  - Hardcoded exact trailer lists to ensure consistency
+**Files Affected:** `app.py` (added fix_trailer_inventory function)
+**Prevention:** Always include data fixes in main app initialization
 **Implementation:** Enhanced trailer metrics to show:
   - Old Trailers count (for pickup)
   - New Trailers count (for delivery)
