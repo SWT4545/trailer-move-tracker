@@ -476,29 +476,63 @@ def create_new_move():
     # Use containers instead of form for real-time updates
     with st.container():
         # Section 1: Trailer Selection
-        st.markdown("### 1️⃣ Select Trailer from Fleet Memphis")
+        st.markdown("### 1️⃣ Select Trailer to Deliver")
         
-        # Get available trailers at Fleet Memphis
+        # Get available trailers - exclude those already used in moves
         cursor.execute('''
-            SELECT t.id, t.trailer_number, l.location_title, t.status
+            SELECT t.id, t.trailer_number, 
+                   CASE 
+                       WHEN t.current_location = 'Fleet Memphis' THEN 'Fleet Memphis'
+                       WHEN t.current_location LIKE '%Memphis%' THEN 'FedEx Memphis'
+                       WHEN t.current_location LIKE '%Indy%' OR t.current_location LIKE '%Indianapolis%' THEN 'FedEx Indy'
+                       WHEN t.current_location LIKE '%Chicago%' THEN 'FedEx Chicago'
+                       ELSE COALESCE(t.current_location, 'Location TBD')
+                   END as location,
+                   t.status
             FROM trailers t
-            LEFT JOIN locations l ON t.current_location_id = l.id
-            WHERE t.id NOT IN (
-                SELECT trailer_id FROM moves 
-                WHERE status IN ('active', 'assigned', 'in_transit', 'completed')
-                AND trailer_id IS NOT NULL
+            WHERE t.trailer_number NOT IN (
+                SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
+                UNION
+                SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
             )
+            ORDER BY location, t.trailer_number
         ''')
         trailers = cursor.fetchall()
         
         if trailers:
-            trailer_options = {f"Trailer #{t[1]}": t[0] for t in trailers}
+            # Group trailers by location
+            trailers_at_fleet = []
+            trailers_at_other = []
+            
+            for t in trailers:
+                if 'Fleet Memphis' in t[2] or 'TBD' in t[2]:
+                    trailers_at_fleet.append(t)
+                else:
+                    trailers_at_other.append(t)
+            
+            # Show Fleet Memphis trailers first
+            if trailers_at_fleet:
+                st.info(f"📍 **Trailers at Fleet Memphis ({len(trailers_at_fleet)} available)**")
+                trailer_options = {}
+                for t in trailers_at_fleet:
+                    key = f"Trailer #{t[1]} @ Fleet Memphis"
+                    trailer_options[key] = t[0]
+            
+            # Show trailers at other locations
+            if trailers_at_other:
+                st.warning(f"⚠️ **Trailers at other locations ({len(trailers_at_other)} available)**")
+                for t in trailers_at_other:
+                    key = f"Trailer #{t[1]} @ {t[2]}"
+                    trailer_options[key] = t[0]
+            
             selected_trailer = st.selectbox(
-                "🚛 Select Trailer to Take to FedEx", 
+                "🚛 Select Trailer to Deliver", 
                 options=list(trailer_options.keys()),
-                help="Choose which trailer from Fleet Memphis to deliver to the FedEx location"
+                help="Choose trailer to deliver (typically from Fleet Memphis)"
             )
-            st.success(f"✅ {len(trailers)} trailers available at Fleet Memphis")
+            
+            # Show total count
+            st.success(f"✅ Total {len(trailers)} trailers available for assignment")
         else:
             st.error("❌ No trailers available - All trailers are currently assigned or in transit")
             trailer_options = {}
@@ -604,10 +638,37 @@ def create_new_move():
                 help="Enter the client name for this move"
             )
             
+            # Show available trailers at destination
+            st.markdown(f"**Available trailers at {destination}:**")
+            
+            # Get trailers at the selected destination
+            dest_location_pattern = destination.replace("FedEx", "%")
+            cursor.execute('''
+                SELECT trailer_number 
+                FROM trailers 
+                WHERE (current_location LIKE ? OR current_location = ?)
+                AND trailer_number NOT IN (
+                    SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
+                    UNION
+                    SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
+                )
+                ORDER BY trailer_number
+            ''', (dest_location_pattern, destination))
+            
+            dest_trailers = cursor.fetchall()
+            
+            if dest_trailers:
+                trailer_list = ", ".join([t[0] for t in dest_trailers[:5]])
+                if len(dest_trailers) > 5:
+                    trailer_list += f" ... and {len(dest_trailers) - 5} more"
+                st.info(f"📦 Trailers at {destination}: {trailer_list}")
+            else:
+                st.warning(f"⚠️ No trailers currently at {destination}")
+            
             swap_trailer = st.text_input(
                 "🔄 Trailer to Pick Up & Return to Fleet Memphis",
                 placeholder="e.g., 6014",
-                help="Enter the trailer # you'll pick up at FedEx and bring back to Fleet Memphis"
+                help=f"Enter the trailer # you'll pick up at {destination} and bring back to Fleet Memphis"
             )
         
         st.divider()

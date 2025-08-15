@@ -418,6 +418,101 @@ class PDFGenerator:
             ]))
             elements.append(table)
         
+        # Add Trailer Availability Section
+        elements.append(PageBreak())
+        elements.append(Paragraph("<b>TRAILER AVAILABILITY BY LOCATION</b>", styles['Heading2']))
+        
+        # Get available trailers by location
+        cursor.execute('''
+            SELECT 
+                CASE 
+                    WHEN current_location = 'Fleet Memphis' THEN 'Fleet Memphis'
+                    WHEN current_location LIKE '%Memphis%' THEN 'FedEx Memphis'
+                    WHEN current_location LIKE '%Indy%' OR current_location LIKE '%Indianapolis%' THEN 'FedEx Indy'
+                    WHEN current_location LIKE '%Chicago%' THEN 'FedEx Chicago'
+                    ELSE COALESCE(current_location, 'Location TBD')
+                END as location,
+                trailer_number,
+                status
+            FROM trailers
+            WHERE trailer_number NOT IN (
+                SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
+                UNION
+                SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
+            )
+            ORDER BY location, trailer_number
+        ''')
+        
+        available_trailers = cursor.fetchall()
+        
+        if available_trailers:
+            # Group by location
+            locations_dict = {}
+            for location, trailer, status in available_trailers:
+                if location not in locations_dict:
+                    locations_dict[location] = []
+                locations_dict[location].append(trailer)
+            
+            # Create summary table
+            elements.append(Paragraph("<b>Available Trailers Summary</b>", styles['Heading3']))
+            summary_data = [['Location', 'Count', 'Trailer Numbers']]
+            
+            for location, trailers in sorted(locations_dict.items()):
+                trailer_list = ', '.join(trailers[:5])
+                if len(trailers) > 5:
+                    trailer_list += f' ... (+{len(trailers) - 5} more)'
+                summary_data.append([location, str(len(trailers)), trailer_list])
+            
+            summary_table = Table(summary_data, colWidths=[150, 60, 340])
+            summary_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#28a745')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ]))
+            elements.append(summary_table)
+            elements.append(Spacer(1, 20))
+            
+            # Add note about used trailers
+            elements.append(Paragraph("<b>Note:</b> This list excludes trailers currently assigned to moves.", styles['Normal']))
+        
+        # Add trailers in use section
+        elements.append(Spacer(1, 20))
+        elements.append(Paragraph("<b>TRAILERS IN USE</b>", styles['Heading3']))
+        
+        cursor.execute('''
+            SELECT DISTINCT 
+                COALESCE(new_trailer, '') as new_trailer,
+                COALESCE(old_trailer, '') as old_trailer,
+                driver_name,
+                status
+            FROM moves
+            WHERE new_trailer IS NOT NULL OR old_trailer IS NOT NULL
+            ORDER BY status, driver_name
+        ''')
+        
+        used_trailers = cursor.fetchall()
+        
+        if used_trailers:
+            data = [['New Trailer', 'Old Trailer', 'Driver', 'Move Status']]
+            for trailer in used_trailers:
+                data.append(list(trailer))
+            
+            table = Table(data, colWidths=[100, 100, 150, 100])
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ]))
+            elements.append(table)
+        
         conn.close()
         
         # Build PDF
