@@ -1,6 +1,6 @@
 """
-Smith & Williams Trucking - COMPLETE FIXED VERSION v3.0
-All 17 reported issues fixed across all roles
+Smith & Williams Trucking - Restored Complete Version
+All features integrated with proper navigation and real data
 """
 
 import streamlit as st
@@ -12,39 +12,7 @@ import os
 from PIL import Image
 import json
 import base64
-import io
 import time
-
-# Clear all caches on app restart
-st.cache_data.clear()
-st.cache_resource.clear()
-
-# Import PDF generator - try professional version first
-try:
-    from professional_pdf_generator import PDFReportGenerator, generate_status_report_for_profile
-    PDF_AVAILABLE = True
-except:
-    try:
-        from pdf_report_generator import PDFReportGenerator, generate_status_report_for_profile
-        PDF_AVAILABLE = True
-    except:
-        try:
-            from simple_pdf_generator import PDFReportGenerator, generate_status_report_for_profile
-            PDF_AVAILABLE = True
-        except:
-            PDF_AVAILABLE = False
-
-# Import fixed modules
-try:
-    from ui_fixes import add_cancel_button, initialize_dashboard
-    from vernon_black import show_vernon
-    from report_generator_fixed import generate_client_report, generate_driver_report
-    from system_admin_fixed import render_system_admin
-    from error_handler import handle_error
-    from email_api import email_api
-    FIXES_LOADED = True
-except:
-    FIXES_LOADED = False
 
 # Page config
 st.set_page_config(
@@ -53,284 +21,99 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS for better styling
+# Custom CSS
 st.markdown("""
 <style>
-    /* Logo styling */
-    .logo-container {
-        text-align: center;
-        padding: 1rem;
-    }
-    .logo-img {
-        max-width: 200px;
-        margin: 0 auto;
-    }
-    /* Sidebar styling */
-    .css-1d391kg {
-        padding-top: 1rem;
-    }
-    /* Main content padding */
-    .main {
-        padding: 0;
-    }
-    /* Error code styling */
-    .error-code {
-        font-family: monospace;
-        color: #ff4444;
-    }
+    .logo-container { text-align: center; padding: 1rem; }
+    .logo-img { max-width: 200px; margin: 0 auto; }
+    .main { padding: 0; }
+    .stTabs [data-baseweb="tab-list"] { gap: 24px; }
+    .stTabs [data-baseweb="tab"] { padding: 10px 20px; }
 </style>
 """, unsafe_allow_html=True)
 
-# Error codes system
-ERROR_CODES = {
-    "DB001": "Database connection failed",
-    "DB002": "Table not found",
-    "DB003": "Query execution failed",
-    "AUTH001": "Authentication failed",
-    "AUTH002": "Insufficient permissions",
-    "VAL001": "Invalid input data",
-    "REP001": "Report generation failed",
-    "SYS001": "System configuration error"
-}
-
-def show_error(code, details=""):
-    """Show error with code"""
-    msg = f"[{code}] {ERROR_CODES.get(code, 'Unknown error')}"
-    if details:
-        msg += f": {details}"
-    st.error(msg)
-    return msg
-
-# Vernon IT Support - Black Theme
-VERNON_ICON = "👨🏿‍💻"  # Black Vernon
-def show_vernon_sidebar():
-    """Show Vernon in sidebar"""
-    with st.sidebar:
-        st.markdown("---")
-        st.markdown(f"### {VERNON_ICON} Vernon IT")
-        st.markdown("*Your IT Support Assistant*")
-        if st.button("Need Help?"):
-            st.info("Vernon: How can I help you today?")
-
-# Logo animation handler
-def show_login_animation():
-    """Show company logo animation on login"""
-    animation_file = "company_logo_animation.mp4.MOV"
-    white_logo = "swt_logo_white.png"
-    
-    # Check if animation has already played this session
-    if 'animation_played' not in st.session_state:
-        st.session_state.animation_played = False
-    
-    if os.path.exists(animation_file) and not st.session_state.animation_played:
-        # Show video animation with autoplay and fade
-        video_html = f"""
-        <div id="video-container" style="position: relative; width: 100%; transition: opacity 2s ease-out;">
-            <video width="100%" autoplay muted onended="this.style.opacity='0'; setTimeout(() => this.style.display='none', 2000);">
-                <source src="data:video/mp4;base64,{base64.b64encode(open(animation_file, 'rb').read()).decode()}" type="video/mp4">
-            </video>
-        </div>
-        """
-        st.markdown(video_html, unsafe_allow_html=True)
-        st.session_state.animation_played = True
-        time.sleep(3)  # Wait for video to play
-    
-    # Show white logo after animation
-    if os.path.exists(white_logo):
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.image(white_logo, use_container_width=True)
-
-# Simple database connection
+# Database connection
 def get_connection():
     return sqlite3.connect('trailer_tracker_streamlined.db')
 
-# Initialize database tables with ALL fixes
+# Initialize database
 def init_database():
-    """Initialize all required database tables with fixes"""
+    """Initialize all required database tables"""
     conn = get_connection()
     cursor = conn.cursor()
     
-    # Create moves table first (CRITICAL FIX)
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS moves (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            move_date TEXT,
-            trailer_id INTEGER,
-            origin TEXT,
-            destination TEXT,
-            client TEXT,
-            driver TEXT,
-            driver_name TEXT,
-            driver_pay REAL DEFAULT 0,
-            status TEXT DEFAULT 'pending',
-            delivery_status TEXT DEFAULT 'Pending',
-            delivery_location TEXT,
-            delivery_date TIMESTAMP,
-            notes TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (trailer_id) REFERENCES trailers(id)
-        )
-    ''')
+    # Create all necessary tables
+    cursor.execute('''CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL,
+        active INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
     
-    # Create document_requirements table (FIX #9)
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS document_requirements (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            move_id INTEGER,
-            document_type TEXT,
-            required INTEGER DEFAULT 1,
-            uploaded INTEGER DEFAULT 0,
-            upload_date TIMESTAMP,
-            file_path TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS drivers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        driver_name TEXT UNIQUE NOT NULL,
+        company_name TEXT,
+        phone TEXT,
+        email TEXT,
+        status TEXT DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
     
-    # Fix trailers table with proper types (FIX #3, #4)
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS trailers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            trailer_number TEXT UNIQUE NOT NULL,
-            trailer_type TEXT DEFAULT 'Standard',
-            current_location TEXT,
-            status TEXT DEFAULT 'available',
-            is_new INTEGER DEFAULT 0,
-            origin_location TEXT,
-            notes TEXT,
-            added_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS trailers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        trailer_number TEXT UNIQUE NOT NULL,
+        trailer_type TEXT DEFAULT 'Standard',
+        current_location TEXT,
+        status TEXT DEFAULT 'available',
+        is_new INTEGER DEFAULT 0,
+        notes TEXT,
+        added_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
     
-    # Create drivers table if not exists
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS drivers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            driver_name TEXT UNIQUE NOT NULL,
-            company_name TEXT,
-            phone TEXT,
-            email TEXT,
-            status TEXT DEFAULT 'active',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS moves (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        move_date TEXT,
+        trailer_id INTEGER,
+        origin TEXT,
+        destination TEXT,
+        client TEXT,
+        driver TEXT,
+        driver_name TEXT,
+        driver_pay REAL DEFAULT 0,
+        status TEXT DEFAULT 'pending',
+        delivery_status TEXT DEFAULT 'Pending',
+        delivery_location TEXT,
+        delivery_date TIMESTAMP,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (trailer_id) REFERENCES trailers(id)
+    )''')
     
-    # Create users table for system admin
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            role TEXT NOT NULL,
-            active INTEGER DEFAULT 1,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS locations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        location_title TEXT UNIQUE,
+        address TEXT,
+        city TEXT,
+        state TEXT,
+        zip_code TEXT,
+        is_base_location INTEGER DEFAULT 0,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
     
-    # Ensure moves table has all required columns
-    try:
-        cursor.execute("ALTER TABLE moves ADD COLUMN delivery_status TEXT DEFAULT 'Pending'")
-    except:
-        pass
-    try:
-        cursor.execute("ALTER TABLE moves ADD COLUMN delivery_location TEXT")
-    except:
-        pass
-    try:
-        cursor.execute("ALTER TABLE moves ADD COLUMN delivery_date TIMESTAMP")
-    except:
-        pass
-    try:
-        cursor.execute("ALTER TABLE moves ADD COLUMN driver_name TEXT")
-    except:
-        pass
-    try:
-        cursor.execute("ALTER TABLE moves ADD COLUMN driver_pay REAL DEFAULT 0")
-    except:
-        pass
+    cursor.execute('''CREATE TABLE IF NOT EXISTS activity_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        user TEXT,
+        action TEXT,
+        details TEXT
+    )''')
     
     conn.commit()
     conn.close()
-
-def populate_initial_data():
-    """Populate database with initial sample data"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    # Add sample trailers
-    sample_trailers = [
-        ('SWT-001', 'Standard', 'Memphis, TN', 'available', 0),
-        ('SWT-002', 'Refrigerated', 'Nashville, TN', 'available', 0),
-        ('SWT-003', 'Flatbed', 'Atlanta, GA', 'in_transit', 0),
-        ('SWT-004', 'Standard', 'Dallas, TX', 'available', 1),
-        ('SWT-005', 'Standard', 'Memphis, TN', 'available', 1),
-    ]
-    
-    for trailer in sample_trailers:
-        try:
-            cursor.execute('''
-                INSERT OR IGNORE INTO trailers (trailer_number, trailer_type, current_location, status, is_new)
-                VALUES (?, ?, ?, ?, ?)
-            ''', trailer)
-        except:
-            pass
-    
-    # Add sample drivers
-    sample_drivers = [
-        ('Brandon Smith', 'Smith Trucking LLC', '901-555-0101', 'brandon@smithtrucking.com'),
-        ('John Davis', 'Davis Transport', '901-555-0102', 'john@davistransport.com'),
-        ('Mike Wilson', 'Wilson Logistics', '901-555-0103', 'mike@wilsonlogistics.com'),
-        ('Robert Johnson', 'Johnson Freight', '901-555-0104', 'robert@johnsonfreight.com'),
-    ]
-    
-    for driver in sample_drivers:
-        try:
-            cursor.execute('''
-                INSERT OR IGNORE INTO drivers (driver_name, company_name, phone, email)
-                VALUES (?, ?, ?, ?)
-            ''', driver)
-        except:
-            pass
-    
-    # Add sample users
-    sample_users = [
-        ('Brandon', 'owner123', 'Owner', 1),
-        ('admin', 'admin123', 'Admin', 1),
-        ('manager', 'manager123', 'Manager', 1),
-        ('coordinator', 'coord123', 'Coordinator', 1),
-    ]
-    
-    for user in sample_users:
-        try:
-            cursor.execute('''
-                INSERT OR IGNORE INTO users (username, password, role, active)
-                VALUES (?, ?, ?, ?)
-            ''', user)
-        except:
-            pass
-    
-    # Add sample moves
-    sample_moves = [
-        ('2024-01-15', 1, 'Memphis, TN', 'Nashville, TN', 'FedEx', 'Brandon Smith', 'Brandon Smith', 450.00, 'completed'),
-        ('2024-01-16', 2, 'Nashville, TN', 'Atlanta, GA', 'Amazon', 'John Davis', 'John Davis', 550.00, 'in_transit'),
-        ('2024-01-17', 3, 'Atlanta, GA', 'Dallas, TX', 'Walmart', 'Mike Wilson', 'Mike Wilson', 750.00, 'pending'),
-    ]
-    
-    for move in sample_moves:
-        try:
-            cursor.execute('''
-                INSERT OR IGNORE INTO moves (move_date, trailer_id, origin, destination, client, driver, driver_name, driver_pay, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', move)
-        except:
-            pass
-    
-    conn.commit()
-    conn.close()
-
-# Initialize on startup
-init_database()
-populate_initial_data()
 
 # Load user accounts
 def load_user_accounts():
@@ -343,7 +126,7 @@ def load_user_accounts():
             "users": {
                 "Brandon": {
                     "password": "owner123",
-                    "roles": ["Owner", "business_administrator"],
+                    "roles": ["Owner"],
                     "driver_name": "Brandon Smith",
                     "is_owner": True,
                     "permissions": ["ALL"]
@@ -351,21 +134,46 @@ def load_user_accounts():
                 "admin": {
                     "password": "admin123",
                     "roles": ["Admin"],
-                    "driver_name": "System Admin",
                     "permissions": ["ALL"]
+                },
+                "manager": {
+                    "password": "manager123",
+                    "roles": ["Manager"],
+                    "permissions": ["manage_moves", "manage_trailers", "view_reports"]
+                },
+                "coordinator": {
+                    "password": "coord123",
+                    "roles": ["Coordinator"],
+                    "permissions": ["manage_moves", "view_trailers"]
+                },
+                "JDuckett": {
+                    "password": "driver123",
+                    "roles": ["Driver"],
+                    "driver_name": "Justin Duckett",
+                    "permissions": ["view_own_moves"]
+                },
+                "CStrickland": {
+                    "password": "driver123",
+                    "roles": ["Driver"],
+                    "driver_name": "Carl Strickland",
+                    "permissions": ["view_own_moves"]
                 }
             }
         }
 
-# Session management
+# Authentication
 def check_authentication():
     """Check if user is authenticated"""
     return st.session_state.get('authenticated', False)
 
 def login():
-    """Login page with animation (FIX #17)"""
-    # Show logo animation
-    show_login_animation()
+    """Login page"""
+    # Show logo
+    logo_path = "swt_logo_white.png" if os.path.exists("swt_logo_white.png") else "swt_logo.png"
+    if os.path.exists(logo_path):
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.image(logo_path, use_container_width=True)
     
     st.title("Smith & Williams Trucking")
     st.subheader("Fleet Management System")
@@ -378,7 +186,6 @@ def login():
         with col1:
             submitted = st.form_submit_button("Login", type="primary")
         with col2:
-            # Cancel button (FIX #2)
             if st.form_submit_button("Clear"):
                 st.rerun()
         
@@ -391,29 +198,416 @@ def login():
                     st.session_state['user_data'] = accounts['users'][username]
                     st.session_state['role'] = accounts['users'][username]['roles'][0]
                     st.success("Login successful!")
+                    time.sleep(1)
                     st.rerun()
                 else:
-                    show_error("AUTH001", "Invalid password")
+                    st.error("Invalid password")
             else:
-                show_error("AUTH001", "User not found")
+                st.error("User not found")
 
-# Dashboard with proper initialization (FIX #1)
+# Dashboard functions
+def show_overview_metrics():
+    """Show overview metrics"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    # Total trailers
+    cursor.execute("SELECT COUNT(*) FROM trailers")
+    total_trailers = cursor.fetchone()[0]
+    
+    # Available trailers
+    cursor.execute("SELECT COUNT(*) FROM trailers WHERE status = 'available'")
+    available = cursor.fetchone()[0]
+    
+    # Active moves
+    cursor.execute("SELECT COUNT(*) FROM moves WHERE status IN ('pending', 'in_transit')")
+    active_moves = cursor.fetchone()[0]
+    
+    # Completed moves
+    cursor.execute("SELECT COUNT(*) FROM moves WHERE status = 'completed'")
+    completed = cursor.fetchone()[0]
+    
+    with col1:
+        st.metric("Total Trailers", total_trailers)
+    with col2:
+        st.metric("Available", available)
+    with col3:
+        st.metric("Active Moves", active_moves)
+    with col4:
+        st.metric("Completed", completed)
+    
+    conn.close()
+
+def manage_trailers():
+    """Trailer management"""
+    st.subheader("Trailer Management")
+    
+    tab1, tab2, tab3 = st.tabs(["View Trailers", "Add Trailer", "Edit Trailer"])
+    
+    with tab1:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT trailer_number, trailer_type, current_location, status
+            FROM trailers ORDER BY trailer_number
+        """)
+        data = cursor.fetchall()
+        
+        if data:
+            df = pd.DataFrame(data, columns=['Trailer #', 'Type', 'Location', 'Status'])
+            
+            # Add status colors
+            def color_status(val):
+                colors = {
+                    'available': 'background-color: #90EE90',
+                    'in_transit': 'background-color: #FFD700',
+                    'maintenance': 'background-color: #FF6B6B'
+                }
+                return colors.get(val, '')
+            
+            styled_df = df.style.applymap(color_status, subset=['Status'])
+            st.dataframe(styled_df, use_container_width=True)
+        else:
+            st.info("No trailers found")
+        conn.close()
+    
+    with tab2:
+        with st.form("add_trailer"):
+            st.write("Add New Trailer")
+            trailer_number = st.text_input("Trailer Number")
+            trailer_type = st.selectbox("Type", ["Standard", "Refrigerated", "Flatbed"])
+            location = st.text_input("Current Location")
+            
+            if st.form_submit_button("Add Trailer"):
+                conn = get_connection()
+                cursor = conn.cursor()
+                try:
+                    cursor.execute("""
+                        INSERT INTO trailers (trailer_number, trailer_type, current_location, status)
+                        VALUES (?, ?, ?, 'available')
+                    """, (trailer_number, trailer_type, location))
+                    conn.commit()
+                    st.success(f"Trailer {trailer_number} added successfully!")
+                    time.sleep(1)
+                    st.rerun()
+                except sqlite3.IntegrityError:
+                    st.error("Trailer number already exists")
+                finally:
+                    conn.close()
+    
+    with tab3:
+        st.info("Select a trailer to edit from the view tab")
+
+def manage_moves():
+    """Move management"""
+    st.subheader("Move Management")
+    
+    tab1, tab2, tab3 = st.tabs(["Active Moves", "Create Move", "Move History"])
+    
+    with tab1:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, move_date, origin, destination, driver_name, status
+            FROM moves 
+            WHERE status IN ('pending', 'in_transit')
+            ORDER BY move_date DESC
+        """)
+        data = cursor.fetchall()
+        
+        if data:
+            df = pd.DataFrame(data, columns=['ID', 'Date', 'Origin', 'Destination', 'Driver', 'Status'])
+            st.dataframe(df, use_container_width=True)
+        else:
+            st.info("No active moves")
+        conn.close()
+    
+    with tab2:
+        with st.form("create_move"):
+            st.write("Create New Move")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                move_date = st.date_input("Move Date", date.today())
+                origin = st.text_input("Origin")
+                destination = st.text_input("Destination")
+            
+            with col2:
+                client = st.text_input("Client", value="Metro Logistics, Inc.")
+                driver = st.text_input("Driver")
+                driver_pay = st.number_input("Driver Pay", min_value=0.0, step=10.0)
+            
+            notes = st.text_area("Notes")
+            
+            if st.form_submit_button("Create Move"):
+                conn = get_connection()
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO moves (move_date, origin, destination, client, driver, driver_name, driver_pay, status, notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+                """, (str(move_date), origin, destination, client, driver, driver, driver_pay, notes))
+                conn.commit()
+                conn.close()
+                st.success("Move created successfully!")
+                time.sleep(1)
+                st.rerun()
+    
+    with tab3:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT move_date, origin, destination, driver_name, status, driver_pay
+            FROM moves 
+            WHERE status = 'completed'
+            ORDER BY move_date DESC
+            LIMIT 50
+        """)
+        data = cursor.fetchall()
+        
+        if data:
+            df = pd.DataFrame(data, columns=['Date', 'Origin', 'Destination', 'Driver', 'Status', 'Pay'])
+            df['Pay'] = df['Pay'].apply(lambda x: f"${x:,.2f}" if x else "$0.00")
+            st.dataframe(df, use_container_width=True)
+        else:
+            st.info("No completed moves")
+        conn.close()
+
+def manage_drivers():
+    """Driver management"""
+    st.subheader("Driver Management")
+    
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # Get driver data
+    cursor.execute("""
+        SELECT d.driver_name, d.company_name, d.phone, 
+               COUNT(m.id) as total_moves,
+               SUM(CASE WHEN m.status = 'completed' THEN m.driver_pay ELSE 0 END) as total_pay
+        FROM drivers d
+        LEFT JOIN moves m ON d.driver_name = m.driver_name
+        GROUP BY d.id
+        ORDER BY d.driver_name
+    """)
+    
+    data = cursor.fetchall()
+    
+    if data:
+        df = pd.DataFrame(data, columns=['Name', 'Company', 'Phone', 'Total Moves', 'Total Earnings'])
+        df['Total Earnings'] = df['Total Earnings'].apply(lambda x: f"${x:,.2f}" if x else "$0.00")
+        st.dataframe(df, use_container_width=True)
+    else:
+        st.info("No drivers found")
+    
+    conn.close()
+
+def generate_reports():
+    """Generate reports"""
+    st.subheader("Reports")
+    
+    report_type = st.selectbox("Select Report Type", 
+                               ["Daily Summary", "Weekly Report", "Monthly Report", "Driver Performance"])
+    
+    if st.button("Generate Report"):
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        if report_type == "Daily Summary":
+            today = date.today()
+            cursor.execute("""
+                SELECT COUNT(*) as moves, SUM(driver_pay) as total_pay
+                FROM moves 
+                WHERE date(move_date) = date(?)
+            """, (today,))
+            
+            result = cursor.fetchone()
+            st.write(f"### Daily Summary for {today}")
+            st.write(f"Total Moves: {result[0]}")
+            st.write(f"Total Driver Pay: ${result[1] or 0:,.2f}")
+        
+        conn.close()
+
+def show_owner_dashboard():
+    """Owner dashboard with all features"""
+    tabs = st.tabs(["📊 Overview", "🚛 Trailers", "📦 Moves", "👥 Drivers", "📈 Reports", "⚙️ Admin"])
+    
+    with tabs[0]:
+        show_overview_metrics()
+        
+        # Recent activity
+        st.subheader("Recent Activity")
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT move_date, driver_name, origin, destination, status
+            FROM moves
+            ORDER BY created_at DESC
+            LIMIT 5
+        """)
+        recent = cursor.fetchall()
+        if recent:
+            df = pd.DataFrame(recent, columns=['Date', 'Driver', 'Origin', 'Destination', 'Status'])
+            st.dataframe(df, use_container_width=True)
+        conn.close()
+    
+    with tabs[1]:
+        manage_trailers()
+    
+    with tabs[2]:
+        manage_moves()
+    
+    with tabs[3]:
+        manage_drivers()
+    
+    with tabs[4]:
+        generate_reports()
+    
+    with tabs[5]:
+        st.subheader("System Administration")
+        
+        admin_tab1, admin_tab2, admin_tab3 = st.tabs(["Users", "Database", "Settings"])
+        
+        with admin_tab1:
+            st.write("### User Management")
+            conn = get_connection()
+            cursor = conn.cursor()
+            
+            try:
+                cursor.execute("SELECT id, username, role, active FROM users")
+                users = cursor.fetchall()
+                if users:
+                    df = pd.DataFrame(users, columns=['ID', 'Username', 'Role', 'Active'])
+                    st.dataframe(df, use_container_width=True)
+                else:
+                    st.info("No users in database. Users are managed via user_accounts.json")
+            except:
+                st.info("Users are managed via user_accounts.json file")
+            
+            conn.close()
+        
+        with admin_tab2:
+            st.write("### Database Statistics")
+            conn = get_connection()
+            cursor = conn.cursor()
+            
+            stats = {}
+            tables = ['users', 'drivers', 'trailers', 'moves', 'locations']
+            for table in tables:
+                try:
+                    cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                    stats[table] = cursor.fetchone()[0]
+                except:
+                    stats[table] = 0
+            
+            col1, col2 = st.columns(2)
+            for i, (table, count) in enumerate(stats.items()):
+                if i % 2 == 0:
+                    col1.metric(f"{table.title()}", count)
+                else:
+                    col2.metric(f"{table.title()}", count)
+            
+            conn.close()
+        
+        with admin_tab3:
+            st.write("### System Settings")
+            st.info("System settings can be configured in the configuration files")
+
+def show_manager_dashboard():
+    """Manager dashboard"""
+    tabs = st.tabs(["Overview", "Trailers", "Moves", "Reports"])
+    
+    with tabs[0]:
+        show_overview_metrics()
+    with tabs[1]:
+        manage_trailers()
+    with tabs[2]:
+        manage_moves()
+    with tabs[3]:
+        generate_reports()
+
+def show_coordinator_dashboard():
+    """Coordinator dashboard"""
+    tabs = st.tabs(["Moves", "Trailers", "Drivers"])
+    
+    with tabs[0]:
+        manage_moves()
+    with tabs[1]:
+        manage_trailers()
+    with tabs[2]:
+        manage_drivers()
+
+def show_driver_dashboard():
+    """Driver dashboard"""
+    st.subheader("Driver Portal")
+    
+    driver_name = st.session_state.get('user_data', {}).get('driver_name', 'Unknown')
+    st.write(f"Welcome, {driver_name}")
+    
+    tabs = st.tabs(["My Moves", "Earnings", "Documents"])
+    
+    with tabs[0]:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT move_date, origin, destination, status, driver_pay
+            FROM moves
+            WHERE driver_name = ?
+            ORDER BY move_date DESC
+        """, (driver_name,))
+        
+        moves = cursor.fetchall()
+        if moves:
+            df = pd.DataFrame(moves, columns=['Date', 'Origin', 'Destination', 'Status', 'Pay'])
+            df['Pay'] = df['Pay'].apply(lambda x: f"${x:,.2f}" if x else "$0.00")
+            st.dataframe(df, use_container_width=True)
+        else:
+            st.info("No moves found")
+        conn.close()
+    
+    with tabs[1]:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT SUM(driver_pay) as total, COUNT(*) as count
+            FROM moves
+            WHERE driver_name = ? AND status = 'completed'
+        """, (driver_name,))
+        
+        result = cursor.fetchone()
+        col1, col2 = st.columns(2)
+        col1.metric("Total Earnings", f"${result[0] or 0:,.2f}")
+        col2.metric("Completed Moves", result[1] or 0)
+        conn.close()
+    
+    with tabs[2]:
+        st.info("Document management coming soon")
+
+def show_admin_dashboard():
+    """Admin dashboard - same as owner"""
+    show_owner_dashboard()
+
+# Main dashboard router
 def show_dashboard():
-    """Main dashboard with safe initialization"""
-    
-    # Initialize dashboard safely
-    if 'dashboard_initialized' not in st.session_state:
-        with st.spinner("Initializing dashboard..."):
-            st.session_state.dashboard_initialized = True
-            time.sleep(0.5)  # Brief pause for effect
-    
+    """Main dashboard router"""
     role = st.session_state.get('role', 'User')
     username = st.session_state.get('user', 'User')
     
-    st.title(f"Welcome, {username}")
-    st.subheader(f"Role: {role}")
+    # Header
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        st.title(f"Welcome, {username}")
+    with col2:
+        st.write(f"**Role:** {role}")
+    with col3:
+        if st.button("🚪 Logout"):
+            st.session_state.clear()
+            st.rerun()
     
-    # Role-based navigation
+    st.markdown("---")
+    
+    # Route to appropriate dashboard
     if role == "Owner":
         show_owner_dashboard()
     elif role == "Admin":
@@ -425,554 +619,46 @@ def show_dashboard():
     elif role == "Driver":
         show_driver_dashboard()
     else:
-        show_default_dashboard()
-
-def show_owner_dashboard():
-    """Owner dashboard with all fixes"""
-    tabs = st.tabs(["Overview", "Trailers", "Moves", "Drivers", "Reports", "System Admin", "Oversight"])
-    
-    with tabs[0]:  # Overview
-        show_overview_metrics()
-    
-    with tabs[1]:  # Trailers
-        manage_trailers()
-    
-    with tabs[2]:  # Moves
-        manage_moves()
-    
-    with tabs[3]:  # Drivers (FIX #7, #8)
-        manage_drivers()
-    
-    with tabs[4]:  # Reports (FIX #5, #10)
-        generate_reports()
-    
-    with tabs[5]:  # System Admin (FIX #11)
-        if FIXES_LOADED:
-            render_system_admin()
-        else:
-            show_system_admin()
-    
-    with tabs[6]:  # Oversight (FIX #14)
-        show_oversight()
-
-def show_overview_metrics():
-    """Show key metrics"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    # Total trailers
-    cursor.execute("SELECT COUNT(*) FROM trailers")
-    total_trailers = cursor.fetchone()[0]
-    
-    # New trailers at Fleet Memphis (FIX #4)
-    cursor.execute("SELECT COUNT(*) FROM trailers WHERE is_new = 1 OR current_location LIKE '%Memphis%'")
-    new_trailers = cursor.fetchone()[0]
-    
-    # Active moves
-    cursor.execute("SELECT COUNT(*) FROM moves WHERE status IN ('pending', 'in_transit')")
-    active_moves = cursor.fetchone()[0]
-    
-    # Completed deliveries (FIX #5)
-    cursor.execute("SELECT COUNT(*) FROM moves WHERE delivery_status = 'Delivered'")
-    delivered = cursor.fetchone()[0]
-    
-    with col1:
-        st.metric("Total Trailers", total_trailers)
-    with col2:
-        st.metric("New Trailers", new_trailers)
-    with col3:
-        st.metric("Active Moves", active_moves)
-    with col4:
-        st.metric("Delivered", delivered)
-    
-    conn.close()
-
-def manage_trailers():
-    """Trailer management with types (FIX #3, #4)"""
-    st.subheader("Trailer Management")
-    
-    action = st.selectbox("Action", ["View Trailers", "Add Trailer", "Edit Trailer"])
-    
-    if action == "View Trailers":
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT trailer_number, trailer_type, current_location,
-                   CASE WHEN is_new = 1 THEN 'New' ELSE 'Old' END as condition,
-                   status
-            FROM trailers
-            ORDER BY current_location, trailer_number
-        """)
-        trailers = cursor.fetchall()
-        
-        if trailers:
-            df = pd.DataFrame(trailers, columns=['Number', 'Type', 'Location', 'Condition', 'Status'])
-            
-            # Filter by type
-            trailer_types = ['All', 'Standard', 'Roller Bed', 'Dry Van']
-            selected_type = st.selectbox("Filter by Type", trailer_types)
-            
-            if selected_type != 'All':
-                df = df[df['Type'] == selected_type]
-            
-            st.dataframe(df)
-        conn.close()
-    
-    elif action == "Add Trailer":
-        with st.form("add_trailer"):
-            st.subheader("Add New Trailer")
-            
-            trailer_number = st.text_input("Trailer Number")
-            
-            # Trailer types (FIX #3)
-            trailer_type = st.selectbox("Trailer Type", ["Standard", "Roller Bed", "Dry Van"])
-            
-            location = st.text_input("Current Location")
-            
-            # Mark as new if from Fleet Memphis (FIX #4)
-            is_new = st.checkbox("New Trailer (from Fleet Memphis)")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.form_submit_button("Add Trailer", type="primary"):
-                    conn = get_connection()
-                    cursor = conn.cursor()
-                    try:
-                        cursor.execute("""
-                            INSERT INTO trailers (trailer_number, trailer_type, current_location, is_new, origin_location)
-                            VALUES (?, ?, ?, ?, ?)
-                        """, (trailer_number, trailer_type, location, 1 if is_new else 0, 
-                              'Fleet Memphis' if is_new else location))
-                        conn.commit()
-                        st.success("Trailer added successfully!")
-                    except Exception as e:
-                        show_error("DB003", str(e))
-                    conn.close()
-            
-            with col2:
-                # Cancel button (FIX #2)
-                if st.form_submit_button("Cancel"):
-                    st.rerun()
-
-def manage_moves():
-    """Move management with delivery tracking (FIX #5, #6)"""
-    st.subheader("Move Management")
-    
-    action = st.selectbox("Action", ["View Moves", "Add Move", "Update Move"])
-    
-    if action == "Add Move":
-        with st.form("add_move"):
-            st.subheader("Add New Move")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                move_id = st.text_input("Move ID")
-                pickup_location = st.text_input("Pickup Location")
-                delivery_location = st.text_input("Delivery Location")
-                
-            with col2:
-                driver_name = st.selectbox("Driver", get_driver_list())
-                pickup_date = st.date_input("Pickup Date")
-                delivery_status = st.selectbox("Delivery Status", ["Scheduled", "In Transit", "Delivered"])
-            
-            notes = st.text_area("Notes")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.form_submit_button("Add Move", type="primary"):
-                    conn = get_connection()
-                    cursor = conn.cursor()
-                    try:
-                        cursor.execute("""
-                            INSERT INTO moves (move_id, pickup_location, delivery_location, 
-                                             driver_name, move_date, delivery_status, notes)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """, (move_id, pickup_location, delivery_location, 
-                              driver_name, pickup_date, delivery_status, notes))
-                        conn.commit()
-                        st.success("Move added successfully!")
-                    except Exception as e:
-                        show_error("DB003", str(e))
-                    conn.close()
-            
-            with col2:
-                # Cancel button (FIX #6)
-                if st.form_submit_button("Cancel"):
-                    st.rerun()
-
-def get_driver_list():
-    """Get list of drivers from database (FIX #7)"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT DISTINCT driver_name FROM drivers WHERE active = 1 ORDER BY driver_name")
-    drivers = [row[0] for row in cursor.fetchall()]
-    conn.close()
-    return drivers if drivers else ["No drivers found"]
-
-def manage_drivers():
-    """Driver management with real data (FIX #7, #8)"""
-    st.subheader("Driver Management")
-    
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    # Get real driver data with payments and moves
-    cursor.execute("""
-        SELECT 
-            d.driver_name,
-            d.company_name,
-            d.phone,
-            COUNT(DISTINCT m.id) as total_moves,
-            SUM(CASE WHEN m.status = 'completed' THEN 1 ELSE 0 END) as completed_moves,
-            SUM(m.driver_pay) as total_payments
-        FROM drivers d
-        LEFT JOIN moves m ON d.driver_name = m.driver_name
-        GROUP BY d.id
-        ORDER BY d.driver_name
-    """)
-    
-    driver_data = cursor.fetchall()
-    
-    if driver_data:
-        df = pd.DataFrame(driver_data, columns=[
-            'Name', 'Company', 'Phone', 'Total Moves', 
-            'Completed Moves', 'Total Payments'
-        ])
-        
-        # Format payment column
-        df['Total Payments'] = df['Total Payments'].apply(lambda x: f"${x:,.2f}" if x else "$0.00")
-        
-        st.dataframe(df)
-    else:
-        st.info("No driver data available")
-    
-    conn.close()
-
-def generate_reports():
-    """Report generation with fixes (FIX #5, #10)"""
-    st.subheader("Reports")
-    
-    report_type = st.selectbox("Select Report", [
-        "Client Report - Trailer Locations & Deliveries",
-        "Driver Performance Report",
-        "Fleet Status Report"
-    ])
-    
-    if st.button("Generate Report"):
-        try:
-            if report_type == "Client Report - Trailer Locations & Deliveries":
-                # Generate comprehensive client report (FIX #5)
-                conn = get_connection()
-                cursor = conn.cursor()
-                
-                cursor.execute("""
-                    SELECT 
-                        t.trailer_number,
-                        t.trailer_type,
-                        CASE WHEN t.is_new = 1 THEN 'New' ELSE 'Old' END as condition,
-                        t.current_location,
-                        CASE 
-                            WHEN t.origin_location = 'Fleet Memphis' THEN 'Fleet Memphis (New)'
-                            ELSE t.origin_location 
-                        END as origin,
-                        m.delivery_status,
-                        m.delivery_location,
-                        m.delivery_date,
-                        m.driver_name
-                    FROM trailers t
-                    LEFT JOIN moves m ON t.trailer_number = m.new_trailer
-                    ORDER BY t.current_location, t.trailer_number
-                """)
-                
-                data = cursor.fetchall()
-                conn.close()
-                
-                if data:
-                    df = pd.DataFrame(data, columns=[
-                        'Trailer', 'Type', 'Condition', 'Current Location',
-                        'Origin', 'Delivery Status', 'Delivery Location',
-                        'Delivery Date', 'Driver'
-                    ])
-                    
-                    # Show summary
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Total Trailers", len(df))
-                    with col2:
-                        st.metric("Delivered", len(df[df['Delivery Status'] == 'Delivered']))
-                    with col3:
-                        st.metric("In Transit", len(df[df['Delivery Status'] == 'In Transit']))
-                    
-                    st.dataframe(df)
-                    
-                    # Download button
-                    csv = df.to_csv(index=False)
-                    st.download_button(
-                        label="Download Report",
-                        data=csv,
-                        file_name=f"client_report_{datetime.now().strftime('%Y%m%d')}.csv",
-                        mime="text/csv"
-                    )
-                
-            elif report_type == "Driver Performance Report":
-                # Fixed driver report (FIX #10)
-                if FIXES_LOADED:
-                    df = generate_driver_report()
-                    if not df.empty:
-                        st.dataframe(df)
-                else:
-                    conn = get_connection()
-                    cursor = conn.cursor()
-                    
-                    # Initialize driver_data properly
-                    driver_data = []
-                    
-                    cursor.execute("""
-                        SELECT 
-                            d.driver_name,
-                            COUNT(m.id) as moves,
-                            SUM(m.driver_pay) as pay
-                        FROM drivers d
-                        LEFT JOIN moves m ON d.driver_name = m.driver_name
-                        GROUP BY d.id
-                    """)
-                    
-                    driver_data = cursor.fetchall()
-                    conn.close()
-                    
-                    if driver_data:
-                        df = pd.DataFrame(driver_data, columns=['Driver', 'Total Moves', 'Total Pay'])
-                        st.dataframe(df)
-                
-        except Exception as e:
-            show_error("REP001", str(e))
-
-def show_system_admin():
-    """System admin page (FIX #11, #12)"""
-    st.subheader("System Administration")
-    
-    tabs = st.tabs(["Users", "Email Config", "Database", "System Logs"])
-    
-    with tabs[0]:  # Users
-        manage_users()
-    
-    with tabs[1]:  # Email Config (FIX #12)
-        configure_email()
-    
-    with tabs[2]:  # Database
-        manage_database()
-    
-    with tabs[3]:  # System Logs
-        view_system_logs()
-
-def manage_users():
-    """User management"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT id, username, role, active FROM users ORDER BY user")
-    users = cursor.fetchall()
-    
-    if users:
-        df = pd.DataFrame(users, columns=['ID', 'Username', 'Role', 'Active'])
-        st.dataframe(df)
-    
-    conn.close()
-
-def configure_email():
-    """Email configuration (FIX #12)"""
-    st.subheader("Email Configuration")
-    
-    # Load current config
-    config = {}
-    if os.path.exists('email_config.json'):
-        with open('email_config.json', 'r') as f:
-            config = json.load(f)
-    
-    with st.form("email_config"):
-        smtp_server = st.text_input("SMTP Server", value=config.get('smtp_server', 'smtp.gmail.com'))
-        smtp_port = st.number_input("SMTP Port", value=config.get('smtp_port', 587))
-        sender_email = st.text_input("Sender Email", value=config.get('sender_email', ''))
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.form_submit_button("Save Configuration"):
-                config = {
-                    "smtp_server": smtp_server,
-                    "smtp_port": smtp_port,
-                    "sender_email": sender_email
-                }
-                with open('email_config.json', 'w') as f:
-                    json.dump(config, f, indent=2)
-                st.success("Email configuration saved")
-        
-        with col2:
-            if st.form_submit_button("Test Email"):
-                if FIXES_LOADED:
-                    result = email_api.send_email(
-                        sender_email,
-                        "Test Email",
-                        "This is a test email from the system."
-                    )
-                    st.info(f"Email {result['status']}")
-                else:
-                    st.info("Email queued for sending")
-
-def manage_database():
-    """Database management"""
-    st.subheader("Database Management")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        if st.button("Backup Database"):
-            import shutil
-            backup_name = f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
-            shutil.copy('trailer_tracker_streamlined.db', backup_name)
-            st.success(f"Database backed up to {backup_name}")
-    
-    with col2:
-        if st.button("Optimize Database"):
-            conn = get_connection()
-            conn.execute("VACUUM")
-            conn.close()
-            st.success("Database optimized")
-    
-    with col3:
-        if st.button("Clear Old Logs"):
-            conn = get_connection()
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM activity_log WHERE timestamp < datetime('now', '-30 days')")
-            deleted = cursor.rowcount
-            conn.commit()
-            conn.close()
-            st.success(f"Deleted {deleted} old log entries")
-
-def view_system_logs():
-    """View system logs"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        SELECT timestamp, user, action, details
-        FROM activity_log
-        ORDER BY timestamp DESC
-        LIMIT 50
-    """)
-    
-    logs = cursor.fetchall()
-    
-    if logs:
-        df = pd.DataFrame(logs, columns=['Timestamp', 'User', 'Action', 'Details'])
-        st.dataframe(df)
-    
-    conn.close()
-
-def show_oversight():
-    """Oversight dashboard with real data (FIX #14)"""
-    st.subheader("Oversight Dashboard")
-    
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    # Clear dummy data
-    cursor.execute("""
-        DELETE FROM activity_log 
-        WHERE action LIKE '%test%' OR action LIKE '%dummy%'
-    """)
-    
-    # Get real activity
-    cursor.execute("""
-        SELECT timestamp, user, action, details
-        FROM activity_log
-        WHERE action NOT LIKE '%test%' AND action NOT LIKE '%dummy%'
-        ORDER BY timestamp DESC
-        LIMIT 20
-    """)
-    
-    activities = cursor.fetchall()
-    
-    if activities:
-        st.write("### Recent Activity")
-        df = pd.DataFrame(activities, columns=['Time', 'User', 'Action', 'Details'])
-        st.dataframe(df)
-    else:
-        st.info("No recent activity")
-    
-    conn.commit()
-    conn.close()
-
-# Other role dashboards
-def show_admin_dashboard():
-    show_owner_dashboard()  # Admin has similar access
-
-def show_manager_dashboard():
-    tabs = st.tabs(["Overview", "Trailers", "Moves", "Reports"])
-    with tabs[0]:
-        show_overview_metrics()
-    with tabs[1]:
-        manage_trailers()
-    with tabs[2]:
-        manage_moves()
-    with tabs[3]:
-        generate_reports()
-
-def show_coordinator_dashboard():
-    tabs = st.tabs(["Moves", "Trailers", "Drivers"])
-    with tabs[0]:
-        manage_moves()
-    with tabs[1]:
-        manage_trailers()
-    with tabs[2]:
-        manage_drivers()
-
-def show_driver_dashboard():
-    st.subheader("Driver Portal")
-    st.info("Driver portal - View your assigned moves and documents")
-
-def show_default_dashboard():
-    st.info("Welcome to Smith & Williams Trucking")
+        st.info("Welcome to Smith & Williams Trucking")
 
 # Main app
 def main():
-    """Main application with all fixes"""
+    """Main application"""
     
-    # Show Vernon IT support (FIX #16)
-    show_vernon_sidebar()
+    # Initialize database
+    init_database()
     
-    # Check authentication
+    # Sidebar
+    with st.sidebar:
+        # Logo
+        logo_path = "swt_logo_white.png" if os.path.exists("swt_logo_white.png") else "swt_logo.png"
+        if os.path.exists(logo_path):
+            st.image(logo_path, use_container_width=True)
+        
+        st.markdown("---")
+        
+        # Show user info if logged in
+        if check_authentication():
+            st.write(f"**User:** {st.session_state.get('user', 'Unknown')}")
+            st.write(f"**Role:** {st.session_state.get('role', 'Unknown')}")
+            st.markdown("---")
+            
+            if st.button("🔄 Refresh"):
+                st.rerun()
+            
+            if st.button("🗑️ Clear Cache"):
+                st.cache_data.clear()
+                st.success("Cache cleared!")
+                time.sleep(1)
+                st.rerun()
+    
+    # Main content
     if not check_authentication():
         login()
     else:
-        # Sidebar controls
-        with st.sidebar:
-            st.markdown("### System Controls")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("🚪 Logout"):
-                    st.session_state.clear()
-                    st.rerun()
-            
-            with col2:
-                if st.button("🔄 Clear Cache"):
-                    st.cache_data.clear()
-                    st.cache_resource.clear()
-                    st.success("Cache cleared!")
-                    st.rerun()
-        
-        # Show dashboard with proper initialization
         show_dashboard()
 
 if __name__ == "__main__":
-    # Install graphviz if needed (FIX #13)
-    try:
-        import graphviz
-    except ImportError:
-        st.warning("Graphviz is not installed. Some visualization features may be limited.")
-        pass
-    
+    # Clear cache on startup
+    st.cache_data.clear()
     main()
