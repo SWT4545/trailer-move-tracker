@@ -11,6 +11,13 @@ import os
 import json
 import time
 
+# Import PDF generator
+try:
+    from pdf_generator import generate_driver_receipt, generate_client_invoice, generate_status_report
+    PDF_AVAILABLE = True
+except ImportError:
+    PDF_AVAILABLE = False
+
 # Page config
 st.set_page_config(
     page_title="Smith & Williams Trucking",
@@ -1137,8 +1144,86 @@ def show_dashboard():
         with tabs[5]:
             manage_mlbl_numbers()
         with tabs[6]:
-            st.subheader("💰 Financial Management")
-            st.info("Financial management interface")
+            st.subheader("💰 Financial Management & Reports")
+            
+            if PDF_AVAILABLE:
+                report_tabs = st.tabs(["📄 Driver Receipts", "📋 Client Invoices", "📊 Status Reports"])
+                
+                with report_tabs[0]:
+                    st.markdown("### Generate Driver Payment Receipts")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        driver_list = ["Brandon Smith", "Justin Duckett", "Carl Strickland"]
+                        selected_driver = st.selectbox("Select Driver", driver_list)
+                    with col2:
+                        receipt_from = st.date_input("From Date", value=date.today() - timedelta(days=30), key="receipt_from")
+                    with col3:
+                        receipt_to = st.date_input("To Date", value=date.today(), key="receipt_to")
+                    
+                    if st.button("📥 Generate Driver Receipt", type="primary"):
+                        try:
+                            filename = generate_driver_receipt(selected_driver, receipt_from, receipt_to)
+                            st.success(f"✅ Receipt generated: {filename}")
+                            with open(filename, "rb") as pdf_file:
+                                st.download_button(
+                                    label="📥 Download Receipt PDF",
+                                    data=pdf_file.read(),
+                                    file_name=filename,
+                                    mime="application/pdf"
+                                )
+                        except Exception as e:
+                            st.error(f"Error generating receipt: {str(e)}")
+                
+                with report_tabs[1]:
+                    st.markdown("### Generate Client Invoices")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        client_name = st.text_input("Client Name", value="Metro Logistics")
+                    with col2:
+                        invoice_from = st.date_input("From Date", value=date.today() - timedelta(days=30), key="invoice_from")
+                    with col3:
+                        invoice_to = st.date_input("To Date", value=date.today(), key="invoice_to")
+                    
+                    if st.button("📥 Generate Client Invoice", type="primary"):
+                        try:
+                            filename = generate_client_invoice(client_name, invoice_from, invoice_to)
+                            st.success(f"✅ Invoice generated: {filename}")
+                            with open(filename, "rb") as pdf_file:
+                                st.download_button(
+                                    label="📥 Download Invoice PDF",
+                                    data=pdf_file.read(),
+                                    file_name=filename,
+                                    mime="application/pdf"
+                                )
+                        except Exception as e:
+                            st.error(f"Error generating invoice: {str(e)}")
+                
+                with report_tabs[2]:
+                    st.markdown("### Generate Status Reports")
+                    st.info("Generate comprehensive reports showing completed, in-process, and unassigned moves")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        report_from = st.date_input("From Date", value=date.today() - timedelta(days=30), key="report_from")
+                    with col2:
+                        report_to = st.date_input("To Date", value=date.today(), key="report_to")
+                    
+                    include_charts = st.checkbox("Include Charts & Graphs", value=True)
+                    
+                    if st.button("📥 Generate Status Report", type="primary"):
+                        try:
+                            filename = generate_status_report(report_from, report_to)
+                            st.success(f"✅ Report generated: {filename}")
+                            with open(filename, "rb") as pdf_file:
+                                st.download_button(
+                                    label="📥 Download Report PDF",
+                                    data=pdf_file.read(),
+                                    file_name=filename,
+                                    mime="application/pdf"
+                                )
+                        except Exception as e:
+                            st.error(f"Error generating report: {str(e)}")
+            else:
+                st.warning("⚠️ PDF generation not available. Install reportlab: pip install reportlab")
         with tabs[7]:
             st.subheader("🔧 System Administration")
             if st.button("🔄 Reload Production Data"):
