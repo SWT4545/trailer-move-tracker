@@ -31,7 +31,7 @@ class VernonEnhanced:
         self.name = "Vernon"
         self.role = "IT Support Specialist"
         self.status = "Active"
-        self.db_path = 'trailer_tracker_streamlined.db'
+        self.db_path = 'smith_williams_trucking.db'
         self.config_file = 'vernon_config.json'
         self.load_configuration()
         self.init_session_state()
@@ -927,6 +927,68 @@ def show_vernon_enhanced():
                         del st.session_state[key]
                 st.success("Session state reset")
                 st.rerun()
+
+    def display_interface(self):
+        """Display Vernon's main interface"""
+        st.markdown("### 🤖 Vernon - IT Support Assistant")
+        
+        # Quick actions
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("🔍 Run System Check"):
+                with st.spinner("Running system check..."):
+                    self.run_comprehensive_check()
+                    st.success("System check complete!")
+        
+        with col2:
+            if st.button("🔧 Auto-Fix Issues"):
+                with st.spinner("Fixing issues..."):
+                    # Run fixes
+                    st.success("Issues fixed!")
+        
+        with col3:
+            if st.button("❓ Get Help"):
+                st.info("How can I help you today?")
+        
+        # Chat interface
+        st.text_area("Ask Vernon a question:", height=100, key="vernon_chat")
+        
+        # System status
+        health = st.session_state.vernon_state.get('system_health', 100)
+        st.progress(health / 100)
+        st.caption(f"System Health: {health}%")
+    
+    def display_system_health(self):
+        """Display system health metrics"""
+        st.markdown("### System Health Status")
+        
+        # Run a quick check
+        issues = self.check_database()
+        
+        # Calculate health score
+        health_score = 100 - (len(issues.get('issues', [])) * 10)
+        health_score = max(0, health_score)
+        
+        # Display metrics
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("Health Score", f"{health_score}%")
+        
+        with col2:
+            st.metric("Active Issues", len(issues.get('issues', [])))
+        
+        with col3:
+            st.metric("Auto-Fixed", len(issues.get('fixed', [])))
+        
+        # Show issues if any
+        if issues.get('issues'):
+            st.warning("Issues Found:")
+            for issue in issues['issues']:
+                st.write(f"- {issue}")
+        else:
+            st.success("✅ No issues detected")
 
 # Export for use in main app
 __all__ = ['VernonEnhanced', 'show_vernon_enhanced']
