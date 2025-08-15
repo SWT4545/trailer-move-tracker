@@ -516,51 +516,15 @@ def show_overview_metrics():
     # Add data initialization button if no data
     if active_moves == 0 and available_trailers == 0 and active_drivers == 0:
         st.warning("No data found in the system!")
-        if st.button("🔄 Initialize Demo Data", type="primary"):
+        if st.button("Load Production Data", type="primary"):
             try:
-                conn = sqlite3.connect(DB_PATH)
-                cursor = conn.cursor()
-                
-                # Add locations
-                cursor.execute('''
-                    INSERT OR IGNORE INTO locations (id, location_title, city, state, location_type, is_base_location)
-                    VALUES (1, 'Fleet Memphis', 'Memphis', 'TN', 'base', 1)
-                ''')
-                
-                cursor.execute('''
-                    INSERT OR IGNORE INTO locations (location_title, city, state, location_type, is_base_location)
-                    VALUES 
-                        ('FedEx Memphis', 'Memphis', 'TN', 'customer', 0),
-                        ('FedEx Indy', 'Indianapolis', 'IN', 'customer', 0),
-                        ('FedEx Chicago', 'Chicago', 'IL', 'customer', 0)
-                ''')
-                
-                # Add drivers
-                cursor.execute('''
-                    INSERT OR IGNORE INTO drivers (driver_name, status, driver_type)
-                    VALUES 
-                        ('Brandon Smith', 'active', 'owner'),
-                        ('Justin Duckett', 'active', 'contractor'),
-                        ('Carl Strickland', 'active', 'contractor')
-                ''')
-                
-                # Add trailers
-                trailers = ['190046', '18V00407', '7155', '7146', '5955', 
-                           '6024', '6061', '3170', '7153', '6015',
-                           '190033', '18V00298', '7728', '190011', '190030']
-                
-                for trailer in trailers:
-                    cursor.execute('''
-                        INSERT OR IGNORE INTO trailers (trailer_number, status, current_location)
-                        VALUES (?, 'available', 'Fleet Memphis')
-                    ''', (trailer,))
-                
-                conn.commit()
-                conn.close()
-                st.success("Demo data initialized successfully!")
+                from load_real_production_data import load_real_production_data
+                load_real_production_data()
+                st.success("Real production data loaded successfully!")
                 st.rerun()
             except Exception as e:
-                st.error(f"Error initializing data: {str(e)}")
+                st.error(f"Error loading production data: {str(e)}")
+                st.info("Please ensure load_real_production_data.py is available")
 
 # Create new move
 def create_new_move():
