@@ -329,6 +329,28 @@ grep -r "✓" *.py
 **Files Affected:** `app.py` login() function
 **Benefits:** Video plays automatically on all devices without user interaction
 
+### 25. Vernon Data Protection Footer (RESOLVED)
+**Date:** 2025-08-15
+**Request:** Add Vernon's title and data protection notice to all app pages
+**Implementation:**
+  - Added footer to sidebar: "Data Protected by Vernon - Senior IT Security Manager"
+  - Added footer to main content area on all dashboard pages
+  - Added protection notice on login page
+  - Vernon's security credentials visible on every page
+**Files Affected:** `app.py` - show_sidebar(), main(), login()
+**Benefits:** Reinforces data security and Vernon's role as IT Security Manager
+
+### 26. PDF Invoice Clarity (RESOLVED)
+**Date:** 2025-08-15
+**Issue:** PDF invoices needed clearer factoring fee display
+**Solution:**
+  - Updated breakdown to show: Gross → Factoring (3%) → Total After Factoring
+  - Added disclaimer: "Service fees are not included in this total"
+  - Removed word "professional" from invoice generation
+  - Example: $1960 - $58.80 (3%) = $1901.20
+**Files Affected:** `pdf_generator.py`, `app.py`
+**Benefits:** Clear, accurate payment calculations
+
 ---
 
 Last Updated: 2025-08-15

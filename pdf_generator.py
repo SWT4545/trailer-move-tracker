@@ -29,7 +29,7 @@ class PDFGenerator:
         self.company_email = "dispatch@swtrucking.com"
         # Use transparent logo (swt_logo.png) for PDFs
         self.logo_path = "swt_logo.png" if os.path.exists("swt_logo.png") else None
-        self.db_path = "trailer_moves.db"
+        self.db_path = "smith_williams_trucking.db"
         
     def _add_letterhead(self, canvas, doc):
         """Add company letterhead to each page"""

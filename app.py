@@ -12,12 +12,18 @@ import json
 import time
 import base64
 
-# Import PDF generator
+# Import PDF generators
 try:
     from pdf_generator import generate_driver_receipt, generate_client_invoice, generate_status_report
     PDF_AVAILABLE = True
 except ImportError:
     PDF_AVAILABLE = False
+
+try:
+    from inventory_pdf_generator import generate_inventory_pdf
+    INVENTORY_PDF_AVAILABLE = True
+except ImportError:
+    INVENTORY_PDF_AVAILABLE = False
 
 # Page config
 st.set_page_config(
@@ -725,10 +731,11 @@ def create_new_move():
     
     # Use containers instead of form for real-time updates
     with st.container():
-        # Section 1: Trailer Selection
-        st.markdown("### 1. Select Trailer to Deliver")
+        # Section 1: Trailer Selection (ONLY FROM FLEET MEMPHIS)
+        st.markdown("### 1. Select NEW Trailer from Fleet Memphis")
+        st.info("Only trailers currently at Fleet Memphis are available for delivery")
         
-        # Get available trailers - handle both database structures
+        # Get available NEW trailers at Fleet Memphis ONLY
         # First, check if trailers table exists
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='trailers'")
         if not cursor.fetchone():
@@ -739,65 +746,46 @@ def create_new_move():
             cursor.execute("PRAGMA table_info(trailers)")
             columns = [col[1] for col in cursor.fetchall()]
             
-            # Build query based on available columns
+            # Build query to get ONLY Fleet Memphis trailers
             try:
                 # Check if moves table has new_trailer/old_trailer columns
                 cursor.execute("PRAGMA table_info(moves)")
                 move_columns = [col[1] for col in cursor.fetchall()]
                 
                 if 'current_location_id' in columns and 'locations' in [row[0] for row in cursor.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]:
-                    # Normalized structure with location_id
-                    if 'new_trailer' in move_columns:
-                        # Has new_trailer/old_trailer columns
-                        cursor.execute('''
-                            SELECT t.id, t.trailer_number, 
-                                   COALESCE(l.location_title, 'Fleet Memphis') as location,
-                                   t.status
-                            FROM trailers t
-                            LEFT JOIN locations l ON t.current_location_id = l.id
-                            WHERE t.trailer_number NOT IN (
-                                SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
-                                UNION
-                                SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
-                            )
-                            ORDER BY location, t.trailer_number
-                        ''')
-                    else:
-                        # No new_trailer/old_trailer columns - get all available trailers
-                        cursor.execute('''
-                            SELECT t.id, t.trailer_number, 
-                                   COALESCE(l.location_title, 'Fleet Memphis') as location,
-                                   t.status
-                            FROM trailers t
-                            LEFT JOIN locations l ON t.current_location_id = l.id
-                            WHERE t.status = 'available'
-                            ORDER BY location, t.trailer_number
-                        ''')
+                    # Get Fleet Memphis location ID
+                    cursor.execute("SELECT id FROM locations WHERE location_title = 'Fleet Memphis'")
+                    fleet_id = cursor.fetchone()[0] if cursor.fetchone() else 1
+                    
+                    # Get ONLY trailers at Fleet Memphis that are available
+                    cursor.execute('''
+                        SELECT t.id, t.trailer_number, 
+                               'Fleet Memphis' as location,
+                               t.status, t.is_new
+                        FROM trailers t
+                        WHERE t.current_location_id = ?
+                        AND t.status = 'available'
+                        AND t.is_new = 1
+                        ORDER BY t.trailer_number
+                    ''', (fleet_id,))
                 else:
-                    # Simple structure with current_location text field
-                    if 'new_trailer' in move_columns:
-                        cursor.execute('''
-                            SELECT t.id, t.trailer_number, 
-                                   COALESCE(t.current_location, 'Fleet Memphis') as location,
-                                   t.status
-                            FROM trailers t
-                            WHERE t.trailer_number NOT IN (
-                                SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
-                                UNION
-                                SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
-                            )
-                            ORDER BY t.current_location, t.trailer_number
-                        ''')
-                    else:
-                        # No new_trailer/old_trailer columns
-                        cursor.execute('''
-                            SELECT t.id, t.trailer_number, 
-                                   COALESCE(t.current_location, 'Fleet Memphis') as location,
-                                   t.status
-                            FROM trailers t
-                            WHERE t.status = 'available'
-                            ORDER BY t.current_location, t.trailer_number
-                        ''')
+                    # Simple structure - get trailers at Fleet Memphis
+                    cursor.execute('''
+                        SELECT t.id, t.trailer_number, 
+                               'Fleet Memphis' as location,
+                               t.status, 
+                               CASE 
+                                   WHEN t.trailer_number LIKE '190%' THEN 1
+                                   WHEN t.trailer_number LIKE '18V%' THEN 1
+                                   WHEN t.trailer_number = '7728' THEN 1
+                                   ELSE 0
+                               END as is_new
+                        FROM trailers t
+                        WHERE (t.current_location = 'Fleet Memphis' OR t.current_location IS NULL)
+                        AND t.status = 'available'
+                        HAVING is_new = 1
+                        ORDER BY t.trailer_number
+                    ''')
                 trailers = cursor.fetchall()
             except sqlite3.OperationalError as e:
                 st.error(f"Database query error: {str(e)}")
@@ -805,44 +793,23 @@ def create_new_move():
                 trailers = []
         
         if trailers:
-            # Group trailers by location
-            trailers_at_fleet = []
-            trailers_at_other = []
+            # All trailers are at Fleet Memphis (NEW trailers only)
+            st.success(f"**{len(trailers)} NEW trailers available at Fleet Memphis**")
             
             # Initialize trailer_options and trailer_numbers
             trailer_options = {}
             trailer_numbers = {}  # Map display key to trailer number
             
             for t in trailers:
-                if 'Fleet Memphis' in t[2] or 'TBD' in t[2]:
-                    trailers_at_fleet.append(t)
-                else:
-                    trailers_at_other.append(t)
-            
-            # Show Fleet Memphis trailers first
-            if trailers_at_fleet:
-                st.info(f"**Trailers at Fleet Memphis ({len(trailers_at_fleet)} available)**")
-                for t in trailers_at_fleet:
-                    key = f"Trailer #{t[1]} @ Fleet Memphis"
-                    trailer_options[key] = t[0]  # trailer id
-                    trailer_numbers[key] = t[1]  # trailer number
-            
-            # Show trailers at other locations
-            if trailers_at_other:
-                st.warning(f" **Trailers at other locations ({len(trailers_at_other)} available)**")
-                for t in trailers_at_other:
-                    key = f"Trailer #{t[1]} @ {t[2]}"
-                    trailer_options[key] = t[0]  # trailer id
-                    trailer_numbers[key] = t[1]  # trailer number
+                key = f"Trailer #{t[1]} (NEW)"
+                trailer_options[key] = t[0]  # trailer id
+                trailer_numbers[key] = t[1]  # trailer number
             
             selected_trailer = st.selectbox(
-                "Select Trailer to Deliver", 
+                "Select NEW Trailer to Deliver", 
                 options=list(trailer_options.keys()),
-                help="Choose trailer to deliver (typically from Fleet Memphis)"
+                help="Choose a NEW trailer from Fleet Memphis to deliver"
             )
-            
-            # Show total count
-            st.success(f"Total {len(trailers)} trailers available for assignment")
         else:
             st.error("No trailers available - All trailers are currently assigned or in transit")
             trailer_options = {}
@@ -873,12 +840,38 @@ def create_new_move():
             )
         
         with col2:
-            destination = st.selectbox(
-                "Delivery Location", 
-                options=list(location_options.keys()),
-                help="Where will the trailer be delivered to?",
-                key="destination_select"
-            )
+            # Get locations with OLD trailers for pickup
+            cursor.execute('''
+                SELECT DISTINCT l.location_title, COUNT(t.id) as trailer_count
+                FROM locations l
+                JOIN trailers t ON t.current_location_id = l.id
+                WHERE t.is_new = 0 
+                AND l.location_title LIKE 'FedEx%'
+                GROUP BY l.location_title
+                ORDER BY l.location_title
+            ''')
+            locations_with_trailers = cursor.fetchall()
+            
+            if locations_with_trailers:
+                destination_options = []
+                for loc, count in locations_with_trailers:
+                    destination_options.append(f"{loc} ({count} OLD trailers)")
+                
+                destination_display = st.selectbox(
+                    "Delivery Location (with OLD trailers for pickup)", 
+                    options=destination_options,
+                    help="Select a FedEx location that has OLD trailers ready for pickup",
+                    key="destination_select"
+                )
+                # Extract actual location name
+                destination = destination_display.split(" (")[0]
+            else:
+                destination = st.selectbox(
+                    "Delivery Location", 
+                    options=list(location_options.keys()),
+                    help="Where will the trailer be delivered to?",
+                    key="destination_select_fallback"
+                )
         
         # Auto-calculate miles based on route - REAL-TIME UPDATE
         if destination == "FedEx Indy":
@@ -949,53 +942,41 @@ def create_new_move():
                 help="Enter the client name for this move"
             )
             
-            # Show available trailers at destination
+            # Show OLD trailers available for pickup at destination
             if destination:
-                st.markdown(f"**Available trailers at {destination}:**")
+                st.markdown(f"**OLD Trailers available for pickup at {destination}:**")
                 
-                # Get trailers at the selected destination
+                # Get OLD trailers at the selected destination
                 try:
-                    dest_location_pattern = destination.replace("FedEx", "%")
+                    # Get location ID
+                    cursor.execute("SELECT id FROM locations WHERE location_title = ?", (destination,))
+                    loc_result = cursor.fetchone()
                     
-                    # Check if moves table has new_trailer/old_trailer columns
-                    cursor.execute("PRAGMA table_info(moves)")
-                    move_cols = [col[1] for col in cursor.fetchall()]
-                    
-                    if 'new_trailer' in move_cols:
-                        # Schema with new_trailer/old_trailer
+                    if loc_result:
+                        loc_id = loc_result[0]
+                        # Get OLD trailers at this location
                         cursor.execute('''
                             SELECT trailer_number 
                             FROM trailers 
-                            WHERE (current_location LIKE ? OR current_location = ?)
-                            AND trailer_number NOT IN (
-                                SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
-                                UNION
-                                SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
-                            )
+                            WHERE current_location_id = ?
+                            AND is_new = 0
+                            AND status = 'available'
                             ORDER BY trailer_number
-                        ''', (dest_location_pattern, destination))
+                        ''', (loc_id,))
+                        
+                        dest_trailers = cursor.fetchall()
+                        
+                        if dest_trailers:
+                            trailer_list = ", ".join([t[0] for t in dest_trailers])
+                            st.info(f"OLD trailers ready for pickup: {trailer_list}")
+                        else:
+                            st.warning(f"No OLD trailers currently at {destination}")
                     else:
-                        # Simple schema - just get all trailers at location
-                        cursor.execute('''
-                            SELECT trailer_number 
-                            FROM trailers 
-                            WHERE (current_location LIKE ? OR current_location = ?)
-                            ORDER BY trailer_number
-                        ''', (dest_location_pattern, destination))
-                    
-                    dest_trailers = cursor.fetchall()
-                    
-                    if dest_trailers:
-                        trailer_list = ", ".join([t[0] for t in dest_trailers[:5]])
-                        if len(dest_trailers) > 5:
-                            trailer_list += f" ... and {len(dest_trailers) - 5} more"
-                        st.info(f"Trailers at {destination}: {trailer_list}")
-                    else:
-                        st.warning(f"No trailers currently at {destination}")
-                except Exception:
-                    st.info("Select a destination to see available trailers")
+                        st.warning(f"Location {destination} not found in database")
+                except Exception as e:
+                    st.error(f"Error checking trailers: {str(e)}")
             else:
-                st.info("Select a destination to see available trailers")
+                st.info("Select a destination to see available OLD trailers")
             
             swap_trailer = st.text_input(
                 " Trailer to Pick Up & Return to Fleet Memphis",
@@ -1712,7 +1693,7 @@ def show_dashboard():
         tabs = st.tabs([
             "Overview", "Create Move", "Active Moves", 
             "Completed Moves", "My Driver Moves", "MLBL Management", 
-            " Financials", " Admin"
+            " Financials", " Inventory", " Locations", " Admin"
         ])
         
         with tabs[0]:
@@ -1888,6 +1869,154 @@ def show_dashboard():
             else:
                 st.warning(" PDF generation not available. Install reportlab: pip install reportlab")
         with tabs[7]:
+            # Inventory Management
+            st.subheader(" Trailer Inventory Management")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if INVENTORY_PDF_AVAILABLE:
+                    if st.button("Generate Inventory PDF", type="primary", use_container_width=True):
+                        try:
+                            filename = generate_inventory_pdf()
+                            st.success(f"Inventory report generated: {filename}")
+                            with open(filename, "rb") as pdf_file:
+                                st.download_button(
+                                    label="Download Inventory PDF",
+                                    data=pdf_file.read(),
+                                    file_name=filename,
+                                    mime="application/pdf"
+                                )
+                        except Exception as e:
+                            st.error(f"Error generating inventory: {str(e)}")
+                else:
+                    st.warning("Inventory PDF not available. Check inventory_pdf_generator.py")
+            
+            with col2:
+                if st.button("Refresh Inventory Data", use_container_width=True):
+                    st.rerun()
+            
+            # Show current inventory
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            
+            # Get trailer inventory by location
+            st.markdown("### Current Trailer Locations")
+            
+            # NEW trailers at Fleet Memphis (ready for delivery)
+            st.info("**NEW Trailers at Fleet Memphis (Ready for Delivery)**")
+            cursor.execute('''
+                SELECT t.trailer_number, t.status, 'Fleet Memphis' as location
+                FROM trailers t
+                WHERE t.is_new = 1 
+                AND t.current_location_id = 1
+                AND t.status = 'available'
+                ORDER BY t.trailer_number
+            ''')
+            new_fleet = cursor.fetchall()
+            if new_fleet:
+                df = pd.DataFrame(new_fleet, columns=['Trailer #', 'Status', 'Location'])
+                st.dataframe(df, use_container_width=True, hide_index=True)
+            else:
+                st.write("No new trailers at Fleet Memphis")
+            
+            # OLD trailers at FedEx (ready for pickup)
+            st.warning("**OLD Trailers at FedEx Locations (Ready for Pickup)**")
+            cursor.execute('''
+                SELECT t.trailer_number, l.location_title, l.city || ', ' || l.state as details
+                FROM trailers t
+                LEFT JOIN locations l ON t.current_location_id = l.id
+                WHERE t.is_new = 0 
+                AND l.location_title LIKE 'FedEx%'
+                ORDER BY l.location_title, t.trailer_number
+            ''')
+            old_fedex = cursor.fetchall()
+            if old_fedex:
+                df = pd.DataFrame(old_fedex, columns=['Trailer #', 'Location', 'City, State'])
+                st.dataframe(df, use_container_width=True, hide_index=True)
+            else:
+                st.write("No old trailers at FedEx locations")
+            
+            conn.close()
+        with tabs[8]:
+            # Location Management
+            st.subheader(" Location Management")
+            
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            
+            # Get all locations
+            cursor.execute('''
+                SELECT id, location_title, address, city, state, zip_code, 
+                       location_type, is_base_location
+                FROM locations
+                ORDER BY location_title
+            ''')
+            locations = cursor.fetchall()
+            
+            # Display locations in editable format
+            st.markdown("### Edit Location Information")
+            
+            for loc in locations:
+                loc_id, title, address, city, state, zip_code, loc_type, is_base = loc
+                
+                with st.expander(f"{title} - {city}, {state}"):
+                    with st.form(f"location_{loc_id}"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            new_title = st.text_input("Location Name", value=title)
+                            new_address = st.text_input("Street Address", value=address or "")
+                            new_city = st.text_input("City", value=city)
+                        
+                        with col2:
+                            new_state = st.text_input("State", value=state)
+                            new_zip = st.text_input("ZIP Code", value=zip_code or "")
+                            new_type = st.selectbox("Type", ["customer", "base"], 
+                                                   index=0 if loc_type == "customer" else 1)
+                        
+                        if st.form_submit_button("Update Location"):
+                            cursor.execute('''
+                                UPDATE locations 
+                                SET location_title = ?, address = ?, city = ?, 
+                                    state = ?, zip_code = ?, location_type = ?
+                                WHERE id = ?
+                            ''', (new_title, new_address, new_city, new_state, 
+                                  new_zip, new_type, loc_id))
+                            conn.commit()
+                            st.success(f"Updated {title}")
+                            st.rerun()
+            
+            # Add new location
+            st.markdown("### Add New Location")
+            with st.form("add_location"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    add_title = st.text_input("Location Name")
+                    add_address = st.text_input("Street Address")
+                    add_city = st.text_input("City")
+                
+                with col2:
+                    add_state = st.text_input("State")
+                    add_zip = st.text_input("ZIP Code")
+                    add_type = st.selectbox("Type", ["customer", "base"])
+                
+                if st.form_submit_button("Add Location", type="primary"):
+                    if add_title and add_city and add_state:
+                        cursor.execute('''
+                            INSERT INTO locations (location_title, address, city, state, 
+                                                  zip_code, location_type, is_base_location)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ''', (add_title, add_address, add_city, add_state, 
+                              add_zip, add_type, 1 if add_type == "base" else 0))
+                        conn.commit()
+                        st.success(f"Added {add_title}")
+                        st.rerun()
+                    else:
+                        st.error("Location name, city, and state are required")
+            
+            conn.close()
+        with tabs[9]:
             st.subheader(" System Administration")
             if st.button(" Reload Production Data"):
                 load_initial_data()
