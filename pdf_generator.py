@@ -52,7 +52,9 @@ class PDFGenerator:
         canvas.setLineWidth(2)
         canvas.line(50, 720, 550, 720)
         
-        # Footer
+        # Footer with Vernon protection
+        canvas.setFont("Helvetica-Bold", 9)
+        canvas.drawCentredString(300, 45, "Data Protected by Vernon - Senior IT Security Manager")
         canvas.setFont("Helvetica", 8)
         canvas.drawString(50, 30, f"Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}")
         canvas.drawRightString(550, 30, f"Page {doc.page}")
@@ -153,13 +155,15 @@ class PDFGenerator:
             
             # Add payment breakdown
             elements.append(Paragraph("<b>Payment Breakdown:</b>", styles['Heading3']))
+            factoring_amount = total_gross * 0.03
+            after_factoring_total = total_gross - factoring_amount
+            
             breakdown_data = [
                 ['Description', 'Amount'],
                 ['Total Gross Earnings', f"${total_gross:,.2f}"],
-                ['Factoring Fee (3%)', f"-${total_gross * 0.03:,.2f}"],
-                ['Service Fee (Est.)', f"-$6.00"],
+                ['Factoring Fee (3%)', f"-${factoring_amount:,.2f}"],
                 ['', ''],
-                ['NET PAYMENT', f"${total_net - 6:,.2f}"]
+                ['TOTAL AFTER FACTORING', f"${after_factoring_total:,.2f}"]
             ]
             
             breakdown_table = Table(breakdown_data, colWidths=[300, 150])
@@ -177,6 +181,18 @@ class PDFGenerator:
             ]))
             
             elements.append(breakdown_table)
+            elements.append(Spacer(1, 20))
+            
+            # Add disclaimer about service fees
+            disclaimer_style = ParagraphStyle(
+                'Disclaimer',
+                parent=styles['Normal'],
+                fontSize=10,
+                italic=True,
+                textColor=colors.grey
+            )
+            elements.append(Paragraph("* Service fees are not included in this total. Only the 3% factoring fee has been deducted.", disclaimer_style))
+            elements.append(Paragraph("* Final payment will be adjusted for any applicable service fees.", disclaimer_style))
             
         # Build PDF
         doc.build(elements, onFirstPage=self._add_letterhead, onLaterPages=self._add_letterhead)

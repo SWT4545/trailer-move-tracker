@@ -665,7 +665,7 @@ def show_overview_metrics():
                   help=f"Total: ${total_earnings:,.0f}\nFactoring (3%): -${factoring_fee:,.0f}\nNet: ${after_factoring:,.0f}")
     
     # Service fee disclaimer
-    st.caption("*Service fees have not been applied to earnings calculations")
+    st.caption("*Service fees are not included in the total. Only the 3% factoring fee has been deducted.")
     
     # Add data initialization button if no data
     if active_moves == 0 and total_trailers == 0 and active_drivers == 0:
@@ -2116,7 +2116,7 @@ def show_dashboard():
                 
                 with doc_tabs[0]:
                     st.markdown("### Generate Driver Invoice/Receipt")
-                    st.info("Generate professional PDF invoices for your completed moves")
+                    st.info("Generate PDF invoices for your completed moves")
                     
                     # Get driver's company information
                     driver_companies = {
@@ -2209,7 +2209,7 @@ def show_dashboard():
                                     with col3:
                                         st.metric("After Factoring", f"${after_factoring:,.2f}")
                                     
-                                    st.caption("*Service fees have not been applied to these amounts")
+                                    st.caption("*Service fees are not included in the total. Only the 3% factoring fee has been deducted.")
                                     
                                 except Exception as e:
                                     st.error(f"Error generating PDF: {str(e)}")
@@ -2232,7 +2232,7 @@ def show_dashboard():
                                     with col3:
                                         st.metric("After Factoring", f"${after_factoring:,.2f}")
                                     
-                                    st.caption("*Service fees have not been applied to these amounts")
+                                    st.caption("*Service fees are not included in the total. Only the 3% factoring fee has been deducted.")
                             else:
                                 # No PDF library, show data in table format
                                 st.write("### Invoice Details")
