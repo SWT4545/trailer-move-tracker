@@ -204,7 +204,7 @@ def load_real_production_data():
             'origin': 'Fleet Memphis', 'destination': 'FedEx Memphis',
             'driver': 'Justin Duckett', 'date': date(2025, 8, 12),
             'delivered': date(2025, 8, 13), 'status': 'completed',
-            'payment_status': 'paid', 'miles': 15 * 2
+            'payment_status': 'paid', 'miles': 95.238095  # $200 flat rate / $2.10
         },
         {
             'system_id': get_system_id(),
@@ -244,7 +244,7 @@ def load_real_production_data():
             'origin': 'Fleet Memphis', 'destination': 'FedEx Memphis',
             'driver': 'Brandon Smith', 'date': date(2025, 8, 14),
             'delivered': date(2025, 8, 14), 'status': 'completed',
-            'payment_status': 'pending', 'miles': 15 * 2
+            'payment_status': 'pending', 'miles': 95.238095  # $200 flat rate / $2.10
         },
         {
             'system_id': get_system_id(),
@@ -252,7 +252,7 @@ def load_real_production_data():
             'origin': 'Fleet Memphis', 'destination': 'FedEx Memphis',
             'driver': 'Brandon Smith', 'date': date(2025, 8, 14),
             'delivered': date(2025, 8, 14), 'status': 'completed',
-            'payment_status': 'pending', 'miles': 15 * 2
+            'payment_status': 'pending', 'miles': 95.238095  # $200 flat rate / $2.10
         },
         {
             'system_id': get_system_id(),
@@ -260,7 +260,7 @@ def load_real_production_data():
             'origin': 'Fleet Memphis', 'destination': 'FedEx Memphis',
             'driver': 'Brandon Smith', 'date': date(2025, 8, 14),
             'delivered': date(2025, 8, 14), 'status': 'completed',
-            'payment_status': 'pending', 'miles': 15 * 2
+            'payment_status': 'pending', 'miles': 95.238095  # $200 flat rate / $2.10
         },
         {
             'system_id': get_system_id(),
