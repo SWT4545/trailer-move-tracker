@@ -688,7 +688,18 @@ def create_new_move():
                 return ['background-color: #d4edda; color: #155724; font-weight: bold'] * len(row)
             
             styled_avail = df_avail.style.apply(highlight_available, axis=1)
-            st.dataframe(styled_avail, use_container_width=True, hide_index=True, height=300)
+            
+            st.dataframe(
+                styled_avail, 
+                use_container_width=True, 
+                hide_index=True, 
+                height=300,
+                column_config={
+                    'Trailer #': st.column_config.TextColumn(width='medium'),
+                    'Current Location': st.column_config.TextColumn(width='large'),
+                    'Status': st.column_config.TextColumn(width='medium')
+                }
+            )
         else:
             st.warning("No trailers currently available")
         
@@ -728,7 +739,19 @@ def create_new_move():
                     return ['background-color: #f8d7da; color: #721c24; font-weight: bold'] * len(row)  # Red
             
             styled_unavail = df_unavail.style.apply(highlight_status, axis=1)
-            st.dataframe(styled_unavail, use_container_width=True, hide_index=True, height=300)
+            
+            st.dataframe(
+                styled_unavail, 
+                use_container_width=True, 
+                hide_index=True, 
+                height=300,
+                column_config={
+                    'Trailer #': st.column_config.TextColumn(width='medium'),
+                    'Assigned To': st.column_config.TextColumn(width='large'),
+                    'Status': st.column_config.TextColumn(width='medium'),
+                    'Destination': st.column_config.TextColumn(width='large')
+                }
+            )
         else:
             st.info("No trailers currently assigned")
     
@@ -902,7 +925,19 @@ def manage_mlbl_numbers():
         df = pd.DataFrame(mlbl_moves, columns=[
             'System ID', 'MLBL', 'Date', 'Driver', 'Trailer', 'Route', 'Status', 'Payment'
         ])
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        
+        # Prevent truncation with column configuration
+        st.dataframe(
+            df, 
+            use_container_width=True, 
+            hide_index=True,
+            column_config={
+                'System ID': st.column_config.TextColumn(width='medium'),
+                'MLBL': st.column_config.TextColumn(width='medium'),
+                'Route': st.column_config.TextColumn(width='large'),
+                'Driver': st.column_config.TextColumn(width='medium')
+            }
+        )
     
     conn.close()
 
@@ -930,7 +965,21 @@ def show_active_moves():
             'Trailer', 'Status', 'Miles', 'Est. Earnings'
         ])
         
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        # Format currency column
+        df['Est. Earnings'] = df['Est. Earnings'].apply(lambda x: f'${x:,.2f}' if pd.notnull(x) else '')
+        df['Miles'] = df['Miles'].apply(lambda x: f'{x:,.2f}' if pd.notnull(x) else '')
+        
+        # Configure column widths to prevent truncation
+        st.dataframe(
+            df, 
+            use_container_width=True, 
+            hide_index=True,
+            column_config={
+                'System ID': st.column_config.TextColumn(width='small'),
+                'Est. Earnings': st.column_config.TextColumn(width='medium'),
+                'Miles': st.column_config.TextColumn(width='small')
+            }
+        )
     else:
         st.info("No active moves")
     
@@ -960,6 +1009,10 @@ def show_completed_moves():
             'Trailer', 'Payment Status', 'Miles', 'Est. Earnings'
         ])
         
+        # Format currency and number columns
+        df['Est. Earnings'] = df['Est. Earnings'].apply(lambda x: f'${x:,.2f}' if pd.notnull(x) else '')
+        df['Miles'] = df['Miles'].apply(lambda x: f'{x:,.2f}' if pd.notnull(x) else '')
+        
         # Color code payment status with better visibility
         def highlight_payment(val):
             if val == 'paid':
@@ -969,7 +1022,18 @@ def show_completed_moves():
             return ''
         
         styled_df = df.style.applymap(highlight_payment, subset=['Payment Status'])
-        st.dataframe(styled_df, use_container_width=True, hide_index=True)
+        
+        # Configure column widths to prevent truncation
+        st.dataframe(
+            styled_df, 
+            use_container_width=True, 
+            hide_index=True,
+            column_config={
+                'System ID': st.column_config.TextColumn(width='small'),
+                'Est. Earnings': st.column_config.TextColumn(width='medium'),
+                'Miles': st.column_config.TextColumn(width='small')
+            }
+        )
     else:
         st.info("No completed moves")
     
@@ -1054,7 +1118,18 @@ def show_dashboard():
                 # Format earnings column
                 df['Earnings'] = df['Earnings'].apply(lambda x: f"${x:,.2f}" if x else "")
                 
-                st.dataframe(df, use_container_width=True, hide_index=True)
+                # Prevent truncation with column configuration
+                st.dataframe(
+                    df, 
+                    use_container_width=True, 
+                    hide_index=True,
+                    column_config={
+                        'System ID': st.column_config.TextColumn(width='medium'),
+                        'Route': st.column_config.TextColumn(width='large'),
+                        'Earnings': st.column_config.TextColumn(width='medium'),
+                        'Trailer': st.column_config.TextColumn(width='medium')
+                    }
+                )
             else:
                 st.info("No moves assigned as driver")
             
@@ -1199,7 +1274,18 @@ def show_dashboard():
                         'System ID', 'MLBL', 'Date', 'Trailer', 'Route', 'Miles', 'Earnings'
                     ])
                     df['Earnings'] = df['Earnings'].apply(lambda x: f"${x:,.2f}" if x else "")
-                    st.dataframe(df, use_container_width=True, hide_index=True)
+                    df['Miles'] = df['Miles'].apply(lambda x: f"{x:,.2f}" if x else "")
+                    
+                    st.dataframe(
+                        df, 
+                        use_container_width=True, 
+                        hide_index=True,
+                        column_config={
+                            'System ID': st.column_config.TextColumn(width='medium'),
+                            'Route': st.column_config.TextColumn(width='large'),
+                            'Earnings': st.column_config.TextColumn(width='medium')
+                        }
+                    )
                 else:
                     st.info("No active moves")
                 
@@ -1234,13 +1320,23 @@ def show_dashboard():
                     # Color code payment status
                     def highlight_payment(row):
                         if row['Payment'] == 'paid':
-                            return ['background-color: #90EE90'] * len(row)
+                            return ['background-color: #28a745; color: white; font-weight: bold'] * len(row)
                         elif row['Payment'] == 'pending':
-                            return ['background-color: #FFE4B5'] * len(row)
+                            return ['background-color: #ffc107; color: black; font-weight: bold'] * len(row)
                         return [''] * len(row)
                     
                     styled_df = df.style.apply(highlight_payment, axis=1)
-                    st.dataframe(styled_df, use_container_width=True, hide_index=True)
+                    
+                    st.dataframe(
+                        styled_df, 
+                        use_container_width=True, 
+                        hide_index=True,
+                        column_config={
+                            'System ID': st.column_config.TextColumn(width='medium'),
+                            'Route': st.column_config.TextColumn(width='large'),
+                            'Earnings': st.column_config.TextColumn(width='medium')
+                        }
+                    )
                 else:
                     st.info("No completed moves")
                 
