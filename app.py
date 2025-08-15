@@ -1,5 +1,5 @@
 """
-Smith & Williams Trucking - Production Ready System
+Trailer Fleet Management System - Production Ready
 Complete system with all features and proper error handling
 """
 
@@ -27,7 +27,7 @@ except ImportError:
 
 # Page config
 st.set_page_config(
-    page_title="Smith & Williams Trucking",
+    page_title="Trailer Fleet Management System",
     page_icon="truck",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -559,8 +559,8 @@ def login():
                 except:
                     pass
     
-    st.title("Smith & Williams Trucking")
-    st.subheader("Fleet Management System")
+    st.title("Trailer Fleet Management System")
+    st.subheader("Smith & Williams Trucking LLC")
     
     # Vernon protection notice
     st.markdown("""
@@ -1830,9 +1830,9 @@ def show_dashboard():
     
     # Check if user has multiple roles
     if 'roles' in user_data and len(user_data['roles']) > 1:
-        st.title(f"Smith & Williams Trucking - {'/'.join(user_data['roles'])} Dashboard")
+        st.title(f"Trailer Fleet Management System - {'/'.join(user_data['roles'])} Dashboard")
     else:
-        st.title(f"Smith & Williams Trucking - {role} Dashboard")
+        st.title(f"Trailer Fleet Management System - {role} Dashboard")
     
     # Show Vernon support
     show_vernon_support()
@@ -2709,7 +2709,7 @@ def main():
         <div style='text-align: center; padding: 15px; margin-top: 50px;'>
             <p style='color: #666; font-size: 12px; margin: 0;'>
                 <strong>Data Protected by Vernon - Senior IT Security Manager</strong><br>
-                Smith & Williams Trucking - All Rights Reserved
+                Trailer Fleet Management System - All Rights Reserved
             </p>
         </div>
         """, unsafe_allow_html=True)
