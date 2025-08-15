@@ -523,10 +523,16 @@ def login():
     # Show video logo - centered and muted loop
     animation_file = "company_logo_animation.mp4.MOV"
     
-    # Display the video logo
+    # Display the video logo with explicit loop and mute settings
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.video(animation_file, loop=True, autoplay=True, muted=True)
+        # Force loop, autoplay, and muted for all browsers
+        st.video(animation_file, 
+                format="video/mp4",
+                start_time=0,
+                loop=True, 
+                autoplay=True, 
+                muted=True)
     
     st.title("Trailer Fleet Management System")
     st.subheader("Smith & Williams Trucking LLC")
