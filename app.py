@@ -10,6 +10,7 @@ import sqlite3
 import os
 import json
 import time
+import base64
 
 # Import PDF generator
 try:
@@ -406,10 +407,17 @@ def login():
         try:
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
+                # Use HTML5 video tag for better autoplay compatibility
                 with open(animation_file, 'rb') as video_file:
                     video_bytes = video_file.read()
-                    # Video will loop, autoplay, and be muted
-                    st.video(video_bytes, loop=True, autoplay=True, muted=True)
+                    video_b64 = base64.b64encode(video_bytes).decode()
+                    video_html = f'''
+                    <video width="100%" autoplay loop muted playsinline>
+                        <source src="data:video/mp4;base64,{video_b64}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    '''
+                    st.markdown(video_html, unsafe_allow_html=True)
         except Exception as e:
             # Fallback to static logo if video fails
             logo_path = "swt_logo_white.png" if os.path.exists("swt_logo_white.png") else "swt_logo.png"
@@ -1575,22 +1583,42 @@ def show_completed_moves():
     
     try:
         if 'destination_location_id' in columns:
-            cursor.execute('''
-                SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name,
-                       dest.location_title, t.trailer_number, m.payment_status, m.estimated_miles, m.estimated_earnings
-                FROM moves m
-                LEFT JOIN locations dest ON m.destination_location_id = dest.id
-                LEFT JOIN trailers t ON m.trailer_id = t.id
-                WHERE m.status = 'completed'
-                ORDER BY m.move_date DESC
-            ''')
+            # Check if old_trailer column exists
+            move_columns = get_table_columns(cursor, 'moves')
+            if 'old_trailer' in move_columns:
+                cursor.execute('''
+                    SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name,
+                           dest.location_title, m.new_trailer, m.old_trailer, m.payment_status, m.estimated_miles, m.estimated_earnings
+                    FROM moves m
+                    LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                    WHERE m.status = 'completed'
+                    ORDER BY m.move_date DESC
+                ''')
+            else:
+                cursor.execute('''
+                    SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name,
+                           dest.location_title, t.trailer_number, '-', m.payment_status, m.estimated_miles, m.estimated_earnings
+                    FROM moves m
+                    LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                    LEFT JOIN trailers t ON m.trailer_id = t.id
+                    WHERE m.status = 'completed'
+                    ORDER BY m.move_date DESC
+                ''')
         else:
             # Check schema for completed moves
             move_columns = get_table_columns(cursor, 'moves')
-            if 'new_trailer' in move_columns:
+            if 'new_trailer' in move_columns and 'old_trailer' in move_columns:
                 cursor.execute('''
                     SELECT m.order_number, m.order_number, m.completed_date, m.driver_name,
-                           m.delivery_location, m.new_trailer, 'pending', 0, m.amount
+                           m.delivery_location, m.new_trailer, m.old_trailer, 'pending', 0, m.amount
+                    FROM moves m
+                    WHERE m.status = 'completed'
+                    ORDER BY m.completed_date DESC
+                ''')
+            elif 'new_trailer' in move_columns:
+                cursor.execute('''
+                    SELECT m.order_number, m.order_number, m.completed_date, m.driver_name,
+                           m.delivery_location, m.new_trailer, '-', 'pending', 0, m.amount
                     FROM moves m
                     WHERE m.status = 'completed'
                     ORDER BY m.completed_date DESC
@@ -1598,7 +1626,7 @@ def show_completed_moves():
             else:
                 cursor.execute('''
                     SELECT m.order_number, m.order_number, m.completed_date, m.driver_name,
-                           m.delivery_location, m.order_number, 'pending', 0, m.amount
+                           m.delivery_location, m.order_number, '-', 'pending', 0, m.amount
                     FROM moves m
                     WHERE m.status = 'completed'
                     ORDER BY m.completed_date DESC

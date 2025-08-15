@@ -305,6 +305,30 @@ grep -r "✓" *.py
 **Files Affected:** `app.py` login() function
 **Benefits:** Professional animated branding on login page
 
+### 23. ValueError in show_completed_moves (RESOLVED)
+**Date:** 2025-08-15
+**Error:** `ValueError: This app has encountered an error. The original error message is redacted...`
+**Cause:** Column count mismatch in show_completed_moves() function
+**Root Issue:** Query returned 9 columns but DataFrame expected 10 (missing 'Return Trailer')
+**Solution:** 
+  - Added proper schema detection for old_trailer column
+  - Ensured all query branches return exactly 10 columns
+  - Used dynamic column detection before building queries
+**Files Affected:** `app.py` lines 1576-1625
+**Prevention:** Always ensure query result columns match DataFrame column definitions
+
+### 24. Video Autoplay on Mobile Devices (RESOLVED)
+**Date:** 2025-08-15
+**Issue:** Video on login page requires user to press play button on mobile devices
+**Cause:** Streamlit's st.video() doesn't fully support autoplay on all devices
+**Solution:** 
+  - Replaced st.video() with HTML5 video tag using base64 encoding
+  - Added playsinline attribute for iOS Safari compatibility
+  - Ensured muted, loop, and autoplay attributes are set
+  - HTML5 video provides better cross-device compatibility
+**Files Affected:** `app.py` login() function
+**Benefits:** Video plays automatically on all devices without user interaction
+
 ---
 
 Last Updated: 2025-08-15
