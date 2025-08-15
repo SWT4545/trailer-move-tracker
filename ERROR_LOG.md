@@ -121,6 +121,25 @@ This log tracks all errors encountered during development to prevent recurring i
 **Files Affected:** `app.py` (line 528 removed)
 **Prevention:** Careful code review after edits
 
+### 14. AttributeError on None Values (RESOLVED)
+**Date:** 2025-08-15
+**Error:** `AttributeError` when calling .replace() on None value
+**Cause:** `destination` variable could be None, but code tried to call .replace()
+**Solution:** Added None checks before string operations
+**Files Affected:** `app.py` (lines 675-705)
+**Prevention:** Always check for None before calling string methods
+
+### 15. Empty Database on Fresh Deploy (RESOLVED)
+**Date:** 2025-08-15
+**Issue:** App shows 0 trailers, 0 moves, 0 drivers on fresh deployment
+**Cause:** Database empty and load_real_production_data.py not available on Streamlit Cloud
+**Solution:** Enhanced load_initial_data() to:
+  - Check if data exists
+  - Try to load production data
+  - Fall back to minimal demo data if needed
+**Files Affected:** `app.py` (lines 215-272)
+**Prevention:** Always provide fallback data initialization
+
 ---
 
 ## Common Patterns to Avoid

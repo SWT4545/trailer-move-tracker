@@ -213,15 +213,69 @@ def init_database():
 
 # Load initial data if needed
 def load_initial_data():
-    """Load real production data only"""
-    # Import and run the real data loader
-    try:
-        from load_real_production_data import load_real_production_data
-        load_real_production_data()
-    except Exception as e:
-        # Log error but don't add any dummy data
-        print(f"Error loading real production data: {e}")
-        pass
+    """Load real production data and ensure basic data exists"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Check if we have any data
+    cursor.execute("SELECT COUNT(*) FROM trailers")
+    trailer_count = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM moves")
+    move_count = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM drivers")
+    driver_count = cursor.fetchone()[0]
+    
+    # If no data, load production data
+    if trailer_count == 0 or driver_count == 0:
+        try:
+            # Try to import and run the real data loader
+            from load_real_production_data import load_real_production_data
+            load_real_production_data()
+            st.success("Full production data loaded successfully!")
+        except ImportError:
+            # Try the simpler production data loader
+            try:
+                from init_production_data import init_production_data
+                init_production_data()
+                st.success("Production data initialized!")
+            except ImportError:
+                # If neither loader available, add minimal data to get started
+                # Add Fleet Memphis location
+                cursor.execute('''
+                INSERT OR IGNORE INTO locations (id, location_title, city, state, location_type, is_base_location)
+                VALUES (1, 'Fleet Memphis', 'Memphis', 'TN', 'base', 1)
+            ''')
+            
+            # Add FedEx locations
+            cursor.execute('''
+                INSERT OR IGNORE INTO locations (location_title, city, state, location_type, is_base_location)
+                VALUES 
+                    ('FedEx Memphis', 'Memphis', 'TN', 'customer', 0),
+                    ('FedEx Indy', 'Indianapolis', 'IN', 'customer', 0),
+                    ('FedEx Chicago', 'Chicago', 'IL', 'customer', 0)
+            ''')
+            
+            # Add at least one driver
+            cursor.execute('''
+                INSERT OR IGNORE INTO drivers (driver_name, status, driver_type)
+                VALUES ('Brandon Smith', 'active', 'owner')
+            ''')
+            
+            # Add some sample trailers
+            for i in range(1, 6):
+                cursor.execute('''
+                    INSERT OR IGNORE INTO trailers (trailer_number, status, current_location)
+                    VALUES (?, 'available', 'Fleet Memphis')
+                ''', (f'DEMO{i:03d}',))
+            
+            conn.commit()
+            st.info("Basic data initialized. Import production data for full functionality.")
+        except Exception as e:
+            st.error(f"Error loading data: {str(e)}")
+    
+    conn.close()
 
 # Generate system ID
 def generate_system_id():
@@ -569,6 +623,7 @@ def create_new_move():
         else:
             st.error("No trailers available - All trailers are currently assigned or in transit")
             trailer_options = {}
+            trailer_numbers = {}
             selected_trailer = None
         
         st.divider()
@@ -672,31 +727,37 @@ def create_new_move():
             )
             
             # Show available trailers at destination
-            st.markdown(f"**Available trailers at {destination}:**")
-            
-            # Get trailers at the selected destination
-            dest_location_pattern = destination.replace("FedEx", "%")
-            cursor.execute('''
-                SELECT trailer_number 
-                FROM trailers 
-                WHERE (current_location LIKE ? OR current_location = ?)
-                AND trailer_number NOT IN (
-                    SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
-                    UNION
-                    SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
-                )
-                ORDER BY trailer_number
-            ''', (dest_location_pattern, destination))
-            
-            dest_trailers = cursor.fetchall()
-            
-            if dest_trailers:
-                trailer_list = ", ".join([t[0] for t in dest_trailers[:5]])
-                if len(dest_trailers) > 5:
-                    trailer_list += f" ... and {len(dest_trailers) - 5} more"
-                st.info(f" Trailers at {destination}: {trailer_list}")
+            if destination:
+                st.markdown(f"**Available trailers at {destination}:**")
+                
+                # Get trailers at the selected destination
+                try:
+                    dest_location_pattern = destination.replace("FedEx", "%")
+                    cursor.execute('''
+                        SELECT trailer_number 
+                        FROM trailers 
+                        WHERE (current_location LIKE ? OR current_location = ?)
+                        AND trailer_number NOT IN (
+                            SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
+                            UNION
+                            SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
+                        )
+                        ORDER BY trailer_number
+                    ''', (dest_location_pattern, destination))
+                    
+                    dest_trailers = cursor.fetchall()
+                    
+                    if dest_trailers:
+                        trailer_list = ", ".join([t[0] for t in dest_trailers[:5]])
+                        if len(dest_trailers) > 5:
+                            trailer_list += f" ... and {len(dest_trailers) - 5} more"
+                        st.info(f"Trailers at {destination}: {trailer_list}")
+                    else:
+                        st.warning(f"No trailers currently at {destination}")
+                except Exception:
+                    st.info("Select a destination to see available trailers")
             else:
-                st.warning(f" No trailers currently at {destination}")
+                st.info("Select a destination to see available trailers")
             
             swap_trailer = st.text_input(
                 " Trailer to Pick Up & Return to Fleet Memphis",
