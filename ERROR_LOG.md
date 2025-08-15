@@ -102,6 +102,25 @@ This log tracks all errors encountered during development to prevent recurring i
 **Files Affected:** `app.py` (lines 481-515, 763-793, 832-857)
 **Prevention:** Always check table structure dynamically, don't assume column names
 
+### 12. Missing Table Check Before Query (RESOLVED)
+**Date:** 2025-08-15
+**Error:** `sqlite3.OperationalError` when trailers table doesn't exist
+**Cause:** Code assumed trailers table exists but on fresh deployment it might not
+**Solution:** Added table existence check before queries
+  - Check sqlite_master for table existence
+  - Provide user feedback if table missing
+  - Wrap queries in try-catch blocks
+**Files Affected:** `app.py` (lines 483-527)
+**Prevention:** Always verify table exists before querying
+
+### 13. Duplicate cursor.fetchall() Call (RESOLVED)
+**Date:** 2025-08-15
+**Error:** Attempting to fetch from exhausted cursor
+**Cause:** Code had duplicate `trailers = cursor.fetchall()` lines
+**Solution:** Removed duplicate fetchall() call
+**Files Affected:** `app.py` (line 528 removed)
+**Prevention:** Careful code review after edits
+
 ---
 
 ## Common Patterns to Avoid

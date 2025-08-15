@@ -479,41 +479,52 @@ def create_new_move():
         st.markdown("### 1. Select Trailer to Deliver")
         
         # Get available trailers - handle both database structures
-        # First, check which columns exist in trailers table
-        cursor.execute("PRAGMA table_info(trailers)")
-        columns = [col[1] for col in cursor.fetchall()]
-        
-        # Build query based on available columns
-        if 'current_location_id' in columns:
-            # Normalized structure with location_id
-            cursor.execute('''
-                SELECT t.id, t.trailer_number, 
-                       COALESCE(l.location_title, 'Fleet Memphis') as location,
-                       t.status
-                FROM trailers t
-                LEFT JOIN locations l ON t.current_location_id = l.id
-                WHERE t.trailer_number NOT IN (
-                    SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
-                    UNION
-                    SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
-                )
-                ORDER BY location, t.trailer_number
-            ''')
+        # First, check if trailers table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='trailers'")
+        if not cursor.fetchone():
+            st.error("Trailers table not found. Please reload production data.")
+            trailers = []
         else:
-            # Simple structure with current_location text field
-            cursor.execute('''
-                SELECT t.id, t.trailer_number, 
-                       COALESCE(t.current_location, 'Fleet Memphis') as location,
-                       t.status
-                FROM trailers t
-                WHERE t.trailer_number NOT IN (
-                    SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
-                    UNION
-                    SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
-                )
-                ORDER BY t.current_location, t.trailer_number
-            ''')
-        trailers = cursor.fetchall()
+            # Check which columns exist in trailers table
+            cursor.execute("PRAGMA table_info(trailers)")
+            columns = [col[1] for col in cursor.fetchall()]
+            
+            # Build query based on available columns
+            try:
+                if 'current_location_id' in columns and 'locations' in [row[0] for row in cursor.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]:
+                    # Normalized structure with location_id
+                    cursor.execute('''
+                        SELECT t.id, t.trailer_number, 
+                               COALESCE(l.location_title, 'Fleet Memphis') as location,
+                               t.status
+                        FROM trailers t
+                        LEFT JOIN locations l ON t.current_location_id = l.id
+                        WHERE t.trailer_number NOT IN (
+                            SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
+                            UNION
+                            SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
+                        )
+                        ORDER BY location, t.trailer_number
+                    ''')
+                else:
+                    # Simple structure with current_location text field
+                    cursor.execute('''
+                        SELECT t.id, t.trailer_number, 
+                               COALESCE(t.current_location, 'Fleet Memphis') as location,
+                               t.status
+                        FROM trailers t
+                        WHERE t.trailer_number NOT IN (
+                            SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
+                            UNION
+                            SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
+                        )
+                        ORDER BY t.current_location, t.trailer_number
+                    ''')
+                trailers = cursor.fetchall()
+            except sqlite3.OperationalError as e:
+                st.error(f"Database query error: {str(e)}")
+                st.info("Try reloading production data or check database structure.")
+                trailers = []
         
         if trailers:
             # Group trailers by location
@@ -901,20 +912,43 @@ def manage_mlbl_numbers():
     cursor = conn.cursor()
     
     # Get ALL moves (active and completed) without MLBL with full details
-    cursor.execute('''
-        SELECT m.system_id, m.move_date, m.client, m.driver_name, m.status, m.payment_status,
-               t.trailer_number, 
-               orig.location_title as origin, dest.location_title as destination,
-               m.estimated_miles, m.estimated_earnings
-        FROM moves m
-        LEFT JOIN trailers t ON m.trailer_id = t.id
-        LEFT JOIN locations orig ON m.origin_location_id = orig.id
-        LEFT JOIN locations dest ON m.destination_location_id = dest.id
-        WHERE m.mlbl_number IS NULL
-        ORDER BY m.move_date DESC, m.system_id
-    ''')
+    # Check database structure first
+    cursor.execute("PRAGMA table_info(moves)")
+    move_columns = [col[1] for col in cursor.fetchall()]
     
-    pending_moves = cursor.fetchall()
+    try:
+        if 'origin_location_id' in move_columns:
+            # Normalized structure
+            cursor.execute('''
+                SELECT m.system_id, m.move_date, m.client, m.driver_name, m.status, m.payment_status,
+                       t.trailer_number, 
+                       orig.location_title as origin, dest.location_title as destination,
+                       m.estimated_miles, m.estimated_earnings
+                FROM moves m
+                LEFT JOIN trailers t ON m.trailer_id = t.id
+                LEFT JOIN locations orig ON m.origin_location_id = orig.id
+                LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                WHERE m.mlbl_number IS NULL
+                ORDER BY m.move_date DESC, m.system_id
+            ''')
+        else:
+            # Simple structure
+            cursor.execute('''
+                SELECT m.order_number as system_id, m.pickup_date as move_date, 
+                       m.customer_name as client, m.driver_name, m.status, 
+                       'pending' as payment_status,
+                       m.new_trailer as trailer_number, 
+                       m.pickup_location as origin, m.delivery_location as destination,
+                       0 as estimated_miles, m.amount as estimated_earnings
+                FROM moves m
+                WHERE m.order_number NOT IN (SELECT mlbl_number FROM moves WHERE mlbl_number IS NOT NULL)
+                ORDER BY m.pickup_date DESC, m.order_number
+            ''')
+        pending_moves = cursor.fetchall()
+    except sqlite3.OperationalError as e:
+        st.error(f"Database error: {str(e)}")
+        st.info("Please check database structure or reload production data")
+        pending_moves = []
     
     if pending_moves:
         st.write(f"### {len(pending_moves)} Moves Awaiting MLBL Numbers")
@@ -1041,20 +1075,34 @@ def manage_mlbl_numbers():
         st.success(" All moves have MLBL numbers assigned!")
     
     # Show moves with MLBL numbers
-    cursor.execute('''
-        SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name, 
-               t.trailer_number,
-               orig.location_title || ' -> ' || dest.location_title as route,
-               m.status, m.payment_status
-        FROM moves m
-        LEFT JOIN trailers t ON m.trailer_id = t.id
-        LEFT JOIN locations orig ON m.origin_location_id = orig.id
-        LEFT JOIN locations dest ON m.destination_location_id = dest.id
-        WHERE m.mlbl_number IS NOT NULL
-        ORDER BY m.mlbl_number
-    ''')
-    
-    mlbl_moves = cursor.fetchall()
+    try:
+        if 'origin_location_id' in move_columns:
+            cursor.execute('''
+                SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name, 
+                       t.trailer_number,
+                       orig.location_title || ' -> ' || dest.location_title as route,
+                       m.status, m.payment_status
+                FROM moves m
+                LEFT JOIN trailers t ON m.trailer_id = t.id
+                LEFT JOIN locations orig ON m.origin_location_id = orig.id
+                LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                WHERE m.mlbl_number IS NOT NULL
+                ORDER BY m.mlbl_number
+            ''')
+        else:
+            cursor.execute('''
+                SELECT m.order_number, m.order_number as mlbl_number, 
+                       m.pickup_date, m.driver_name, 
+                       m.new_trailer,
+                       m.pickup_location || ' -> ' || m.delivery_location as route,
+                       m.status, 'pending' as payment_status
+                FROM moves m
+                WHERE m.order_number IS NOT NULL
+                ORDER BY m.order_number
+            ''')
+        mlbl_moves = cursor.fetchall()
+    except sqlite3.OperationalError:
+        mlbl_moves = []
     if mlbl_moves:
         st.write("### Moves with MLBL Numbers Assigned")
         df = pd.DataFrame(mlbl_moves, columns=[
@@ -1082,17 +1130,33 @@ def show_active_moves():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    cursor.execute('''
-        SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name,
-               dest.location_title, t.trailer_number, m.status, m.estimated_miles, m.estimated_earnings
-        FROM moves m
-        LEFT JOIN locations dest ON m.destination_location_id = dest.id
-        LEFT JOIN trailers t ON m.trailer_id = t.id
-        WHERE m.status IN ('active', 'assigned', 'in_transit')
-        ORDER BY m.move_date DESC
-    ''')
+    # Check database structure
+    cursor.execute("PRAGMA table_info(moves)")
+    columns = [col[1] for col in cursor.fetchall()]
     
-    moves = cursor.fetchall()
+    try:
+        if 'destination_location_id' in columns:
+            cursor.execute('''
+                SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name,
+                       dest.location_title, t.trailer_number, m.status, m.estimated_miles, m.estimated_earnings
+                FROM moves m
+                LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                LEFT JOIN trailers t ON m.trailer_id = t.id
+                WHERE m.status IN ('active', 'assigned', 'in_transit')
+                ORDER BY m.move_date DESC
+            ''')
+        else:
+            cursor.execute('''
+                SELECT m.order_number, m.order_number, m.pickup_date, m.driver_name,
+                       m.delivery_location, m.new_trailer, m.status, 0, m.amount
+                FROM moves m
+                WHERE m.status IN ('active', 'assigned', 'in_transit')
+                ORDER BY m.pickup_date DESC
+            ''')
+        moves = cursor.fetchall()
+    except sqlite3.OperationalError as e:
+        st.error(f"Database error in active moves: {str(e)}")
+        moves = []
     
     if moves:
         df = pd.DataFrame(moves, columns=[
@@ -1126,17 +1190,33 @@ def show_completed_moves():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    cursor.execute('''
-        SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name,
-               dest.location_title, t.trailer_number, m.payment_status, m.estimated_miles, m.estimated_earnings
-        FROM moves m
-        LEFT JOIN locations dest ON m.destination_location_id = dest.id
-        LEFT JOIN trailers t ON m.trailer_id = t.id
-        WHERE m.status = 'completed'
-        ORDER BY m.move_date DESC
-    ''')
+    # Check database structure
+    cursor.execute("PRAGMA table_info(moves)")
+    columns = [col[1] for col in cursor.fetchall()]
     
-    moves = cursor.fetchall()
+    try:
+        if 'destination_location_id' in columns:
+            cursor.execute('''
+                SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name,
+                       dest.location_title, t.trailer_number, m.payment_status, m.estimated_miles, m.estimated_earnings
+                FROM moves m
+                LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                LEFT JOIN trailers t ON m.trailer_id = t.id
+                WHERE m.status = 'completed'
+                ORDER BY m.move_date DESC
+            ''')
+        else:
+            cursor.execute('''
+                SELECT m.order_number, m.order_number, m.completed_date, m.driver_name,
+                       m.delivery_location, m.new_trailer, 'pending', 0, m.amount
+                FROM moves m
+                WHERE m.status = 'completed'
+                ORDER BY m.completed_date DESC
+            ''')
+        moves = cursor.fetchall()
+    except sqlite3.OperationalError as e:
+        st.error(f"Database error in completed moves: {str(e)}")
+        moves = []
     
     if moves:
         df = pd.DataFrame(moves, columns=[
