@@ -218,14 +218,23 @@ def load_initial_data():
     cursor = conn.cursor()
     
     # Check if we have any data
-    cursor.execute("SELECT COUNT(*) FROM trailers")
-    trailer_count = cursor.fetchone()[0]
+    try:
+        cursor.execute("SELECT COUNT(*) FROM trailers")
+        trailer_count = cursor.fetchone()[0]
+    except:
+        trailer_count = 0
     
-    cursor.execute("SELECT COUNT(*) FROM moves")
-    move_count = cursor.fetchone()[0]
+    try:
+        cursor.execute("SELECT COUNT(*) FROM moves")
+        move_count = cursor.fetchone()[0]
+    except:
+        move_count = 0
     
-    cursor.execute("SELECT COUNT(*) FROM drivers")
-    driver_count = cursor.fetchone()[0]
+    try:
+        cursor.execute("SELECT COUNT(*) FROM drivers")
+        driver_count = cursor.fetchone()[0]
+    except:
+        driver_count = 0
     
     # If no data, load production data
     if trailer_count == 0 or driver_count == 0:
@@ -503,6 +512,55 @@ def show_overview_metrics():
     
     with col4:
         st.metric("Monthly Revenue", f"${monthly_revenue:,.0f}")
+    
+    # Add data initialization button if no data
+    if active_moves == 0 and available_trailers == 0 and active_drivers == 0:
+        st.warning("No data found in the system!")
+        if st.button("🔄 Initialize Demo Data", type="primary"):
+            try:
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                
+                # Add locations
+                cursor.execute('''
+                    INSERT OR IGNORE INTO locations (id, location_title, city, state, location_type, is_base_location)
+                    VALUES (1, 'Fleet Memphis', 'Memphis', 'TN', 'base', 1)
+                ''')
+                
+                cursor.execute('''
+                    INSERT OR IGNORE INTO locations (location_title, city, state, location_type, is_base_location)
+                    VALUES 
+                        ('FedEx Memphis', 'Memphis', 'TN', 'customer', 0),
+                        ('FedEx Indy', 'Indianapolis', 'IN', 'customer', 0),
+                        ('FedEx Chicago', 'Chicago', 'IL', 'customer', 0)
+                ''')
+                
+                # Add drivers
+                cursor.execute('''
+                    INSERT OR IGNORE INTO drivers (driver_name, status, driver_type)
+                    VALUES 
+                        ('Brandon Smith', 'active', 'owner'),
+                        ('Justin Duckett', 'active', 'contractor'),
+                        ('Carl Strickland', 'active', 'contractor')
+                ''')
+                
+                # Add trailers
+                trailers = ['190046', '18V00407', '7155', '7146', '5955', 
+                           '6024', '6061', '3170', '7153', '6015',
+                           '190033', '18V00298', '7728', '190011', '190030']
+                
+                for trailer in trailers:
+                    cursor.execute('''
+                        INSERT OR IGNORE INTO trailers (trailer_number, status, current_location)
+                        VALUES (?, 'available', 'Fleet Memphis')
+                    ''', (trailer,))
+                
+                conn.commit()
+                conn.close()
+                st.success("Demo data initialized successfully!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error initializing data: {str(e)}")
 
 # Create new move
 def create_new_move():
@@ -545,35 +603,63 @@ def create_new_move():
             
             # Build query based on available columns
             try:
+                # Check if moves table has new_trailer/old_trailer columns
+                cursor.execute("PRAGMA table_info(moves)")
+                move_columns = [col[1] for col in cursor.fetchall()]
+                
                 if 'current_location_id' in columns and 'locations' in [row[0] for row in cursor.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]:
                     # Normalized structure with location_id
-                    cursor.execute('''
-                        SELECT t.id, t.trailer_number, 
-                               COALESCE(l.location_title, 'Fleet Memphis') as location,
-                               t.status
-                        FROM trailers t
-                        LEFT JOIN locations l ON t.current_location_id = l.id
-                        WHERE t.trailer_number NOT IN (
-                            SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
-                            UNION
-                            SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
-                        )
-                        ORDER BY location, t.trailer_number
-                    ''')
+                    if 'new_trailer' in move_columns:
+                        # Has new_trailer/old_trailer columns
+                        cursor.execute('''
+                            SELECT t.id, t.trailer_number, 
+                                   COALESCE(l.location_title, 'Fleet Memphis') as location,
+                                   t.status
+                            FROM trailers t
+                            LEFT JOIN locations l ON t.current_location_id = l.id
+                            WHERE t.trailer_number NOT IN (
+                                SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
+                                UNION
+                                SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
+                            )
+                            ORDER BY location, t.trailer_number
+                        ''')
+                    else:
+                        # No new_trailer/old_trailer columns - get all available trailers
+                        cursor.execute('''
+                            SELECT t.id, t.trailer_number, 
+                                   COALESCE(l.location_title, 'Fleet Memphis') as location,
+                                   t.status
+                            FROM trailers t
+                            LEFT JOIN locations l ON t.current_location_id = l.id
+                            WHERE t.status = 'available'
+                            ORDER BY location, t.trailer_number
+                        ''')
                 else:
                     # Simple structure with current_location text field
-                    cursor.execute('''
-                        SELECT t.id, t.trailer_number, 
-                               COALESCE(t.current_location, 'Fleet Memphis') as location,
-                               t.status
-                        FROM trailers t
-                        WHERE t.trailer_number NOT IN (
-                            SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
-                            UNION
-                            SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
-                        )
-                        ORDER BY t.current_location, t.trailer_number
-                    ''')
+                    if 'new_trailer' in move_columns:
+                        cursor.execute('''
+                            SELECT t.id, t.trailer_number, 
+                                   COALESCE(t.current_location, 'Fleet Memphis') as location,
+                                   t.status
+                            FROM trailers t
+                            WHERE t.trailer_number NOT IN (
+                                SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
+                                UNION
+                                SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
+                            )
+                            ORDER BY t.current_location, t.trailer_number
+                        ''')
+                    else:
+                        # No new_trailer/old_trailer columns
+                        cursor.execute('''
+                            SELECT t.id, t.trailer_number, 
+                                   COALESCE(t.current_location, 'Fleet Memphis') as location,
+                                   t.status
+                            FROM trailers t
+                            WHERE t.status = 'available'
+                            ORDER BY t.current_location, t.trailer_number
+                        ''')
                 trailers = cursor.fetchall()
             except sqlite3.OperationalError as e:
                 st.error(f"Database query error: {str(e)}")
@@ -733,17 +819,32 @@ def create_new_move():
                 # Get trailers at the selected destination
                 try:
                     dest_location_pattern = destination.replace("FedEx", "%")
-                    cursor.execute('''
-                        SELECT trailer_number 
-                        FROM trailers 
-                        WHERE (current_location LIKE ? OR current_location = ?)
-                        AND trailer_number NOT IN (
-                            SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
-                            UNION
-                            SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
-                        )
-                        ORDER BY trailer_number
-                    ''', (dest_location_pattern, destination))
+                    
+                    # Check if moves table has new_trailer/old_trailer columns
+                    cursor.execute("PRAGMA table_info(moves)")
+                    move_cols = [col[1] for col in cursor.fetchall()]
+                    
+                    if 'new_trailer' in move_cols:
+                        # Schema with new_trailer/old_trailer
+                        cursor.execute('''
+                            SELECT trailer_number 
+                            FROM trailers 
+                            WHERE (current_location LIKE ? OR current_location = ?)
+                            AND trailer_number NOT IN (
+                                SELECT new_trailer FROM moves WHERE new_trailer IS NOT NULL
+                                UNION
+                                SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
+                            )
+                            ORDER BY trailer_number
+                        ''', (dest_location_pattern, destination))
+                    else:
+                        # Simple schema - just get all trailers at location
+                        cursor.execute('''
+                            SELECT trailer_number 
+                            FROM trailers 
+                            WHERE (current_location LIKE ? OR current_location = ?)
+                            ORDER BY trailer_number
+                        ''', (dest_location_pattern, destination))
                     
                     dest_trailers = cursor.fetchall()
                     
