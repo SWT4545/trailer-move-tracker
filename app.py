@@ -573,7 +573,7 @@ def create_new_move():
         if destination == "FedEx Indy":
             default_miles = 933.333333  # Exactly $1960 / $2.10
         elif destination == "FedEx Chicago":
-            default_miles = 1080.0
+            default_miles = 1130.0  # Updated: $2373 / $2.10 = 1130 miles
         elif destination == "FedEx Memphis":
             default_miles = 95.238095  # $200 flat rate / $2.10
         else:

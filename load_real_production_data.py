@@ -183,8 +183,8 @@ def load_real_production_data():
         ('FedEx Memphis', 'Fleet Memphis'): 15,
         ('Fleet Memphis', 'FedEx Indy'): 385,
         ('FedEx Indy', 'Fleet Memphis'): 385,
-        ('Fleet Memphis', 'FedEx Chicago'): 540,
-        ('FedEx Chicago', 'Fleet Memphis'): 540,
+        ('Fleet Memphis', 'FedEx Chicago'): 565,  # Updated: $2373 / $2.10 / 2 = 565 miles one way
+        ('FedEx Chicago', 'Fleet Memphis'): 565,
     }
     
     # COMPLETED AND PAID MOVES (with trailer swap details)
@@ -222,7 +222,7 @@ def load_real_production_data():
             'origin': 'Fleet Memphis', 'destination': 'FedEx Chicago',
             'driver': 'Brandon Smith', 'date': date(2025, 8, 12),
             'delivered': date(2025, 8, 13), 'status': 'completed',
-            'payment_status': 'paid', 'miles': 540 * 2
+            'payment_status': 'paid', 'miles': 1130  # Updated: $2373 / $2.10 = 1130 miles total
         },
         
         # Carl Strickland move
