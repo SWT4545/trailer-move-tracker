@@ -21,7 +21,7 @@ except ImportError:
 # Page config
 st.set_page_config(
     page_title="Smith & Williams Trucking",
-    page_icon="🚛",
+    page_icon="truck",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -333,9 +333,9 @@ def login():
         
         col1, col2 = st.columns(2)
         with col1:
-            submitted = st.form_submit_button("🔐 Login", type="primary", use_container_width=True)
+            submitted = st.form_submit_button("Login", type="primary", use_container_width=True)
         with col2:
-            if st.form_submit_button("🔄 Clear", use_container_width=True):
+            if st.form_submit_button(" Clear", use_container_width=True):
                 st.rerun()
         
         if submitted:
@@ -346,13 +346,13 @@ def login():
                     st.session_state['user'] = username
                     st.session_state['user_data'] = accounts['users'][username]
                     st.session_state['role'] = accounts['users'][username]['roles'][0]
-                    st.success("✅ Login successful!")
+                    st.success("Login successful!")
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("❌ Invalid password")
+                    st.error("Invalid password")
             else:
-                st.error("❌ Invalid username")
+                st.error("Invalid username")
 
 # Sidebar
 def show_sidebar():
@@ -372,22 +372,22 @@ def show_sidebar():
                         pass
         
         # User info
-        st.markdown("### 👤 User Information")
+        st.markdown("###  User Information")
         st.write(f"**User:** {st.session_state.get('user', 'Unknown')}")
         st.write(f"**Role:** {st.session_state.get('role', 'Unknown')}")
         
         # Cache clear button
-        if st.button("🔄 Clear Cache", use_container_width=True):
+        if st.button(" Clear Cache", use_container_width=True):
             st.cache_data.clear()
             st.cache_resource.clear()
-            st.success("✅ Cache cleared!")
+            st.success("Cache cleared!")
             time.sleep(1)
             st.rerun()
         
         st.divider()
         
         # Logout button
-        if st.button("🚪 Logout", type="secondary", use_container_width=True):
+        if st.button("Logout", type="secondary", use_container_width=True):
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()
@@ -395,24 +395,24 @@ def show_sidebar():
 # Vernon Support (Simplified)
 def show_vernon_support():
     """Simple Vernon support interface"""
-    with st.expander("🤖 Vernon - IT Support"):
+    with st.expander("Vernon - IT Support"):
         st.write("How can I help you today?")
         
         col1, col2, col3 = st.columns(3)
         with col1:
-            if st.button("🔍 Check System"):
+            if st.button("Check System"):
                 st.success("System is healthy!")
         with col2:
-            if st.button("🔧 Fix Issues"):
+            if st.button("Fix Issues"):
                 st.info("No issues detected")
         with col3:
-            if st.button("❓ Get Help"):
+            if st.button("Get Help"):
                 st.info("Contact support@swtrucking.com")
 
 # Overview metrics
 def show_overview_metrics():
     """Display system overview metrics"""
-    st.subheader("📊 System Overview")
+    st.subheader(" System Overview")
     
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -453,10 +453,10 @@ def show_overview_metrics():
 # Create new move
 def create_new_move():
     """Create new move with system ID"""
-    st.subheader("🚛 Create New Move Order")
+    st.subheader("Create New Move Order")
     
     # Clear explanation of the process
-    with st.expander("ℹ️ **How Trailer Swaps Work**", expanded=False):
+    with st.expander("**How Trailer Swaps Work**", expanded=False):
         st.markdown("""
         **The Process:**
         1. **Deliver** - Take a trailer FROM Fleet Memphis TO a FedEx location
@@ -465,9 +465,9 @@ def create_new_move():
         4. **Payment** - Get paid based on route
         
         **Payment Examples:**
-        • Fleet Memphis ↔ FedEx Memphis = $200.00 flat rate
-        • Fleet Memphis ↔ FedEx Indy = $1,960.00
-        • Fleet Memphis ↔ FedEx Chicago = $2,373.00
+        - Fleet Memphis <-> FedEx Memphis = $200.00 flat rate
+        - Fleet Memphis <-> FedEx Indy = $1,960.00
+        - Fleet Memphis <-> FedEx Chicago = $2,373.00
         """)
     
     conn = sqlite3.connect(DB_PATH)
@@ -476,7 +476,7 @@ def create_new_move():
     # Use containers instead of form for real-time updates
     with st.container():
         # Section 1: Trailer Selection
-        st.markdown("### 1️⃣ Select Trailer to Deliver")
+        st.markdown("### 1. Select Trailer to Deliver")
         
         # Get available trailers - exclude those already used in moves
         cursor.execute('''
@@ -506,7 +506,7 @@ def create_new_move():
             
             # Show Fleet Memphis trailers first
             if trailers_at_fleet:
-                st.info(f"📍 **Trailers at Fleet Memphis ({len(trailers_at_fleet)} available)**")
+                st.info(f"**Trailers at Fleet Memphis ({len(trailers_at_fleet)} available)**")
                 trailer_options = {}
                 trailer_numbers = {}  # Map display key to trailer number
                 for t in trailers_at_fleet:
@@ -516,7 +516,7 @@ def create_new_move():
             
             # Show trailers at other locations
             if trailers_at_other:
-                st.warning(f"⚠️ **Trailers at other locations ({len(trailers_at_other)} available)**")
+                st.warning(f" **Trailers at other locations ({len(trailers_at_other)} available)**")
                 if not trailer_options:
                     trailer_options = {}
                     trailer_numbers = {}
@@ -526,23 +526,23 @@ def create_new_move():
                     trailer_numbers[key] = t[1]  # trailer number
             
             selected_trailer = st.selectbox(
-                "🚛 Select Trailer to Deliver", 
+                "Select Trailer to Deliver", 
                 options=list(trailer_options.keys()),
                 help="Choose trailer to deliver (typically from Fleet Memphis)"
             )
             
             # Show total count
-            st.success(f"✅ Total {len(trailers)} trailers available for assignment")
+            st.success(f"Total {len(trailers)} trailers available for assignment")
         else:
-            st.error("❌ No trailers available - All trailers are currently assigned or in transit")
+            st.error("No trailers available - All trailers are currently assigned or in transit")
             trailer_options = {}
             selected_trailer = None
         
         st.divider()
         
         # Section 2: Route Information
-        st.markdown("### 2️⃣ Route Details")
-        st.info("📍 **All moves start from Fleet Memphis**")
+        st.markdown("### 2. Route Details")
+        st.info("**All moves start from Fleet Memphis**")
         
         col1, col2 = st.columns(2)
         
@@ -555,7 +555,7 @@ def create_new_move():
             # Origin is always Fleet Memphis
             origin = "Fleet Memphis"
             st.text_input(
-                "📍 Starting Location", 
+                "Starting Location", 
                 value="Fleet Memphis",
                 disabled=True,
                 help="All trailer moves originate from Fleet Memphis"
@@ -563,7 +563,7 @@ def create_new_move():
         
         with col2:
             destination = st.selectbox(
-                "📍 Delivery Location", 
+                "Delivery Location", 
                 options=list(location_options.keys()),
                 help="Where will the trailer be delivered to?",
                 key="destination_select"
@@ -580,10 +580,10 @@ def create_new_move():
             default_miles = 450.0
         
         # Show auto-calculated mileage
-        st.info(f"📊 **Auto-calculated mileage for {destination}:** {default_miles:,.2f} miles")
+        st.info(f" **Auto-calculated mileage for {destination}:** {default_miles:,.2f} miles")
         
         miles = st.number_input(
-            "🛣️ Total Round Trip Miles", 
+            " Total Round Trip Miles", 
             min_value=0.0, 
             value=default_miles, 
             step=10.0,
@@ -592,7 +592,7 @@ def create_new_move():
         )
         
         # Show LIVE earnings calculation
-        st.markdown("### 💰 Real-Time Earnings Calculation")
+        st.markdown("###  Real-Time Earnings Calculation")
         earnings = miles * 2.10
         after_factoring = earnings * 0.97
         service_fee_estimate = 6.00  # Placeholder
@@ -600,7 +600,7 @@ def create_new_move():
         
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("Miles × Rate", f"{miles:,.2f} × $2.10")
+            st.metric("Miles x Rate", f"{miles:,.2f} x $2.10")
         with col2:
             st.metric("Gross Earnings", f"${earnings:,.2f}")
         with col3:
@@ -611,7 +611,7 @@ def create_new_move():
         st.divider()
         
         # Section 3: Assignment Details
-        st.markdown("### 3️⃣ Assignment Information")
+        st.markdown("### 3. Assignment Information")
         col1, col2 = st.columns(2)
         
         with col1:
@@ -620,20 +620,20 @@ def create_new_move():
             drivers = cursor.fetchall()
             driver_options = {d[1]: d[0] for d in drivers}
             selected_driver = st.selectbox(
-                "👤 Assign to Driver", 
+                " Assign to Driver", 
                 options=list(driver_options.keys()),
                 help="Select the driver who will handle this move"
             )
             
             move_date = st.date_input(
-                "📅 Move Date", 
+                " Move Date", 
                 value=date.today(),
                 help="When will this move take place?"
             )
         
         with col2:
             client = st.text_input(
-                "🏢 Client/Customer", 
+                " Client/Customer", 
                 placeholder="e.g., Metro Logistics",
                 help="Enter the client name for this move"
             )
@@ -661,12 +661,12 @@ def create_new_move():
                 trailer_list = ", ".join([t[0] for t in dest_trailers[:5]])
                 if len(dest_trailers) > 5:
                     trailer_list += f" ... and {len(dest_trailers) - 5} more"
-                st.info(f"📦 Trailers at {destination}: {trailer_list}")
+                st.info(f" Trailers at {destination}: {trailer_list}")
             else:
-                st.warning(f"⚠️ No trailers currently at {destination}")
+                st.warning(f" No trailers currently at {destination}")
             
             swap_trailer = st.text_input(
-                "🔄 Trailer to Pick Up & Return to Fleet Memphis",
+                " Trailer to Pick Up & Return to Fleet Memphis",
                 placeholder="e.g., 6014",
                 help=f"Enter the trailer # you'll pick up at {destination} and bring back to Fleet Memphis"
             )
@@ -677,7 +677,7 @@ def create_new_move():
         st.divider()
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button("✅ CREATE MOVE ORDER", type="primary", use_container_width=True, key="create_move_btn"):
+            if st.button("CREATE MOVE ORDER", type="primary", use_container_width=True, key="create_move_btn"):
                 if selected_trailer and trailer_options:
                     # Generate system ID
                     system_id = generate_system_id()
@@ -711,7 +711,7 @@ def create_new_move():
                     ''', (trailer_options[selected_trailer],))
                     
                     conn.commit()
-                    st.success(f"✅ Move Order Created Successfully!")
+                    st.success(f"Move Order Created Successfully!")
                     st.markdown(f'### Move Details:')
                     col1, col2 = st.columns(2)
                     with col1:
@@ -723,7 +723,7 @@ def create_new_move():
                         st.info(f"**Gross Earnings:** ${earnings:,.2f}")
                         st.info(f"**After Factoring:** ${earnings * 0.97:,.2f}")
                 else:
-                    st.error("❌ Please select an available trailer to create the move")
+                    st.error("Please select an available trailer to create the move")
     
     conn.close()
     
@@ -734,7 +734,7 @@ def create_new_move():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("✅ Available Trailers")
+        st.subheader("Available Trailers")
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
@@ -754,7 +754,7 @@ def create_new_move():
         available_trailers = cursor.fetchall()
         
         if available_trailers:
-            st.success(f"📊 {len(available_trailers)} trailers ready for assignment")
+            st.success(f" {len(available_trailers)} trailers ready for assignment")
             df_avail = pd.DataFrame(available_trailers, columns=[
                 'Trailer #', 'Current Location', 'Status'
             ])
@@ -782,7 +782,7 @@ def create_new_move():
         conn.close()
     
     with col2:
-        st.subheader("🚫 Assigned/In-Use Trailers")
+        st.subheader("Assigned/In-Use Trailers")
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
@@ -800,7 +800,7 @@ def create_new_move():
         unavailable_trailers = cursor.fetchall()
         
         if unavailable_trailers:
-            st.warning(f"📊 {len(unavailable_trailers)} trailers currently assigned")
+            st.warning(f" {len(unavailable_trailers)} trailers currently assigned")
             df_unavail = pd.DataFrame(unavailable_trailers, columns=[
                 'Trailer #', 'Assigned To', 'Status', 'Destination'
             ])
@@ -836,7 +836,7 @@ def create_new_move():
 # MLBL Management
 def manage_mlbl_numbers():
     """Add MLBL numbers to moves"""
-    st.subheader("🔢 MLBL Number Management")
+    st.subheader(" MLBL Number Management")
     
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -866,7 +866,7 @@ def manage_mlbl_numbers():
         completed_paid = [m for m in pending_moves if m[4] == 'completed' and m[5] == 'paid']
         
         if active_moves:
-            st.write("#### 🚛 Active Moves")
+            st.write("####  Active Moves")
             for move in active_moves:
                 # Unpack move details
                 sys_id, date, client, driver, status, payment, trailer, origin, dest, miles, earnings = move
@@ -876,20 +876,20 @@ def manage_mlbl_numbers():
                     col1, col2 = st.columns(2)
                     with col1:
                         st.write("**Move Details:**")
-                        st.write(f"📅 Date: {date}")
-                        st.write(f"🚛 Trailer: {trailer}")
-                        st.write(f"👤 Driver: {driver}")
-                        st.write(f"🏢 Client: {client or 'FedEx'}")
+                        st.write(f" Date: {date}")
+                        st.write(f"Trailer: {trailer}")
+                        st.write(f" Driver: {driver}")
+                        st.write(f" Client: {client or 'FedEx'}")
                     with col2:
                         st.write("**Route Information:**")
-                        st.write(f"📍 From: {origin}")
-                        st.write(f"📍 To: {dest}")
-                        st.write(f"🛣️ Miles: {miles}")
-                        st.write(f"💰 Earnings: ${earnings:,.2f}")
+                        st.write(f"From: {origin}")
+                        st.write(f"To: {dest}")
+                        st.write(f" Miles: {miles}")
+                        st.write(f" Earnings: ${earnings:,.2f}")
                     
                     st.divider()
                     mlbl = st.text_input(f"Enter MLBL Number for this move", key=f"mlbl_{sys_id}")
-                    if st.button("✅ Add MLBL", key=f"btn_{sys_id}"):
+                    if st.button("Add MLBL", key=f"btn_{sys_id}"):
                         if mlbl:
                             try:
                                 cursor.execute('''
@@ -904,7 +904,7 @@ def manage_mlbl_numbers():
                                 st.error("MLBL already exists or error occurred")
         
         if completed_unpaid:
-            st.write("#### 📦 Completed - Awaiting Payment")
+            st.write("####  Completed - Awaiting Payment")
             for move in completed_unpaid:
                 # Unpack move details
                 sys_id, date, client, driver, status, payment, trailer, origin, dest, miles, earnings = move
@@ -914,20 +914,20 @@ def manage_mlbl_numbers():
                     col1, col2 = st.columns(2)
                     with col1:
                         st.write("**Move Details:**")
-                        st.write(f"📅 Date: {date}")
-                        st.write(f"🚛 Trailer: {trailer}")
-                        st.write(f"👤 Driver: {driver}")
-                        st.write(f"🏢 Client: {client or 'FedEx'}")
+                        st.write(f" Date: {date}")
+                        st.write(f"Trailer: {trailer}")
+                        st.write(f" Driver: {driver}")
+                        st.write(f" Client: {client or 'FedEx'}")
                     with col2:
                         st.write("**Route Information:**")
-                        st.write(f"📍 From: {origin}")
-                        st.write(f"📍 To: {dest}")
-                        st.write(f"🛣️ Miles: {miles}")
-                        st.write(f"💰 Earnings: ${earnings:,.2f}")
+                        st.write(f"From: {origin}")
+                        st.write(f"To: {dest}")
+                        st.write(f" Miles: {miles}")
+                        st.write(f" Earnings: ${earnings:,.2f}")
                     
                     st.divider()
                     mlbl = st.text_input(f"Enter MLBL Number for this move", key=f"mlbl_{sys_id}")
-                    if st.button("✅ Add MLBL", key=f"btn_{sys_id}"):
+                    if st.button("Add MLBL", key=f"btn_{sys_id}"):
                         if mlbl:
                             try:
                                 cursor.execute('''
@@ -942,7 +942,7 @@ def manage_mlbl_numbers():
                                 st.error("MLBL already exists or error occurred")
         
         if completed_paid:
-            st.write("#### ✅ Completed & Paid")
+            st.write("####  Completed & Paid")
             for move in completed_paid:
                 # Unpack move details
                 sys_id, date, client, driver, status, payment, trailer, origin, dest, miles, earnings = move
@@ -952,20 +952,20 @@ def manage_mlbl_numbers():
                     col1, col2 = st.columns(2)
                     with col1:
                         st.write("**Move Details:**")
-                        st.write(f"📅 Date: {date}")
-                        st.write(f"🚛 Trailer: {trailer}")
-                        st.write(f"👤 Driver: {driver}")
-                        st.write(f"🏢 Client: {client or 'FedEx'}")
+                        st.write(f" Date: {date}")
+                        st.write(f"Trailer: {trailer}")
+                        st.write(f" Driver: {driver}")
+                        st.write(f" Client: {client or 'FedEx'}")
                     with col2:
                         st.write("**Route Information:**")
-                        st.write(f"📍 From: {origin}")
-                        st.write(f"📍 To: {dest}")
-                        st.write(f"🛣️ Miles: {miles}")
-                        st.write(f"💰 Earnings: ${earnings:,.2f}")
+                        st.write(f"From: {origin}")
+                        st.write(f"To: {dest}")
+                        st.write(f" Miles: {miles}")
+                        st.write(f" Earnings: ${earnings:,.2f}")
                     
                     st.divider()
                     mlbl = st.text_input(f"Enter MLBL Number for this move", key=f"mlbl_{sys_id}")
-                    if st.button("✅ Add MLBL", key=f"btn_{sys_id}"):
+                    if st.button("Add MLBL", key=f"btn_{sys_id}"):
                         if mlbl:
                             try:
                                 cursor.execute('''
@@ -979,7 +979,7 @@ def manage_mlbl_numbers():
                             except:
                                 st.error("MLBL already exists or error occurred")
     else:
-        st.success("✅ All moves have MLBL numbers assigned!")
+        st.success(" All moves have MLBL numbers assigned!")
     
     # Show moves with MLBL numbers
     cursor.execute('''
@@ -1133,9 +1133,9 @@ def show_dashboard():
     # Check if user is Owner with driver capabilities
     if role == "Owner" and user_data.get('is_driver'):
         tabs = st.tabs([
-            "📊 Overview", "🚛 Create Move", "📋 Active Moves", 
-            "✅ Completed Moves", "👤 My Driver Moves", "🔢 MLBL Management", 
-            "💰 Financials", "🔧 Admin"
+            "Overview", "Create Move", "Active Moves", 
+            "Completed Moves", "My Driver Moves", "MLBL Management", 
+            " Financials", " Admin"
         ])
         
         with tabs[0]:
@@ -1148,7 +1148,7 @@ def show_dashboard():
             show_completed_moves()
         with tabs[4]:
             # Show Brandon's moves as a driver
-            st.subheader("🚛 My Driver Moves")
+            st.subheader("My Driver Moves")
             driver_name = user_data.get('driver_name', 'Brandon Smith')
             
             conn = sqlite3.connect(DB_PATH)
@@ -1213,10 +1213,10 @@ def show_dashboard():
         with tabs[5]:
             manage_mlbl_numbers()
         with tabs[6]:
-            st.subheader("💰 Financial Management & Reports")
+            st.subheader(" Financial Management & Reports")
             
             if PDF_AVAILABLE:
-                report_tabs = st.tabs(["📄 Driver Receipts", "📋 Client Invoices", "📊 Status Reports"])
+                report_tabs = st.tabs([" Driver Receipts", " Client Invoices", " Status Reports"])
                 
                 with report_tabs[0]:
                     st.markdown("### Generate Driver Payment Receipts")
@@ -1229,13 +1229,13 @@ def show_dashboard():
                     with col3:
                         receipt_to = st.date_input("To Date", value=date.today(), key="receipt_to")
                     
-                    if st.button("📥 Generate Driver Receipt", type="primary"):
+                    if st.button("Generate Driver Receipt", type="primary"):
                         try:
                             filename = generate_driver_receipt(selected_driver, receipt_from, receipt_to)
-                            st.success(f"✅ Receipt generated: {filename}")
+                            st.success(f"Receipt generated: {filename}")
                             with open(filename, "rb") as pdf_file:
                                 st.download_button(
-                                    label="📥 Download Receipt PDF",
+                                    label="Download Receipt PDF",
                                     data=pdf_file.read(),
                                     file_name=filename,
                                     mime="application/pdf"
@@ -1253,13 +1253,13 @@ def show_dashboard():
                     with col3:
                         invoice_to = st.date_input("To Date", value=date.today(), key="invoice_to")
                     
-                    if st.button("📥 Generate Client Invoice", type="primary"):
+                    if st.button("Generate Client Invoice", type="primary"):
                         try:
                             filename = generate_client_invoice(client_name, invoice_from, invoice_to)
-                            st.success(f"✅ Invoice generated: {filename}")
+                            st.success(f"Invoice generated: {filename}")
                             with open(filename, "rb") as pdf_file:
                                 st.download_button(
-                                    label="📥 Download Invoice PDF",
+                                    label="Download Invoice PDF",
                                     data=pdf_file.read(),
                                     file_name=filename,
                                     mime="application/pdf"
@@ -1278,13 +1278,13 @@ def show_dashboard():
                     
                     include_charts = st.checkbox("Include Charts & Graphs", value=True)
                     
-                    if st.button("📥 Generate Status Report", type="primary"):
+                    if st.button("Generate Status Report", type="primary"):
                         try:
                             filename = generate_status_report(report_from, report_to)
-                            st.success(f"✅ Report generated: {filename}")
+                            st.success(f"Report generated: {filename}")
                             with open(filename, "rb") as pdf_file:
                                 st.download_button(
-                                    label="📥 Download Report PDF",
+                                    label="Download Report PDF",
                                     data=pdf_file.read(),
                                     file_name=filename,
                                     mime="application/pdf"
@@ -1292,18 +1292,18 @@ def show_dashboard():
                         except Exception as e:
                             st.error(f"Error generating report: {str(e)}")
             else:
-                st.warning("⚠️ PDF generation not available. Install reportlab: pip install reportlab")
+                st.warning(" PDF generation not available. Install reportlab: pip install reportlab")
         with tabs[7]:
-            st.subheader("🔧 System Administration")
-            if st.button("🔄 Reload Production Data"):
+            st.subheader(" System Administration")
+            if st.button(" Reload Production Data"):
                 load_initial_data()
                 st.success("Production data reloaded!")
                 st.rerun()
     
     elif role == "Owner":  # Regular owner without driver role
         tabs = st.tabs([
-            "📊 Overview", "🚛 Create Move", "📋 Active Moves", 
-            "✅ Completed Moves", "🔢 MLBL Management", "💰 Financials", "🔧 Admin"
+            "Overview", "Create Move", "Active Moves", 
+            "Completed Moves", "MLBL Management", "Financials", "Admin"
         ])
         
         with tabs[0]:
@@ -1317,18 +1317,18 @@ def show_dashboard():
         with tabs[4]:
             manage_mlbl_numbers()
         with tabs[5]:
-            st.subheader("💰 Financial Management")
+            st.subheader(" Financial Management")
             st.info("Financial management interface")
         with tabs[6]:
-            st.subheader("🔧 System Administration")
-            if st.button("🔄 Reload Production Data"):
+            st.subheader(" System Administration")
+            if st.button(" Reload Production Data"):
                 load_initial_data()
                 st.success("Production data reloaded!")
                 st.rerun()
     
     elif role == "Manager":
         tabs = st.tabs([
-            "📊 Overview", "🚛 Create Move", "📋 Active Moves", "✅ Completed Moves", "🔢 MLBL Management"
+            "Overview", "Create Move", "Active Moves", " Completed Moves", " MLBL Management"
         ])
         
         with tabs[0]:
@@ -1343,7 +1343,7 @@ def show_dashboard():
             manage_mlbl_numbers()
     
     elif role == "Coordinator":
-        tabs = st.tabs(["📊 Overview", "📋 Active Moves"])
+        tabs = st.tabs([" Overview", " Active Moves"])
         
         with tabs[0]:
             show_overview_metrics()
@@ -1355,10 +1355,10 @@ def show_dashboard():
         driver_name = st.session_state.get('user_data', {}).get('driver_name')
         
         if driver_name:
-            tabs = st.tabs(["📊 My Overview", "📋 My Active Moves", "✅ My Completed Moves", "📄 Documents"])
+            tabs = st.tabs([" My Overview", " My Active Moves", " My Completed Moves", " Documents"])
             
             with tabs[0]:
-                st.subheader(f"🚛 Driver Dashboard - {driver_name}")
+                st.subheader(f" Driver Dashboard - {driver_name}")
                 
                 conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
@@ -1404,7 +1404,7 @@ def show_dashboard():
                 conn.close()
             
             with tabs[1]:
-                st.subheader("📋 My Active Moves")
+                st.subheader(" My Active Moves")
                 conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
                 
@@ -1446,7 +1446,7 @@ def show_dashboard():
                 conn.close()
             
             with tabs[2]:
-                st.subheader("✅ My Completed Moves")
+                st.subheader(" My Completed Moves")
                 conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
                 
@@ -1497,7 +1497,7 @@ def show_dashboard():
                 conn.close()
             
             with tabs[3]:
-                st.subheader("📄 Document Upload")
+                st.subheader(" Document Upload")
                 st.info("Document upload functionality for PODs, BOLs, and Photos")
                 
                 # Simple document upload interface
@@ -1515,7 +1515,7 @@ def show_dashboard():
             st.error("Driver profile not configured. Please contact administrator.")
     
     else:
-        tabs = st.tabs(["📊 Overview"])
+        tabs = st.tabs([" Overview"])
         with tabs[0]:
             show_overview_metrics()
 

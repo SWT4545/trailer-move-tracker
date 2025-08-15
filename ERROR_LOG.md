@@ -81,6 +81,15 @@ This log tracks all errors encountered during development to prevent recurring i
 **Files Affected:** `app.py` (lines 482-499)
 **Prevention:** Always verify actual table structure before writing queries
 
+### 10. Unicode Characters Breaking Streamlit Cloud (RESOLVED)
+**Date:** 2025-08-15
+**Error:** App crashes on Streamlit Cloud due to Unicode encoding issues
+**Cause:** Using Unicode emojis (🚛, ✅, 📊, etc.) throughout the app interface
+**Impact:** App works locally but fails on Streamlit Cloud deployment
+**Solution:** Removed ALL Unicode characters from app.py - replaced with text or removed entirely
+**Files Affected:** `app.py` (全 file - over 100 Unicode characters removed)
+**Prevention:** NEVER use Unicode characters/emojis in production apps - use text only
+
 ---
 
 ## Common Patterns to Avoid
