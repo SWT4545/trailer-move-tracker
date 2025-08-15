@@ -754,8 +754,10 @@ def show_active_moves():
     
     cursor.execute('''
         SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name,
-               m.client, m.status, m.estimated_miles, m.estimated_earnings
+               dest.location_title, t.trailer_number, m.status, m.estimated_miles, m.estimated_earnings
         FROM moves m
+        LEFT JOIN locations dest ON m.destination_location_id = dest.id
+        LEFT JOIN trailers t ON m.trailer_id = t.id
         WHERE m.status IN ('active', 'assigned', 'in_transit')
         ORDER BY m.move_date DESC
     ''')
@@ -764,8 +766,8 @@ def show_active_moves():
     
     if moves:
         df = pd.DataFrame(moves, columns=[
-            'System ID', 'MLBL', 'Date', 'Driver', 'Client',
-            'Status', 'Miles', 'Est. Earnings'
+            'System ID', 'MLBL', 'Date', 'Driver', 'Location',
+            'Trailer', 'Status', 'Miles', 'Est. Earnings'
         ])
         
         st.dataframe(df, use_container_width=True, hide_index=True)
@@ -782,8 +784,10 @@ def show_completed_moves():
     
     cursor.execute('''
         SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name,
-               m.client, m.payment_status, m.estimated_miles, m.estimated_earnings
+               dest.location_title, t.trailer_number, m.payment_status, m.estimated_miles, m.estimated_earnings
         FROM moves m
+        LEFT JOIN locations dest ON m.destination_location_id = dest.id
+        LEFT JOIN trailers t ON m.trailer_id = t.id
         WHERE m.status = 'completed'
         ORDER BY m.move_date DESC
     ''')
@@ -792,16 +796,16 @@ def show_completed_moves():
     
     if moves:
         df = pd.DataFrame(moves, columns=[
-            'System ID', 'MLBL', 'Date', 'Driver', 'Client',
-            'Payment Status', 'Miles', 'Est. Earnings'
+            'System ID', 'MLBL', 'Date', 'Driver', 'Location',
+            'Trailer', 'Payment Status', 'Miles', 'Est. Earnings'
         ])
         
-        # Color code payment status
+        # Color code payment status with better visibility
         def highlight_payment(val):
             if val == 'paid':
-                return 'background-color: #90EE90'
+                return 'background-color: #28a745; color: white; font-weight: bold'  # Green with white text
             elif val == 'pending':
-                return 'background-color: #FFE4B5'
+                return 'background-color: #ffc107; color: black; font-weight: bold'  # Yellow with black text
             return ''
         
         styled_df = df.style.applymap(highlight_payment, subset=['Payment Status'])

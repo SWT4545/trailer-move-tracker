@@ -196,7 +196,7 @@ def load_real_production_data():
             'origin': 'Fleet Memphis', 'destination': 'FedEx Indy',
             'driver': 'Justin Duckett', 'date': date(2025, 8, 12),
             'delivered': date(2025, 8, 13), 'status': 'completed',
-            'payment_status': 'paid', 'miles': 385 * 2  # Round trip
+            'payment_status': 'paid', 'miles': 933.33  # Actual round trip from Metro Logistics  # Round trip
         },
         {
             'system_id': get_system_id(),
@@ -212,7 +212,7 @@ def load_real_production_data():
             'origin': 'Fleet Memphis', 'destination': 'FedEx Indy',
             'driver': 'Justin Duckett', 'date': date(2025, 8, 12),
             'delivered': date(2025, 8, 13), 'status': 'completed',
-            'payment_status': 'paid', 'miles': 385 * 2
+            'payment_status': 'paid', 'miles': 933.33  # Actual round trip from Metro Logistics
         },
         
         # Brandon Smith move
@@ -232,7 +232,7 @@ def load_real_production_data():
             'origin': 'Fleet Memphis', 'destination': 'FedEx Indy',
             'driver': 'Carl Strickland', 'date': date(2025, 8, 12),
             'delivered': date(2025, 8, 13), 'status': 'completed',
-            'payment_status': 'paid', 'miles': 385 * 2
+            'payment_status': 'paid', 'miles': 933.33  # Actual round trip from Metro Logistics
         },
     ]
     
@@ -297,14 +297,17 @@ def load_real_production_data():
     
     for move in all_moves:
         # Calculate financial details
+        # For Indy routes: $1960.00 payment for 933.33 miles
+        # After 3% factoring: $1960 * 0.97 = $1901.20
         estimated_earnings = move['miles'] * 2.10
         
         if move['payment_status'] == 'paid':
             # For paid moves, calculate with fees
-            factoring_fee = estimated_earnings * 0.03
-            # Service fee would be split among drivers in batch
-            service_fee = 6.00  # $2 per driver for 3 drivers
-            driver_net_pay = estimated_earnings - factoring_fee - service_fee
+            factoring_fee = estimated_earnings * 0.03  # 3% factoring fee
+            after_factoring = estimated_earnings - factoring_fee  # Should be $1901.20 for Indy routes
+            # Service fee TBD - will be subtracted from after_factoring amount
+            service_fee = 6.00  # Placeholder - actual TBD
+            driver_net_pay = after_factoring - service_fee
             actual_payment = estimated_earnings  # Client pays full amount
         else:
             factoring_fee = None
