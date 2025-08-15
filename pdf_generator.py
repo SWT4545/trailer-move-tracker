@@ -183,16 +183,27 @@ class PDFGenerator:
             elements.append(breakdown_table)
             elements.append(Spacer(1, 20))
             
-            # Add disclaimer about service fees
+            # Add BIG disclaimer about service fees
             disclaimer_style = ParagraphStyle(
                 'Disclaimer',
                 parent=styles['Normal'],
-                fontSize=10,
-                italic=True,
-                textColor=colors.grey
+                fontSize=12,
+                bold=True,
+                textColor=colors.HexColor('#dc3545')
             )
-            elements.append(Paragraph("* Service fees are not included in this total. Only the 3% factoring fee has been deducted.", disclaimer_style))
-            elements.append(Paragraph("* Final payment will be adjusted for any applicable service fees.", disclaimer_style))
+            elements.append(Spacer(1, 20))
+            elements.append(Paragraph("IMPORTANT NOTICE:", disclaimer_style))
+            
+            notice_style = ParagraphStyle(
+                'Notice',
+                parent=styles['Normal'],
+                fontSize=11,
+                textColor=colors.black
+            )
+            elements.append(Paragraph("• Service fees are NOT included in this total", notice_style))
+            elements.append(Paragraph("• ONLY the 3% factoring fee has been deducted", notice_style))
+            elements.append(Paragraph("• Final payment will be adjusted for service fees", notice_style))
+            elements.append(Paragraph(f"• Example: $1,960.00 - $58.80 (3%) = $1,901.20 (before service fees)", notice_style))
             
         # Build PDF
         doc.build(elements, onFirstPage=self._add_letterhead, onLaterPages=self._add_letterhead)

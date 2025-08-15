@@ -683,15 +683,28 @@ def show_overview_metrics():
         st.metric("Monthly Revenue", f"${monthly_revenue:,.0f}")
     
     with col3:
-        st.metric("Total Earnings", f"${total_earnings:,.0f}",
-                  help="Total earnings from all completed moves")
+        st.metric("Gross Earnings", f"${total_earnings:,.0f}",
+                  help="Total gross earnings before factoring",
+                  delta=f"-${factoring_fee:,.0f} (3%)")
     
     with col4:
-        st.metric("After Factoring", f"${after_factoring:,.0f}",
-                  help=f"Total: ${total_earnings:,.0f}\nFactoring (3%): -${factoring_fee:,.0f}\nNet: ${after_factoring:,.0f}")
+        st.metric("NET After 3% Factoring", f"${after_factoring:,.2f}",
+                  help=f"${total_earnings:,.0f} - ${factoring_fee:,.0f} = ${after_factoring:,.2f}",
+                  delta=f"-{factoring_fee:,.2f}")
+    
+    # BIG PROMINENT FACTORING DISPLAY
+    st.markdown("---")
+    st.markdown("### 💰 EARNINGS AFTER FACTORING")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.info(f"**Gross Total:** ${total_earnings:,.2f}")
+    with col2:
+        st.warning(f"**Less 3% Factoring:** -${factoring_fee:,.2f}")
+    with col3:
+        st.success(f"**NET TOTAL:** ${after_factoring:,.2f}")
     
     # Service fee disclaimer
-    st.caption("*Service fees are not included in the total. Only the 3% factoring fee has been deducted.")
+    st.caption("*Service fees are not included. Only the 3% factoring fee has been deducted. Example: $1,960.00 - $58.80 = $1,901.20")
     
     # Add data initialization button if no data
     if active_moves == 0 and total_trailers == 0 and active_drivers == 0:
@@ -755,7 +768,8 @@ def create_new_move():
                 if 'current_location_id' in columns and 'locations' in [row[0] for row in cursor.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]:
                     # Get Fleet Memphis location ID
                     cursor.execute("SELECT id FROM locations WHERE location_title = 'Fleet Memphis'")
-                    fleet_id = cursor.fetchone()[0] if cursor.fetchone() else 1
+                    fleet_result = cursor.fetchone()
+                    fleet_id = fleet_result[0] if fleet_result else 1
                     
                     # Get ONLY trailers at Fleet Memphis that are available
                     cursor.execute('''
@@ -841,16 +855,20 @@ def create_new_move():
         
         with col2:
             # Get locations with OLD trailers for pickup
-            cursor.execute('''
-                SELECT DISTINCT l.location_title, COUNT(t.id) as trailer_count
-                FROM locations l
-                JOIN trailers t ON t.current_location_id = l.id
-                WHERE t.is_new = 0 
-                AND l.location_title LIKE 'FedEx%'
-                GROUP BY l.location_title
-                ORDER BY l.location_title
-            ''')
-            locations_with_trailers = cursor.fetchall()
+            try:
+                cursor.execute('''
+                    SELECT DISTINCT l.location_title, COUNT(t.id) as trailer_count
+                    FROM locations l
+                    JOIN trailers t ON t.current_location_id = l.id
+                    WHERE t.is_new = 0 
+                    AND l.location_title LIKE 'FedEx%'
+                    GROUP BY l.location_title
+                    ORDER BY l.location_title
+                ''')
+                locations_with_trailers = cursor.fetchall()
+            except sqlite3.OperationalError:
+                # Fallback if join fails
+                locations_with_trailers = []
             
             if locations_with_trailers:
                 destination_options = []
@@ -898,19 +916,29 @@ def create_new_move():
         # Show LIVE earnings calculation
         st.markdown("###  Real-Time Earnings Calculation")
         earnings = miles * 2.10
-        after_factoring = earnings * 0.97
-        service_fee_estimate = 6.00  # Placeholder
-        final_estimate = after_factoring - service_fee_estimate
+        factoring_amount = earnings * 0.03
+        after_factoring = earnings - factoring_amount
         
+        # BIG DISPLAY OF FACTORING CALCULATION
+        st.markdown("#### EARNINGS BREAKDOWN:")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.info(f"**GROSS:** ${earnings:,.2f}")
+        with col2:
+            st.warning(f"**LESS 3%:** -${factoring_amount:,.2f}")
+        with col3:
+            st.success(f"**NET:** ${after_factoring:,.2f}")
+        
+        # Detailed metrics
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("Miles x Rate", f"{miles:,.2f} x $2.10")
+            st.metric("Miles", f"{miles:,.2f}")
         with col2:
-            st.metric("Gross Earnings", f"${earnings:,.2f}")
+            st.metric("Rate", "$2.10/mile")
         with col3:
-            st.metric("After 3% Factoring", f"${after_factoring:,.2f}")
+            st.metric("Gross", f"${earnings:,.2f}")
         with col4:
-            st.metric("Est. Net (after fees)", f"${final_estimate:,.2f}")
+            st.metric("NET (after 3%)", f"${after_factoring:,.2f}")
         
         st.divider()
         
@@ -2112,7 +2140,11 @@ def show_dashboard():
                 with col3:
                     st.metric("Completed", stats[2] or 0)
                 with col4:
-                    st.metric("Total Earnings", f"${stats[5] or 0:,.2f}")
+                    gross = stats[5] or 0
+                    factoring = gross * 0.03
+                    net = gross - factoring  # After 3% factoring
+                    st.metric("NET (After 3% Factoring)", f"${net:,.2f}",
+                             help=f"${gross:,.2f} - ${factoring:,.2f} = ${net:,.2f}\n*Service fees NOT included")
                 
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
@@ -2120,9 +2152,32 @@ def show_dashboard():
                 with col2:
                     st.metric("Pending Payment", stats[4] or 0)
                 with col3:
-                    st.metric("Paid Earnings", f"${stats[6] or 0:,.2f}")
+                    paid_gross = stats[6] or 0
+                    paid_net = paid_gross * 0.97
+                    st.metric("Paid NET", f"${paid_net:,.2f}",
+                             help=f"After 3% factoring\n*Service fees NOT included")
                 with col4:
-                    st.metric("Pending Earnings", f"${stats[7] or 0:,.2f}")
+                    pending_gross = stats[7] or 0
+                    pending_net = pending_gross * 0.97
+                    st.metric("Pending NET", f"${pending_net:,.2f}",
+                             help=f"After 3% factoring\n*Service fees NOT included")
+                
+                # BIG EARNINGS DISPLAY
+                st.markdown("---")
+                st.markdown("### 💰 YOUR EARNINGS BREAKDOWN")
+                total_gross = stats[5] or 0
+                total_factoring = total_gross * 0.03
+                total_net = total_gross - total_factoring
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.info(f"**GROSS TOTAL:** ${total_gross:,.2f}")
+                with col2:
+                    st.warning(f"**LESS 3% FACTORING:** -${total_factoring:,.2f}")
+                with col3:
+                    st.success(f"**YOUR NET:** ${total_net:,.2f}")
+                
+                st.caption("⚠️ **IMPORTANT:** Service fees are NOT included in these totals. Only the 3% factoring fee has been deducted.")
                 
                 conn.close()
             

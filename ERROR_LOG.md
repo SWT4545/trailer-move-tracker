@@ -351,6 +351,17 @@ grep -r "✓" *.py
 **Files Affected:** `pdf_generator.py`, `app.py`
 **Benefits:** Clear, accurate payment calculations
 
+### 27. TypeError in create_new_move (RESOLVED)
+**Date:** 2025-08-15
+**Error:** `TypeError` at line 758 - cursor.fetchone() called twice
+**Cause:** Double call to cursor.fetchone() - first call consumed result, second returned None
+**Solution:** 
+  - Store fetchone() result in variable before checking
+  - Changed: `cursor.fetchone()[0] if cursor.fetchone() else 1`
+  - To: `fleet_result = cursor.fetchone(); fleet_id = fleet_result[0] if fleet_result else 1`
+**Files Affected:** `app.py` line 758
+**Prevention:** Always store database results before checking/using them
+
 ---
 
 Last Updated: 2025-08-15
