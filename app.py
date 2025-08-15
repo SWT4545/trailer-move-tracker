@@ -834,63 +834,61 @@ def create_new_move():
         st.divider()
         
         # Section 2: Route Information
-        st.markdown("### 2. Route Details")
-        st.info("**All moves start from Fleet Memphis**")
+        st.markdown("### 2. Select Destination FedEx Location")
+        st.info("💡 **Simple Process:** You'll deliver the NEW trailer from Fleet Memphis → FedEx, then pick up an OLD trailer to bring back")
         
-        col1, col2 = st.columns(2)
+        # Get all FedEx locations with details
+        cursor.execute('''
+            SELECT l.id, l.location_title, l.city, l.state,
+                   CASE WHEN l.address = '' OR l.address = 'Address TBD' THEN 0 ELSE 1 END as has_address,
+                   COUNT(t.id) as old_trailer_count
+            FROM locations l
+            LEFT JOIN trailers t ON t.current_location_id = l.id AND t.is_new = 0 AND t.status = 'available'
+            WHERE l.location_type = 'fedex_hub'
+            GROUP BY l.id, l.location_title, l.city, l.state
+            ORDER BY l.location_title
+        ''')
+        all_locations = cursor.fetchall()
         
-        with col1:
-            # Get locations
-            cursor.execute('SELECT id, location_title FROM locations ORDER BY location_title')
-            locations = cursor.fetchall()
-            location_options = {l[1]: l[0] for l in locations}
-            
-            # Origin is always Fleet Memphis
-            origin = "Fleet Memphis"
-            st.text_input(
-                "Starting Location", 
-                value="Fleet Memphis",
-                disabled=True,
-                help="All trailer moves originate from Fleet Memphis"
-            )
+        # Create easy-to-understand location options
+        location_display_map = {}
+        locations_with_trailers = []
+        locations_without_trailers = []
         
-        with col2:
-            # Get locations with OLD trailers for pickup
-            try:
-                cursor.execute('''
-                    SELECT DISTINCT l.location_title, COUNT(t.id) as trailer_count
-                    FROM locations l
-                    JOIN trailers t ON t.current_location_id = l.id
-                    WHERE t.is_new = 0 
-                    AND l.location_title LIKE 'FedEx%'
-                    GROUP BY l.location_title
-                    ORDER BY l.location_title
-                ''')
-                locations_with_trailers = cursor.fetchall()
-            except sqlite3.OperationalError:
-                # Fallback if join fails
-                locations_with_trailers = []
-            
-            if locations_with_trailers:
-                destination_options = []
-                for loc, count in locations_with_trailers:
-                    destination_options.append(f"{loc} ({count} OLD trailers)")
-                
-                destination_display = st.selectbox(
-                    "Delivery Location (with OLD trailers for pickup)", 
-                    options=destination_options,
-                    help="Select a FedEx location that has OLD trailers ready for pickup",
-                    key="destination_select"
-                )
-                # Extract actual location name
-                destination = destination_display.split(" (")[0]
+        for loc_id, title, city, state, has_addr, trailer_count in all_locations:
+            # Build display string
+            if trailer_count > 0:
+                display = f"✅ {title} - {trailer_count} OLD trailer{'s' if trailer_count > 1 else ''} ready"
+                locations_with_trailers.append((display, title))
             else:
-                destination = st.selectbox(
-                    "Delivery Location", 
-                    options=list(location_options.keys()),
-                    help="Where will the trailer be delivered to?",
-                    key="destination_select_fallback"
-                )
+                display = f"📍 {title} - No OLD trailers available"
+                locations_without_trailers.append((display, title))
+            
+            location_display_map[display] = title
+        
+        # Combine locations - ones with trailers first
+        all_location_options = []
+        
+        if locations_with_trailers:
+            all_location_options.append("--- LOCATIONS WITH OLD TRAILERS READY FOR PICKUP ---")
+            for display, _ in locations_with_trailers:
+                all_location_options.append(display)
+        
+        if locations_without_trailers:
+            all_location_options.append("--- OTHER FEDEX LOCATIONS ---")
+            for display, _ in locations_without_trailers:
+                all_location_options.append(display)
+        
+        # Single, clear destination selector
+        destination_display = st.selectbox(
+            "📍 Select FedEx Destination",
+            options=[opt for opt in all_location_options if not opt.startswith("---")],
+            help="✅ = OLD trailers available for pickup | 📍 = No OLD trailers currently"
+        )
+        
+        # Extract actual location name
+        destination = location_display_map.get(destination_display, "FedEx Memphis")
+        origin = "Fleet Memphis"  # Always Fleet Memphis
         
         # Auto-calculate miles based on route - REAL-TIME UPDATE
         if destination == "FedEx Indy":
@@ -943,9 +941,59 @@ def create_new_move():
         
         st.divider()
         
-        # Section 3: Assignment Details
-        st.markdown("### 3. Assignment Information")
-        col1, col2 = st.columns(2)
+        # Section 3: Select OLD Trailer to Pick Up
+        st.markdown("### 3. Select OLD Trailer to Return")
+        
+        # Get OLD trailers at the selected destination
+        cursor.execute("SELECT id FROM locations WHERE location_title = ?", (destination,))
+        loc_result = cursor.fetchone()
+        
+        if loc_result:
+            loc_id = loc_result[0]
+            cursor.execute('''
+                SELECT trailer_number 
+                FROM trailers 
+                WHERE current_location_id = ?
+                AND is_new = 0
+                AND status = 'available'
+                ORDER BY trailer_number
+            ''', (loc_id,))
+            
+            old_trailers = cursor.fetchall()
+            
+            if old_trailers:
+                st.success(f"🔄 {len(old_trailers)} OLD trailer{'s' if len(old_trailers) > 1 else ''} available for pickup at {destination}")
+                
+                # Create dropdown for OLD trailer selection
+                old_trailer_options = [f"Trailer #{t[0]} (OLD)" for t in old_trailers]
+                selected_old_display = st.selectbox(
+                    "Select OLD Trailer to Pick Up",
+                    options=old_trailer_options,
+                    help="This trailer will be picked up from FedEx and returned to Fleet Memphis"
+                )
+                
+                # Extract trailer number
+                swap_trailer = selected_old_display.split("#")[1].split(" ")[0] if selected_old_display else None
+            else:
+                st.warning(f"⚠️ No OLD trailers currently at {destination}")
+                st.info("💡 You can still create the move and specify which trailer to pick up later")
+                swap_trailer = st.text_input(
+                    "Enter OLD Trailer # to Pick Up (optional)",
+                    placeholder="e.g., 6014",
+                    help="Leave blank if you'll determine this later"
+                )
+        else:
+            swap_trailer = st.text_input(
+                "Enter OLD Trailer # to Pick Up",
+                placeholder="e.g., 6014",
+                help=f"Enter the trailer number you'll pick up at {destination}"
+            )
+        
+        st.divider()
+        
+        # Section 4: Driver and Move Details
+        st.markdown("### 4. Assignment Details")
+        col1, col2, col3 = st.columns(3)
         
         with col1:
             # Get drivers
@@ -953,64 +1001,23 @@ def create_new_move():
             drivers = cursor.fetchall()
             driver_options = {d[1]: d[0] for d in drivers}
             selected_driver = st.selectbox(
-                " Assign to Driver", 
+                "👤 Assign to Driver", 
                 options=list(driver_options.keys()),
                 help="Select the driver who will handle this move"
             )
-            
+        
+        with col2:
             move_date = st.date_input(
-                " Move Date", 
+                "📅 Move Date", 
                 value=date.today(),
                 help="When will this move take place?"
             )
         
-        with col2:
+        with col3:
             client = st.text_input(
-                " Client/Customer", 
+                "🏢 Client/Customer", 
                 placeholder="e.g., Metro Logistics",
                 help="Enter the client name for this move"
-            )
-            
-            # Show OLD trailers available for pickup at destination
-            if destination:
-                st.markdown(f"**OLD Trailers available for pickup at {destination}:**")
-                
-                # Get OLD trailers at the selected destination
-                try:
-                    # Get location ID
-                    cursor.execute("SELECT id FROM locations WHERE location_title = ?", (destination,))
-                    loc_result = cursor.fetchone()
-                    
-                    if loc_result:
-                        loc_id = loc_result[0]
-                        # Get OLD trailers at this location
-                        cursor.execute('''
-                            SELECT trailer_number 
-                            FROM trailers 
-                            WHERE current_location_id = ?
-                            AND is_new = 0
-                            AND status = 'available'
-                            ORDER BY trailer_number
-                        ''', (loc_id,))
-                        
-                        dest_trailers = cursor.fetchall()
-                        
-                        if dest_trailers:
-                            trailer_list = ", ".join([t[0] for t in dest_trailers])
-                            st.info(f"OLD trailers ready for pickup: {trailer_list}")
-                        else:
-                            st.warning(f"No OLD trailers currently at {destination}")
-                    else:
-                        st.warning(f"Location {destination} not found in database")
-                except Exception as e:
-                    st.error(f"Error checking trailers: {str(e)}")
-            else:
-                st.info("Select a destination to see available OLD trailers")
-            
-            swap_trailer = st.text_input(
-                " Trailer to Pick Up & Return to Fleet Memphis",
-                placeholder="e.g., 6014",
-                help=f"Enter the trailer # you'll pick up at {destination} and bring back to Fleet Memphis"
             )
         
         st.divider()
@@ -1968,81 +1975,159 @@ def show_dashboard():
             conn.close()
         with tabs[8]:
             # Location Management
-            st.subheader(" Location Management")
+            st.subheader("📍 Location Management")
+            st.info("💡 Add new FedEx locations even with partial information - addresses can be updated later!")
             
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
             
-            # Get all locations
+            # Quick Add New FedEx Location (Simplified)
+            st.markdown("### ➕ Quick Add New FedEx Location")
+            with st.form("quick_add_location"):
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    quick_city = st.text_input("City Name*", placeholder="e.g., Nashville")
+                with col2:
+                    quick_state = st.text_input("State*", placeholder="e.g., TN")
+                with col3:
+                    add_button = st.form_submit_button("Add FedEx Location", type="primary", use_container_width=True)
+                
+                if add_button:
+                    if quick_city and quick_state:
+                        location_title = f"FedEx {quick_city}"
+                        # Check if already exists
+                        cursor.execute("SELECT id FROM locations WHERE location_title = ?", (location_title,))
+                        if cursor.fetchone():
+                            st.error(f"{location_title} already exists!")
+                        else:
+                            cursor.execute('''
+                                INSERT INTO locations (location_title, address, city, state, 
+                                                      zip_code, location_type, is_base_location, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            ''', (location_title, 'Address TBD', quick_city, quick_state, 
+                                  '', 'fedex_hub', 0, datetime.now()))
+                            conn.commit()
+                            st.success(f"✅ Added {location_title}! You can add the address details below.")
+                            st.rerun()
+                    else:
+                        st.error("City and State are required")
+            
+            st.divider()
+            
+            # Get all locations with trailer counts
             cursor.execute('''
-                SELECT id, location_title, address, city, state, zip_code, 
-                       location_type, is_base_location
-                FROM locations
-                ORDER BY location_title
+                SELECT l.id, l.location_title, l.address, l.city, l.state, l.zip_code, 
+                       l.location_type, l.is_base_location,
+                       COUNT(t.id) as trailer_count,
+                       SUM(CASE WHEN t.is_new = 1 THEN 1 ELSE 0 END) as new_trailers,
+                       SUM(CASE WHEN t.is_new = 0 THEN 1 ELSE 0 END) as old_trailers
+                FROM locations l
+                LEFT JOIN trailers t ON t.current_location_id = l.id AND t.status = 'available'
+                GROUP BY l.id
+                ORDER BY l.location_type DESC, l.location_title
             ''')
             locations = cursor.fetchall()
             
-            # Display locations in editable format
-            st.markdown("### Edit Location Information")
+            # Show locations by type
+            st.markdown("### 📋 All Locations")
             
-            for loc in locations:
-                loc_id, title, address, city, state, zip_code, loc_type, is_base = loc
-                
-                with st.expander(f"{title} - {city}, {state}"):
-                    with st.form(f"location_{loc_id}"):
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            new_title = st.text_input("Location Name", value=title)
-                            new_address = st.text_input("Street Address", value=address or "")
-                            new_city = st.text_input("City", value=city)
-                        
-                        with col2:
-                            new_state = st.text_input("State", value=state)
-                            new_zip = st.text_input("ZIP Code", value=zip_code or "")
-                            new_type = st.selectbox("Type", ["customer", "base"], 
-                                                   index=0 if loc_type == "customer" else 1)
-                        
-                        if st.form_submit_button("Update Location"):
-                            cursor.execute('''
-                                UPDATE locations 
-                                SET location_title = ?, address = ?, city = ?, 
-                                    state = ?, zip_code = ?, location_type = ?
-                                WHERE id = ?
-                            ''', (new_title, new_address, new_city, new_state, 
-                                  new_zip, new_type, loc_id))
-                            conn.commit()
-                            st.success(f"Updated {title}")
-                            st.rerun()
+            # Separate by type
+            fleet_locations = [loc for loc in locations if loc[7] == 1]  # is_base_location
+            fedex_locations = [loc for loc in locations if loc[6] == 'fedex_hub']
             
-            # Add new location
-            st.markdown("### Add New Location")
-            with st.form("add_location"):
-                col1, col2 = st.columns(2)
+            # Fleet Memphis (Base)
+            if fleet_locations:
+                st.markdown("#### 🏢 Fleet Base")
+                for loc in fleet_locations:
+                    loc_id, title, address, city, state, zip_code, loc_type, is_base, total, new, old = loc
+                    with st.expander(f"✅ {title} - {city}, {state} (Base Location) - {new} NEW, {old} OLD trailers"):
+                        with st.form(f"location_{loc_id}"):
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                new_address = st.text_input("Street Address", value=address or "")
+                                new_city = st.text_input("City", value=city or "")
+                            with col2:
+                                new_state = st.text_input("State", value=state or "")
+                                new_zip = st.text_input("ZIP Code", value=zip_code or "")
+                            
+                            if st.form_submit_button("Update Fleet Base"):
+                                cursor.execute('''
+                                    UPDATE locations 
+                                    SET address = ?, city = ?, state = ?, zip_code = ?
+                                    WHERE id = ?
+                                ''', (new_address, new_city, new_state, new_zip, loc_id))
+                                conn.commit()
+                                st.success(f"Updated {title}")
+                                st.rerun()
+            
+            # FedEx Locations
+            if fedex_locations:
+                st.markdown("#### 📦 FedEx Locations")
                 
+                # Count locations with/without addresses
+                with_address = sum(1 for loc in fedex_locations if loc[2] and loc[2] != 'Address TBD')
+                without_address = len(fedex_locations) - with_address
+                
+                col1, col2, col3 = st.columns(3)
                 with col1:
-                    add_title = st.text_input("Location Name")
-                    add_address = st.text_input("Street Address")
-                    add_city = st.text_input("City")
-                
+                    st.metric("Total FedEx Locations", len(fedex_locations))
                 with col2:
-                    add_state = st.text_input("State")
-                    add_zip = st.text_input("ZIP Code")
-                    add_type = st.selectbox("Type", ["customer", "base"])
+                    st.metric("With Full Address", with_address)
+                with col3:
+                    st.metric("Need Address", without_address)
                 
-                if st.form_submit_button("Add Location", type="primary"):
-                    if add_title and add_city and add_state:
-                        cursor.execute('''
-                            INSERT INTO locations (location_title, address, city, state, 
-                                                  zip_code, location_type, is_base_location)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                        ''', (add_title, add_address, add_city, add_state, 
-                              add_zip, add_type, 1 if add_type == "base" else 0))
-                        conn.commit()
-                        st.success(f"Added {add_title}")
-                        st.rerun()
+                for loc in fedex_locations:
+                    loc_id, title, address, city, state, zip_code, loc_type, is_base, total, new, old = loc
+                    
+                    # Status indicator
+                    if address and address != 'Address TBD':
+                        status = "✅"
+                        expand_text = f"{status} {title} - {city}, {state}"
                     else:
-                        st.error("Location name, city, and state are required")
+                        status = "⚠️"
+                        expand_text = f"{status} {title} - {city}, {state} (Address needed)"
+                    
+                    # Add trailer count if any
+                    if old > 0:
+                        expand_text += f" - {old} OLD trailer{'s' if old > 1 else ''} available"
+                    
+                    with st.expander(expand_text):
+                        with st.form(f"location_{loc_id}"):
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                new_address = st.text_input("Street Address", 
+                                                           value="" if address == 'Address TBD' else (address or ""),
+                                                           placeholder="Enter street address")
+                                new_city = st.text_input("City", value=city or "")
+                            
+                            with col2:
+                                new_state = st.text_input("State", value=state or "")
+                                new_zip = st.text_input("ZIP Code", value=zip_code or "", 
+                                                       placeholder="e.g., 12345")
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                if st.form_submit_button("Update Location", type="primary", use_container_width=True):
+                                    cursor.execute('''
+                                        UPDATE locations 
+                                        SET address = ?, city = ?, state = ?, zip_code = ?
+                                        WHERE id = ?
+                                    ''', (new_address, new_city, new_state, new_zip, loc_id))
+                                    conn.commit()
+                                    st.success(f"Updated {title}")
+                                    st.rerun()
+                            
+                            with col2:
+                                if st.form_submit_button("Delete Location", type="secondary", use_container_width=True):
+                                    if total == 0:  # Only allow deletion if no trailers
+                                        cursor.execute("DELETE FROM locations WHERE id = ?", (loc_id,))
+                                        conn.commit()
+                                        st.success(f"Deleted {title}")
+                                        st.rerun()
+                                    else:
+                                        st.error(f"Cannot delete - {total} trailers at this location")
             
             conn.close()
         with tabs[9]:
