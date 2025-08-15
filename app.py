@@ -520,19 +520,22 @@ def check_authentication():
 
 def login():
     """Login page with video logo"""
-    # Show video logo - centered and muted loop
+    # Show video logo if available - centered and muted loop
     animation_file = "company_logo_animation.mp4.MOV"
-    
-    # Display the video logo with explicit loop and mute settings
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        # Force loop, autoplay, and muted for all browsers
-        st.video(animation_file, 
-                format="video/mp4",
-                start_time=0,
-                loop=True, 
-                autoplay=True, 
-                muted=True)
+    if os.path.exists(animation_file):
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            # Use HTML5 video tag for better autoplay compatibility
+            with open(animation_file, 'rb') as video_file:
+                video_bytes = video_file.read()
+                video_b64 = base64.b64encode(video_bytes).decode()
+                video_html = f'''
+                <video width="100%" autoplay loop muted playsinline>
+                    <source src="data:video/mp4;base64,{video_b64}" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                '''
+                st.markdown(video_html, unsafe_allow_html=True)
     
     st.title("Trailer Fleet Management System")
     st.subheader("Smith & Williams Trucking LLC")
