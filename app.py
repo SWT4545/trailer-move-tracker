@@ -607,6 +607,15 @@ def show_overview_metrics():
     ''')
     monthly_revenue = cursor.fetchone()[0]
     
+    # Calculate total earnings and factoring
+    cursor.execute('''
+        SELECT COALESCE(SUM(estimated_earnings), 0) FROM moves 
+        WHERE status = 'completed'
+    ''')
+    total_earnings = cursor.fetchone()[0]
+    factoring_fee = total_earnings * 0.03
+    after_factoring = total_earnings - factoring_fee
+    
     conn.close()
     
     # Display metrics - two rows
@@ -630,8 +639,8 @@ def show_overview_metrics():
         st.metric("Total Fleet", total_trailers, 
                   help=f"Total fleet size: {total_trailers}\nTotal available: {old_available + new_available}")
     
-    # Second row: Driver and revenue metrics
-    col1, col2, col3 = st.columns(3)
+    # Second row: Financial metrics
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.metric("Active Drivers", active_drivers)
@@ -640,13 +649,15 @@ def show_overview_metrics():
         st.metric("Monthly Revenue", f"${monthly_revenue:,.0f}")
     
     with col3:
-        # Calculate swap ratio
-        if total_trailers > 0:
-            new_ratio = (new_trailers_total / total_trailers) * 100
-            st.metric("New Trailer %", f"{new_ratio:.1f}%", 
-                     help=f"Percentage of new trailers in fleet: {new_trailers_total}/{total_trailers}")
-        else:
-            st.metric("New Trailer %", "N/A")
+        st.metric("Total Earnings", f"${total_earnings:,.0f}",
+                  help="Total earnings from all completed moves")
+    
+    with col4:
+        st.metric("After Factoring", f"${after_factoring:,.0f}",
+                  help=f"Total: ${total_earnings:,.0f}\nFactoring (3%): -${factoring_fee:,.0f}\nNet: ${after_factoring:,.0f}")
+    
+    # Service fee disclaimer
+    st.caption("*Service fees have not been applied to earnings calculations")
     
     # Add data initialization button if no data
     if active_moves == 0 and total_trailers == 0 and active_drivers == 0:
@@ -2071,20 +2082,171 @@ def show_dashboard():
                 conn.close()
             
             with tabs[4]:
-                st.subheader(" Document Upload")
-                st.info("Document upload functionality for PODs, BOLs, and Photos")
+                st.subheader(" Documents & Invoices")
                 
-                # Simple document upload interface
-                uploaded_file = st.file_uploader(
-                    "Upload Move Documents",
-                    type=['pdf', 'jpg', 'jpeg', 'png'],
-                    help="Upload POD, BOL, or photos for your moves"
-                )
+                doc_tabs = st.tabs(["Generate Invoice", "Upload Documents"])
                 
-                if uploaded_file:
-                    st.success(f"File {uploaded_file.name} ready for upload")
-                    if st.button("Save Document"):
-                        st.success("Document saved successfully!")
+                with doc_tabs[0]:
+                    st.markdown("### Generate Driver Invoice/Receipt")
+                    st.info("Generate professional PDF invoices for your completed moves")
+                    
+                    # Get driver's company information
+                    driver_companies = {
+                        "Justin Duckett": {"company": "L&P Solutions", "email": "Lpsolutions1623@gmail.com", "phone": "9012184083"},
+                        "Carl Strickland": {"company": "Cross State Logistics Inc.", "email": "Strick750@gmail.com", "phone": "9014974055"},
+                        "Brandon Smith": {"company": "Smith & Williams Trucking", "email": "dispatch@smithwilliamstrucking.com", "phone": "951-437-5474"}
+                    }
+                    
+                    company_info = driver_companies.get(driver_name, {"company": "Independent Contractor", "email": "", "phone": ""})
+                    
+                    # Display company info
+                    st.write(f"**Company:** {company_info['company']}")
+                    if company_info['email']:
+                        st.write(f"**Email:** {company_info['email']}")
+                    if company_info['phone']:
+                        st.write(f"**Phone:** {company_info['phone']}")
+                    
+                    st.divider()
+                    
+                    # Date range selection
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        from_date = st.date_input("From Date", value=date.today() - timedelta(days=30), key="driver_invoice_from")
+                    with col2:
+                        to_date = st.date_input("To Date", value=date.today(), key="driver_invoice_to")
+                    
+                    # Payment status filter
+                    payment_filter = st.selectbox(
+                        "Payment Status",
+                        ["All", "Paid Only", "Pending Only"],
+                        help="Filter moves by payment status"
+                    )
+                    
+                    if st.button("Generate Invoice PDF", type="primary"):
+                        # Get driver's moves for the period
+                        conn = sqlite3.connect(DB_PATH)
+                        cursor = conn.cursor()
+                        
+                        # Build query based on payment filter
+                        base_query = '''
+                            SELECT m.system_id, m.move_date, m.new_trailer, m.old_trailer,
+                                   orig.location_title || ' -> ' || dest.location_title as route,
+                                   m.estimated_miles, m.estimated_earnings, m.payment_status
+                            FROM moves m
+                            LEFT JOIN locations orig ON m.origin_location_id = orig.id
+                            LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                            WHERE m.driver_name = ? 
+                            AND m.status = 'completed'
+                            AND date(m.move_date) BETWEEN date(?) AND date(?)
+                        '''
+                        
+                        if payment_filter == "Paid Only":
+                            base_query += " AND m.payment_status = 'paid'"
+                        elif payment_filter == "Pending Only":
+                            base_query += " AND m.payment_status = 'pending'"
+                        
+                        base_query += " ORDER BY m.move_date"
+                        
+                        cursor.execute(base_query, (driver_name, from_date, to_date))
+                        moves = cursor.fetchall()
+                        
+                        if moves:
+                            # Calculate totals
+                            total_earnings = sum(m[6] for m in moves if m[6])
+                            factoring_fee = total_earnings * 0.03
+                            after_factoring = total_earnings - factoring_fee
+                            
+                            # Generate PDF
+                            if PDF_AVAILABLE:
+                                try:
+                                    # Use existing PDF generator with modifications
+                                    from pdf_generator import generate_driver_receipt
+                                    filename = generate_driver_receipt(driver_name, from_date, to_date)
+                                    
+                                    with open(filename, "rb") as pdf_file:
+                                        st.download_button(
+                                            label="Download Invoice PDF",
+                                            data=pdf_file.read(),
+                                            file_name=f"driver_invoice_{driver_name.replace(' ', '_')}_{from_date}_{to_date}.pdf",
+                                            mime="application/pdf"
+                                        )
+                                    
+                                    # Display summary
+                                    st.success("Invoice generated successfully!")
+                                    col1, col2, col3 = st.columns(3)
+                                    with col1:
+                                        st.metric("Total Earnings", f"${total_earnings:,.2f}")
+                                    with col2:
+                                        st.metric("Factoring Fee (3%)", f"-${factoring_fee:,.2f}")
+                                    with col3:
+                                        st.metric("After Factoring", f"${after_factoring:,.2f}")
+                                    
+                                    st.caption("*Service fees have not been applied to these amounts")
+                                    
+                                except Exception as e:
+                                    st.error(f"Error generating PDF: {str(e)}")
+                                    # Fallback to display data in table
+                                    st.write("### Invoice Details")
+                                    df = pd.DataFrame(moves, columns=[
+                                        'System ID', 'Date', 'New Trailer', 'Return Trailer', 
+                                        'Route', 'Miles', 'Earnings', 'Payment Status'
+                                    ])
+                                    df['Earnings'] = df['Earnings'].apply(lambda x: f"${x:,.2f}" if x else "")
+                                    st.dataframe(df, use_container_width=True, hide_index=True)
+                                    
+                                    st.divider()
+                                    st.write("### Summary")
+                                    col1, col2, col3 = st.columns(3)
+                                    with col1:
+                                        st.metric("Total Earnings", f"${total_earnings:,.2f}")
+                                    with col2:
+                                        st.metric("Factoring Fee (3%)", f"-${factoring_fee:,.2f}")
+                                    with col3:
+                                        st.metric("After Factoring", f"${after_factoring:,.2f}")
+                                    
+                                    st.caption("*Service fees have not been applied to these amounts")
+                            else:
+                                # No PDF library, show data in table format
+                                st.write("### Invoice Details")
+                                df = pd.DataFrame(moves, columns=[
+                                    'System ID', 'Date', 'New Trailer', 'Return Trailer', 
+                                    'Route', 'Miles', 'Earnings', 'Payment Status'
+                                ])
+                                df['Earnings'] = df['Earnings'].apply(lambda x: f"${x:,.2f}" if x else "")
+                                st.dataframe(df, use_container_width=True, hide_index=True)
+                                
+                                st.divider()
+                                st.write("### Summary")
+                                col1, col2, col3 = st.columns(3)
+                                with col1:
+                                    st.metric("Total Earnings", f"${total_earnings:,.2f}")
+                                with col2:
+                                    st.metric("Factoring Fee (3%)", f"-${factoring_fee:,.2f}")
+                                with col3:
+                                    st.metric("After Factoring", f"${after_factoring:,.2f}")
+                                
+                                st.caption("*Service fees have not been applied to these amounts")
+                                st.warning("PDF generation not available. Install reportlab: pip install reportlab")
+                        else:
+                            st.info(f"No completed moves found between {from_date} and {to_date}")
+                        
+                        conn.close()
+                
+                with doc_tabs[1]:
+                    st.markdown("### Upload Documents")
+                    st.info("Upload PODs, BOLs, and Photos for your moves")
+                    
+                    # Simple document upload interface
+                    uploaded_file = st.file_uploader(
+                        "Upload Move Documents",
+                        type=['pdf', 'jpg', 'jpeg', 'png'],
+                        help="Upload POD, BOL, or photos for your moves"
+                    )
+                    
+                    if uploaded_file:
+                        st.success(f"File {uploaded_file.name} ready for upload")
+                        if st.button("Save Document"):
+                            st.success("Document saved successfully!")
         else:
             st.error("Driver profile not configured. Please contact administrator.")
     
