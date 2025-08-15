@@ -449,28 +449,28 @@ def create_new_move():
     st.subheader("🚛 Create New Move Order")
     
     # Clear explanation of the process
-    with st.expander("ℹ️ **How Trailer Moves Work** - Click to understand", expanded=True):
+    with st.expander("ℹ️ **How Trailer Swaps Work**", expanded=True):
         st.markdown("""
-        **The Trailer Swap Process:**
-        1. **NEW Trailer** - You deliver a new/empty trailer FROM Fleet Memphis TO a FedEx location
-        2. **OLD Trailer** - You pick up a loaded/old trailer FROM that FedEx location 
-        3. **Return Trip** - You bring the old trailer BACK to Fleet Memphis
-        4. **Payment** - You get paid for the total round-trip mileage at $2.10/mile
+        **The Process:**
+        1. **Deliver** - Take a trailer FROM Fleet Memphis TO a FedEx location
+        2. **Swap** - Drop off your trailer and pick up a different one
+        3. **Return** - Bring the swapped trailer BACK to Fleet Memphis
+        4. **Payment** - Get paid for total round-trip mileage at $2.10/mile
         
-        **Example:** Fleet Memphis → FedEx Indy (deliver new) → Pick up old → Return to Fleet Memphis = 933.33 miles total
+        **Example:** Fleet Memphis -> FedEx Indy -> Fleet Memphis = 933.33 miles total = $1,960
         """)
     
     # Instructions
-    st.info("📝 **Instructions:** Select an available trailer below and fill out the move details. The system will track both the delivery and return.")
+    st.info("📝 Select a trailer and enter the move details below.")
     
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     with st.form("new_move_form"):
         # Section 1: Trailer Selection
-        st.markdown("### 1️⃣ Select Trailer to Move")
+        st.markdown("### 1️⃣ Select Trailer from Fleet Memphis")
         
-        # Get available trailers (not in active or completed moves)
+        # Get available trailers at Fleet Memphis
         cursor.execute('''
             SELECT t.id, t.trailer_number, l.location_title, t.status
             FROM trailers t
@@ -484,13 +484,13 @@ def create_new_move():
         trailers = cursor.fetchall()
         
         if trailers:
-            trailer_options = {f"Trailer #{t[1]} - Currently at: {t[2] or 'Location TBD'}": t[0] for t in trailers}
+            trailer_options = {f"Trailer #{t[1]}": t[0] for t in trailers}
             selected_trailer = st.selectbox(
-                "Available Trailers", 
+                "🚛 Select Trailer to Take to FedEx", 
                 options=list(trailer_options.keys()),
-                help="Select the NEW trailer to be delivered"
+                help="Choose which trailer from Fleet Memphis to deliver to the FedEx location"
             )
-            st.success(f"✅ {len(trailers)} trailers available for assignment")
+            st.success(f"✅ {len(trailers)} trailers available at Fleet Memphis")
         else:
             st.error("❌ No trailers available - All trailers are currently assigned or in transit")
             trailer_options = {}
@@ -500,6 +500,8 @@ def create_new_move():
         
         # Section 2: Route Information
         st.markdown("### 2️⃣ Route Details")
+        st.info("📍 **All moves start from Fleet Memphis**")
+        
         col1, col2 = st.columns(2)
         
         with col1:
@@ -508,11 +510,13 @@ def create_new_move():
             locations = cursor.fetchall()
             location_options = {l[1]: l[0] for l in locations}
             
-            origin = st.selectbox(
-                "📍 Pickup Location", 
-                options=list(location_options.keys()),
-                help="Where will the trailer be picked up from?",
-                index=list(location_options.keys()).index("Fleet Memphis") if "Fleet Memphis" in location_options else 0
+            # Origin is always Fleet Memphis
+            origin = "Fleet Memphis"
+            st.text_input(
+                "📍 Starting Location", 
+                value="Fleet Memphis",
+                disabled=True,
+                help="All trailer moves originate from Fleet Memphis"
             )
         
         with col2:
@@ -584,10 +588,10 @@ def create_new_move():
                 help="Enter the client name for this move"
             )
             
-            old_trailer = st.text_input(
-                "🔄 Return Trailer Number (Optional)",
+            swap_trailer = st.text_input(
+                "🔄 Trailer to Pick Up & Return to Fleet Memphis",
                 placeholder="e.g., 6014",
-                help="Enter the OLD trailer number that will be picked up and returned"
+                help="Enter the trailer # you'll pick up at FedEx and bring back to Fleet Memphis"
             )
         
         st.divider()
@@ -630,7 +634,7 @@ def create_new_move():
                     with col1:
                         st.info(f"**System ID:** {system_id}")
                         st.info(f"**Driver:** {selected_driver}")
-                        st.info(f"**Route:** {origin} → {destination}")
+                        st.info(f"**Route:** {origin} -> {destination}")
                     with col2:
                         st.info(f"**Miles:** {miles:,.2f}")
                         st.info(f"**Gross Earnings:** ${earnings:,.2f}")
