@@ -187,12 +187,12 @@ def load_real_production_data():
         ('FedEx Chicago', 'Fleet Memphis'): 540,
     }
     
-    # COMPLETED AND PAID MOVES
+    # COMPLETED AND PAID MOVES (with trailer swap details)
     completed_paid_moves = [
-        # Justin Duckett moves
+        # Justin Duckett moves - each move swaps trailers
         {
             'system_id': get_system_id(),
-            'new_trailer': '18V00327', 'old_trailer': '6014',
+            'new_trailer': '18V00327', 'old_trailer': '6014',  # Delivered 18V00327, picked up 6014
             'origin': 'Fleet Memphis', 'destination': 'FedEx Indy',
             'driver': 'Justin Duckett', 'date': date(2025, 8, 12),
             'delivered': date(2025, 8, 13), 'status': 'completed',

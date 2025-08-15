@@ -252,10 +252,11 @@ def load_user_accounts():
         "users": {
             "Brandon": {
                 "password": "owner123",
-                "roles": ["Owner"],
+                "roles": ["Owner", "Driver"],  # Added Driver role
                 "driver_name": "Brandon Smith",
                 "is_owner": True,
-                "permissions": ["ALL"]
+                "is_driver": True,  # Added driver flag
+                "permissions": ["ALL", "view_own_moves", "upload_documents", "self_assign"]
             },
             "admin": {
                 "password": "admin123",
@@ -766,16 +767,23 @@ def show_completed_moves():
 def show_dashboard():
     """Display role-specific dashboard"""
     role = st.session_state.get('role', 'Unknown')
+    user_data = st.session_state.get('user_data', {})
     
-    st.title(f"Smith & Williams Trucking - {role} Dashboard")
+    # Check if user has multiple roles
+    if 'roles' in user_data and len(user_data['roles']) > 1:
+        st.title(f"Smith & Williams Trucking - {'/'.join(user_data['roles'])} Dashboard")
+    else:
+        st.title(f"Smith & Williams Trucking - {role} Dashboard")
     
     # Show Vernon support
     show_vernon_support()
     
-    if role == "Owner":
+    # Check if Brandon (Owner/Driver)
+    if role == "Owner" and user_data.get('is_driver'):
         tabs = st.tabs([
             "📊 Overview", "🚛 Create Move", "📋 Active Moves", 
-            "✅ Completed Moves", "🔢 MLBL Management", "💰 Financials", "🔧 Admin"
+            "✅ Completed Moves", "👤 My Driver Moves", "🔢 MLBL Management", 
+            "💰 Financials", "🔧 Admin"
         ])
         
         with tabs[0]:
@@ -787,11 +795,64 @@ def show_dashboard():
         with tabs[3]:
             show_completed_moves()
         with tabs[4]:
-            manage_mlbl_numbers()
+            # Show Brandon's moves as a driver
+            st.subheader("🚛 My Driver Moves")
+            driver_name = user_data.get('driver_name', 'Brandon Smith')
+            
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT m.system_id, m.mlbl_number, m.move_date,
+                       t.trailer_number,
+                       orig.location_title || ' → ' || dest.location_title as route,
+                       m.status, m.payment_status, m.estimated_earnings
+                FROM moves m
+                LEFT JOIN trailers t ON m.trailer_id = t.id
+                LEFT JOIN locations orig ON m.origin_location_id = orig.id
+                LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                WHERE m.driver_name = ?
+                ORDER BY m.move_date DESC
+            ''', (driver_name,))
+            
+            moves = cursor.fetchall()
+            
+            if moves:
+                st.write(f"### Your Moves as Driver")
+                
+                # Summary metrics
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    active_count = sum(1 for m in moves if m[5] == 'active')
+                    st.metric("Active Moves", active_count)
+                with col2:
+                    completed_count = sum(1 for m in moves if m[5] == 'completed')
+                    st.metric("Completed Moves", completed_count)
+                with col3:
+                    total_earnings = sum(m[7] for m in moves if m[7])
+                    st.metric("Total Earnings", f"${total_earnings:,.2f}")
+                
+                st.divider()
+                
+                df = pd.DataFrame(moves, columns=[
+                    'System ID', 'MLBL', 'Date', 'Trailer', 'Route', 
+                    'Status', 'Payment', 'Earnings'
+                ])
+                
+                # Format earnings column
+                df['Earnings'] = df['Earnings'].apply(lambda x: f"${x:,.2f}" if x else "")
+                
+                st.dataframe(df, use_container_width=True, hide_index=True)
+            else:
+                st.info("No moves assigned as driver")
+            
+            conn.close()
         with tabs[5]:
+            manage_mlbl_numbers()
+        with tabs[6]:
             st.subheader("💰 Financial Management")
             st.info("Financial management interface")
-        with tabs[6]:
+        with tabs[7]:
             st.subheader("🔧 System Administration")
             if st.button("🔄 Reload Production Data"):
                 load_initial_data()
