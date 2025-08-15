@@ -70,6 +70,17 @@ This log tracks all errors encountered during development to prevent recurring i
 **Files Affected:** `app.py` (user configuration)
 **Prevention:** Design user roles to support multiple capabilities
 
+### 9. Database Schema Mismatch - Trailers Table (RESOLVED)
+**Date:** 2025-08-15
+**Error:** `sqlite3.OperationalError` when querying trailers with non-existent columns
+**Cause:** Query assumed trailers table had columns like `trailer_id` and complex location fields
+**Actual Schema:** 
+  - trailers: id, trailer_number, current_location, status (simple structure)
+  - moves: old_trailer, new_trailer as TEXT (trailer numbers, not IDs)
+**Solution:** Simplified query to match actual database schema
+**Files Affected:** `app.py` (lines 482-499)
+**Prevention:** Always verify actual table structure before writing queries
+
 ---
 
 ## Common Patterns to Avoid

@@ -467,7 +467,7 @@ def create_new_move():
         **Payment Examples:**
         • Fleet Memphis ↔ FedEx Memphis = $200.00 flat rate
         • Fleet Memphis ↔ FedEx Indy = $1,960.00
-        • Fleet Memphis ↔ FedEx Chicago = $2,268.00
+        • Fleet Memphis ↔ FedEx Chicago = $2,373.00
         """)
     
     conn = sqlite3.connect(DB_PATH)
@@ -481,13 +481,7 @@ def create_new_move():
         # Get available trailers - exclude those already used in moves
         cursor.execute('''
             SELECT t.id, t.trailer_number, 
-                   CASE 
-                       WHEN t.current_location = 'Fleet Memphis' THEN 'Fleet Memphis'
-                       WHEN t.current_location LIKE '%Memphis%' THEN 'FedEx Memphis'
-                       WHEN t.current_location LIKE '%Indy%' OR t.current_location LIKE '%Indianapolis%' THEN 'FedEx Indy'
-                       WHEN t.current_location LIKE '%Chicago%' THEN 'FedEx Chicago'
-                       ELSE COALESCE(t.current_location, 'Location TBD')
-                   END as location,
+                   COALESCE(t.current_location, 'Fleet Memphis') as location,
                    t.status
             FROM trailers t
             WHERE t.trailer_number NOT IN (
@@ -495,7 +489,7 @@ def create_new_move():
                 UNION
                 SELECT old_trailer FROM moves WHERE old_trailer IS NOT NULL
             )
-            ORDER BY location, t.trailer_number
+            ORDER BY t.current_location, t.trailer_number
         ''')
         trailers = cursor.fetchall()
         
@@ -514,16 +508,22 @@ def create_new_move():
             if trailers_at_fleet:
                 st.info(f"📍 **Trailers at Fleet Memphis ({len(trailers_at_fleet)} available)**")
                 trailer_options = {}
+                trailer_numbers = {}  # Map display key to trailer number
                 for t in trailers_at_fleet:
                     key = f"Trailer #{t[1]} @ Fleet Memphis"
-                    trailer_options[key] = t[0]
+                    trailer_options[key] = t[0]  # trailer id
+                    trailer_numbers[key] = t[1]  # trailer number
             
             # Show trailers at other locations
             if trailers_at_other:
                 st.warning(f"⚠️ **Trailers at other locations ({len(trailers_at_other)} available)**")
+                if not trailer_options:
+                    trailer_options = {}
+                    trailer_numbers = {}
                 for t in trailers_at_other:
                     key = f"Trailer #{t[1]} @ {t[2]}"
-                    trailer_options[key] = t[0]
+                    trailer_options[key] = t[0]  # trailer id
+                    trailer_numbers[key] = t[1]  # trailer number
             
             selected_trailer = st.selectbox(
                 "🚛 Select Trailer to Deliver", 
@@ -688,14 +688,19 @@ def create_new_move():
                     # Create move
                     cursor.execute('''
                         INSERT INTO moves (
-                            system_id, move_date, trailer_id, origin_location_id,
-                            destination_location_id, driver_id, driver_name, client,
+                            system_id, move_date, trailer_id, new_trailer, old_trailer,
+                            origin_location_id, destination_location_id, 
+                            driver_id, driver_name, client,
                             estimated_miles, base_rate, estimated_earnings, status
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 2.10, ?, 'assigned')
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2.10, ?, 'assigned')
                     ''', (
-                        system_id, move_date, trailer_options[selected_trailer],
-                        location_options[origin], location_options[destination],
-                        driver_options[selected_driver], selected_driver, client,
+                        system_id, move_date, 
+                        trailer_options.get(selected_trailer),  # trailer_id
+                        trailer_numbers.get(selected_trailer),  # new_trailer number
+                        swap_trailer if swap_trailer else None,  # old_trailer to pick up
+                        1,  # origin_location_id (Fleet Memphis)
+                        location_options.get(destination),  # destination_location_id
+                        driver_options.get(selected_driver), selected_driver, client,
                         miles, earnings
                     ))
                     

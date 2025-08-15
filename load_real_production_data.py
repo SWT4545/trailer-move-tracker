@@ -318,17 +318,20 @@ def load_real_production_data():
         cursor.execute('''
             INSERT INTO moves (
                 system_id, mlbl_number, move_date, trailer_id,
+                new_trailer, old_trailer,
                 origin_location_id, destination_location_id, client,
                 driver_id, driver_name, estimated_miles, base_rate,
                 estimated_earnings, actual_client_payment, factoring_fee,
                 service_fee, driver_net_pay, status, delivery_status,
                 delivery_date, payment_status, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ''', (
             move['system_id'],
             None,  # MLBL to be added later by management
             move['date'],
             trailer_map.get(move['new_trailer']),
+            move['new_trailer'],  # new_trailer number
+            move['old_trailer'],  # old_trailer number  
             loc_map[move['origin']],
             loc_map[move['destination']],
             'FedEx',  # Client
