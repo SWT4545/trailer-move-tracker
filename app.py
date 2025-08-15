@@ -533,10 +533,16 @@ def manage_mlbl_numbers():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Get ALL moves (active and completed) without MLBL
+    # Get ALL moves (active and completed) without MLBL with full details
     cursor.execute('''
-        SELECT m.system_id, m.move_date, m.client, m.driver_name, m.status, m.payment_status
+        SELECT m.system_id, m.move_date, m.client, m.driver_name, m.status, m.payment_status,
+               t.trailer_number, 
+               orig.location_title as origin, dest.location_title as destination,
+               m.estimated_miles, m.estimated_earnings
         FROM moves m
+        LEFT JOIN trailers t ON m.trailer_id = t.id
+        LEFT JOIN locations orig ON m.origin_location_id = orig.id
+        LEFT JOIN locations dest ON m.destination_location_id = dest.id
         WHERE m.mlbl_number IS NULL
         ORDER BY m.move_date DESC, m.system_id
     ''')
@@ -554,16 +560,35 @@ def manage_mlbl_numbers():
         if active_moves:
             st.write("#### 🚛 Active Moves")
             for move in active_moves:
-                with st.expander(f"Move {move[0]} - {move[2] or 'FedEx'} - Driver: {move[3]} ({move[1]})"):
-                    mlbl = st.text_input(f"Enter MLBL Number", key=f"mlbl_{move[0]}")
-                    if st.button("✅ Add MLBL", key=f"btn_{move[0]}"):
+                # Unpack move details
+                sys_id, date, client, driver, status, payment, trailer, origin, dest, miles, earnings = move
+                move_title = f"{sys_id} | {date} | {driver}"
+                
+                with st.expander(move_title):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write("**Move Details:**")
+                        st.write(f"📅 Date: {date}")
+                        st.write(f"🚛 Trailer: {trailer}")
+                        st.write(f"👤 Driver: {driver}")
+                        st.write(f"🏢 Client: {client or 'FedEx'}")
+                    with col2:
+                        st.write("**Route Information:**")
+                        st.write(f"📍 From: {origin}")
+                        st.write(f"📍 To: {dest}")
+                        st.write(f"🛣️ Miles: {miles}")
+                        st.write(f"💰 Earnings: ${earnings:,.2f}")
+                    
+                    st.divider()
+                    mlbl = st.text_input(f"Enter MLBL Number for this move", key=f"mlbl_{sys_id}")
+                    if st.button("✅ Add MLBL", key=f"btn_{sys_id}"):
                         if mlbl:
                             try:
                                 cursor.execute('''
                                     UPDATE moves 
                                     SET mlbl_number = ?
                                     WHERE system_id = ?
-                                ''', (mlbl, move[0]))
+                                ''', (mlbl, sys_id))
                                 conn.commit()
                                 st.success(f"MLBL {mlbl} added successfully!")
                                 st.rerun()
@@ -573,16 +598,35 @@ def manage_mlbl_numbers():
         if completed_unpaid:
             st.write("#### 📦 Completed - Awaiting Payment")
             for move in completed_unpaid:
-                with st.expander(f"Move {move[0]} - {move[2] or 'FedEx'} - Driver: {move[3]} ({move[1]})"):
-                    mlbl = st.text_input(f"Enter MLBL Number", key=f"mlbl_{move[0]}")
-                    if st.button("✅ Add MLBL", key=f"btn_{move[0]}"):
+                # Unpack move details
+                sys_id, date, client, driver, status, payment, trailer, origin, dest, miles, earnings = move
+                move_title = f"{sys_id} | {date} | {driver}"
+                
+                with st.expander(move_title):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write("**Move Details:**")
+                        st.write(f"📅 Date: {date}")
+                        st.write(f"🚛 Trailer: {trailer}")
+                        st.write(f"👤 Driver: {driver}")
+                        st.write(f"🏢 Client: {client or 'FedEx'}")
+                    with col2:
+                        st.write("**Route Information:**")
+                        st.write(f"📍 From: {origin}")
+                        st.write(f"📍 To: {dest}")
+                        st.write(f"🛣️ Miles: {miles}")
+                        st.write(f"💰 Earnings: ${earnings:,.2f}")
+                    
+                    st.divider()
+                    mlbl = st.text_input(f"Enter MLBL Number for this move", key=f"mlbl_{sys_id}")
+                    if st.button("✅ Add MLBL", key=f"btn_{sys_id}"):
                         if mlbl:
                             try:
                                 cursor.execute('''
                                     UPDATE moves 
                                     SET mlbl_number = ?
                                     WHERE system_id = ?
-                                ''', (mlbl, move[0]))
+                                ''', (mlbl, sys_id))
                                 conn.commit()
                                 st.success(f"MLBL {mlbl} added successfully!")
                                 st.rerun()
@@ -592,16 +636,35 @@ def manage_mlbl_numbers():
         if completed_paid:
             st.write("#### ✅ Completed & Paid")
             for move in completed_paid:
-                with st.expander(f"Move {move[0]} - {move[2] or 'FedEx'} - Driver: {move[3]} ({move[1]})"):
-                    mlbl = st.text_input(f"Enter MLBL Number", key=f"mlbl_{move[0]}")
-                    if st.button("✅ Add MLBL", key=f"btn_{move[0]}"):
+                # Unpack move details
+                sys_id, date, client, driver, status, payment, trailer, origin, dest, miles, earnings = move
+                move_title = f"{sys_id} | {date} | {driver}"
+                
+                with st.expander(move_title):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write("**Move Details:**")
+                        st.write(f"📅 Date: {date}")
+                        st.write(f"🚛 Trailer: {trailer}")
+                        st.write(f"👤 Driver: {driver}")
+                        st.write(f"🏢 Client: {client or 'FedEx'}")
+                    with col2:
+                        st.write("**Route Information:**")
+                        st.write(f"📍 From: {origin}")
+                        st.write(f"📍 To: {dest}")
+                        st.write(f"🛣️ Miles: {miles}")
+                        st.write(f"💰 Earnings: ${earnings:,.2f}")
+                    
+                    st.divider()
+                    mlbl = st.text_input(f"Enter MLBL Number for this move", key=f"mlbl_{sys_id}")
+                    if st.button("✅ Add MLBL", key=f"btn_{sys_id}"):
                         if mlbl:
                             try:
                                 cursor.execute('''
                                     UPDATE moves 
                                     SET mlbl_number = ?
                                     WHERE system_id = ?
-                                ''', (mlbl, move[0]))
+                                ''', (mlbl, sys_id))
                                 conn.commit()
                                 st.success(f"MLBL {mlbl} added successfully!")
                                 st.rerun()
@@ -612,16 +675,24 @@ def manage_mlbl_numbers():
     
     # Show moves with MLBL numbers
     cursor.execute('''
-        SELECT m.system_id, m.mlbl_number, m.driver_name, m.status, m.payment_status
+        SELECT m.system_id, m.mlbl_number, m.move_date, m.driver_name, 
+               t.trailer_number,
+               orig.location_title || ' → ' || dest.location_title as route,
+               m.status, m.payment_status
         FROM moves m
+        LEFT JOIN trailers t ON m.trailer_id = t.id
+        LEFT JOIN locations orig ON m.origin_location_id = orig.id
+        LEFT JOIN locations dest ON m.destination_location_id = dest.id
         WHERE m.mlbl_number IS NOT NULL
         ORDER BY m.mlbl_number
     ''')
     
     mlbl_moves = cursor.fetchall()
     if mlbl_moves:
-        st.write("### Moves with MLBL Numbers")
-        df = pd.DataFrame(mlbl_moves, columns=['System ID', 'MLBL', 'Driver', 'Status', 'Payment'])
+        st.write("### Moves with MLBL Numbers Assigned")
+        df = pd.DataFrame(mlbl_moves, columns=[
+            'System ID', 'MLBL', 'Date', 'Driver', 'Trailer', 'Route', 'Status', 'Payment'
+        ])
         st.dataframe(df, use_container_width=True, hide_index=True)
     
     conn.close()
