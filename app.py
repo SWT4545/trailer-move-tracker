@@ -26,6 +26,16 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Clear cache periodically to prevent TypeError from stale modules
+if 'last_cache_clear' not in st.session_state:
+    st.cache_data.clear()
+    st.cache_resource.clear()
+    st.session_state.last_cache_clear = datetime.now()
+elif (datetime.now() - st.session_state.last_cache_clear).seconds > 3600:  # Clear every hour
+    st.cache_data.clear()
+    st.cache_resource.clear()
+    st.session_state.last_cache_clear = datetime.now()
+
 # Custom CSS
 st.markdown("""
 <style>
@@ -390,25 +400,36 @@ def check_authentication():
 
 def login():
     """Login page with video logo"""
-    # Show video logo if available
+    # Show video logo if available - centered and muted loop
     animation_file = "company_logo_animation.mp4.MOV"
     if os.path.exists(animation_file):
         try:
-            with open(animation_file, 'rb') as video_file:
-                video_bytes = video_file.read()
-                st.video(video_bytes, loop=True, autoplay=True, muted=True)
-        except:
-            pass
-    
-    # Show static logo
-    logo_path = "swt_logo_white.png" if os.path.exists("swt_logo_white.png") else "swt_logo.png"
-    if os.path.exists(logo_path):
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            try:
-                st.image(logo_path, use_container_width=True)
-            except:
-                pass
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                with open(animation_file, 'rb') as video_file:
+                    video_bytes = video_file.read()
+                    # Video will loop, autoplay, and be muted
+                    st.video(video_bytes, loop=True, autoplay=True, muted=True)
+        except Exception as e:
+            # Fallback to static logo if video fails
+            logo_path = "swt_logo_white.png" if os.path.exists("swt_logo_white.png") else "swt_logo.png"
+            if os.path.exists(logo_path):
+                col1, col2, col3 = st.columns([1, 2, 1])
+                with col2:
+                    try:
+                        st.image(logo_path, use_container_width=True)
+                    except:
+                        pass
+    else:
+        # Show static logo if no video
+        logo_path = "swt_logo_white.png" if os.path.exists("swt_logo_white.png") else "swt_logo.png"
+        if os.path.exists(logo_path):
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                try:
+                    st.image(logo_path, use_container_width=True)
+                except:
+                    pass
     
     st.title("Smith & Williams Trucking")
     st.subheader("Fleet Management System")

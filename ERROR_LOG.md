@@ -282,6 +282,29 @@ grep -r "✓" *.py
 **Files Affected:** `app.py` show_overview_metrics() function
 **Benefits:** Accurate fleet inventory visibility
 
+### 21. TypeError with Dynamically Imported Modules (RESOLVED)
+**Date:** 2025-08-15
+**Error:** `TypeError: Failed to fetch dynamically imported module`
+**URL Pattern:** `https://trailer-move-team-tracker.streamlit.app/~/+/static/js/index.*.js`
+**Cause:** Stale cache on Streamlit Cloud causing module loading failures
+**Solution:** 
+  - Added automatic cache clearing on app start
+  - Implemented hourly cache refresh to prevent stale modules
+  - Cache clears both data and resource caches
+**Files Affected:** `app.py` lines 29-37
+**Prevention:** Regular cache clearing prevents module loading issues
+
+### 22. Video Login Enhancement (RESOLVED)
+**Date:** 2025-08-15
+**Request:** Ensure video on login page is muted and loops
+**Implementation:** 
+  - Video already configured with `loop=True, autoplay=True, muted=True`
+  - Centered video in middle column
+  - Added fallback to static logo if video fails
+  - Video file: company_logo_animation.mp4.MOV
+**Files Affected:** `app.py` login() function
+**Benefits:** Professional animated branding on login page
+
 ---
 
 Last Updated: 2025-08-15
