@@ -30,7 +30,9 @@
       "Bash(git commit:*)",
       "Bash(copy app.py app_backup_before_major_fix.py)",
       "Bash(curl:*)",
-      "Bash(pip config:*)"
+      "Bash(pip config:*)",
+      "Bash(copy app.py app_backup_before_enhancement.py)",
+      "Bash(git pull:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
