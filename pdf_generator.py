@@ -27,7 +27,14 @@ class PDFGenerator:
         self.company_address = "4496 Meadow Cliff Dr\nMemphis, TN 38125"
         self.company_phone = "(901) 218-4083"
         self.company_email = "dispatch@swtrucking.com"
-        self.logo_path = "swt_logo.png"
+        # Use regular logo for PDFs (white background)
+        # Check for swt_logo.png first, fallback to swt_logo_white.png if needed
+        if os.path.exists("swt_logo.png"):
+            self.logo_path = "swt_logo.png"
+        elif os.path.exists("swt_logo_white.png"):
+            self.logo_path = "swt_logo_white.png"
+        else:
+            self.logo_path = None
         self.db_path = "trailer_moves.db"
         
     def _add_letterhead(self, canvas, doc):
@@ -35,7 +42,7 @@ class PDFGenerator:
         canvas.saveState()
         
         # Add logo if exists
-        if os.path.exists(self.logo_path):
+        if self.logo_path and os.path.exists(self.logo_path):
             canvas.drawImage(self.logo_path, 50, 750, width=60, height=60, preserveAspectRatio=True)
         
         # Company name and info
