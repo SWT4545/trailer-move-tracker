@@ -41,8 +41,8 @@ st.set_page_config(
 )
 
 # Version for tracking updates - FORCE UPDATE  
-APP_VERSION = "2.7.0 - Database Fixes & Full Data Viewer"
-UPDATE_TIMESTAMP = "2025-08-16 04:45:00"  # Force Streamlit to recognize update
+APP_VERSION = "2.7.1 - Syntax Error Fix"
+UPDATE_TIMESTAMP = "2025-08-16 04:50:00"  # Force Streamlit to recognize update
 
 # Force cache clear on version change
 if 'app_version' not in st.session_state or st.session_state.app_version != APP_VERSION:
@@ -1201,12 +1201,6 @@ def create_new_move():
                     placeholder="e.g., 6014",
                     help="Leave blank if you'll determine this later"
                 )
-        else:
-            swap_trailer = st.text_input(
-                "Enter OLD Trailer # to Pick Up",
-                placeholder="e.g., 6014",
-                help=f"Enter the trailer number you'll pick up at {destination}"
-            )
         
         st.divider()
         
