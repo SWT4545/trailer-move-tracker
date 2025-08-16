@@ -40,13 +40,14 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Version for tracking updates
-APP_VERSION = "2.1.0 - Move Page Enhanced"
+# Version for tracking updates - FORCE UPDATE
+APP_VERSION = "2.2.0 - Active Moves Fixed"
 
-# Clear cache periodically to prevent TypeError from stale modules
-if 'last_cache_clear' not in st.session_state:
+# Force cache clear on version change
+if 'app_version' not in st.session_state or st.session_state.app_version != APP_VERSION:
     st.cache_data.clear()
     st.cache_resource.clear()
+    st.session_state.app_version = APP_VERSION
     st.session_state.last_cache_clear = datetime.now()
 elif (datetime.now() - st.session_state.last_cache_clear).seconds > 3600:  # Clear every hour
     st.cache_data.clear()
