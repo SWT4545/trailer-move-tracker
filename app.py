@@ -2062,9 +2062,21 @@ def show_dashboard():
             
             # Get trailer inventory by location
             st.markdown("### Current Trailer Locations")
+            st.markdown("*Shows where all trailers are currently located - not all need to be moved*")
+            
+            # Add custom CSS for table borders
+            st.markdown("""
+            <style>
+            [data-testid="stDataFrame"] {
+                border: 2px solid #ddd;
+                border-radius: 5px;
+                padding: 5px;
+            }
+            </style>
+            """, unsafe_allow_html=True)
             
             # NEW trailers at Fleet Memphis (ready for delivery)
-            st.info("**NEW Trailers at Fleet Memphis (Ready for Delivery)**")
+            st.info("**NEW Trailers at Fleet Memphis (Available for Delivery)**")
             cursor.execute('''
                 SELECT t.trailer_number, t.status, 'Fleet Memphis' as location
                 FROM trailers t
@@ -2077,25 +2089,28 @@ def show_dashboard():
             if new_fleet:
                 df = pd.DataFrame(new_fleet, columns=['Trailer #', 'Status', 'Location'])
                 st.dataframe(df, use_container_width=True, hide_index=True)
+                st.caption(f"✓ {len(new_fleet)} NEW trailers available for delivery")
             else:
-                st.write("No new trailers at Fleet Memphis")
+                st.write("No new trailers available at Fleet Memphis")
             
             # OLD trailers at FedEx (ready for pickup)
-            st.warning("**OLD Trailers at FedEx Locations (Ready for Pickup)**")
+            st.warning("**OLD Trailers at FedEx Locations (Available for Pickup)**")
             cursor.execute('''
                 SELECT t.trailer_number, l.location_title, l.city || ', ' || l.state as details
                 FROM trailers t
                 LEFT JOIN locations l ON t.current_location_id = l.id
                 WHERE t.is_new = 0 
                 AND l.location_title LIKE 'FedEx%'
+                AND t.status = 'available'
                 ORDER BY l.location_title, t.trailer_number
             ''')
             old_fedex = cursor.fetchall()
             if old_fedex:
                 df = pd.DataFrame(old_fedex, columns=['Trailer #', 'Location', 'City, State'])
                 st.dataframe(df, use_container_width=True, hide_index=True)
+                st.caption(f"✓ {len(old_fedex)} OLD trailers available for pickup")
             else:
-                st.write("No old trailers at FedEx locations")
+                st.write("No old trailers available at FedEx locations")
             
             conn.close()
         with tabs[8]:
