@@ -41,8 +41,8 @@ st.set_page_config(
 )
 
 # Version for tracking updates - FORCE UPDATE  
-APP_VERSION = "2.6.0 - Full Admin Access for Brandon"
-UPDATE_TIMESTAMP = "2025-08-16 04:20:00"  # Force Streamlit to recognize update
+APP_VERSION = "2.7.0 - Database Fixes & Full Data Viewer"
+UPDATE_TIMESTAMP = "2025-08-16 04:45:00"  # Force Streamlit to recognize update
 
 # Force cache clear on version change
 if 'app_version' not in st.session_state or st.session_state.app_version != APP_VERSION:
@@ -982,16 +982,55 @@ def create_new_move():
         st.info("💡 **Simple Process:** You'll deliver the NEW trailer from Fleet Memphis → FedEx, then pick up an OLD trailer to bring back")
         
         # Get all FedEx locations with details
-        cursor.execute('''
-            SELECT l.id, l.location_title, l.city, l.state,
-                   CASE WHEN l.address = '' OR l.address = 'Address TBD' THEN 0 ELSE 1 END as has_address,
-                   COUNT(t.id) as old_trailer_count
-            FROM locations l
-            LEFT JOIN trailers t ON t.current_location_id = l.id AND t.is_new = 0 AND t.status = 'available'
-            WHERE l.location_type = 'fedex_hub'
-            GROUP BY l.id, l.location_title, l.city, l.state
-            ORDER BY l.location_title
-        ''')
+        # Check if locations table exists
+        cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='locations'")
+        if cursor.fetchone()[0] > 0:
+            # Check table structure
+            cursor.execute("PRAGMA table_info(trailers)")
+            trailer_columns = [col[1] for col in cursor.fetchall()]
+            
+            cursor.execute("PRAGMA table_info(locations)")
+            location_columns = [col[1] for col in cursor.fetchall()]
+            
+            if 'is_new' in trailer_columns and 'address' in location_columns:
+                cursor.execute('''
+                    SELECT l.id, l.location_title, l.city, l.state,
+                           CASE WHEN l.address = '' OR l.address = 'Address TBD' OR l.address IS NULL THEN 0 ELSE 1 END as has_address,
+                           COUNT(t.id) as old_trailer_count
+                    FROM locations l
+                    LEFT JOIN trailers t ON t.current_location_id = l.id AND t.is_new = 0 AND t.status = 'available'
+                    WHERE (l.location_type IN ('fedex_hub', 'customer') OR l.location_title LIKE 'FedEx%')
+                    AND l.is_base_location = 0
+                    GROUP BY l.id, l.location_title, l.city, l.state
+                    ORDER BY l.location_title
+                ''')
+            elif 'address' in location_columns:
+                cursor.execute('''
+                    SELECT l.id, l.location_title, l.city, l.state,
+                           CASE WHEN l.address = '' OR l.address = 'Address TBD' OR l.address IS NULL THEN 0 ELSE 1 END as has_address,
+                           COUNT(t.id) as old_trailer_count
+                    FROM locations l
+                    LEFT JOIN trailers t ON t.current_location_id = l.id AND t.status = 'available'
+                    WHERE (l.location_type IN ('fedex_hub', 'customer') OR l.location_title LIKE 'FedEx%')
+                    AND l.is_base_location = 0
+                    GROUP BY l.id, l.location_title, l.city, l.state
+                    ORDER BY l.location_title
+                ''')
+            else:
+                cursor.execute('''
+                    SELECT l.id, l.location_title, l.city, l.state,
+                           0 as has_address,
+                           COUNT(t.id) as old_trailer_count
+                    FROM locations l
+                    LEFT JOIN trailers t ON t.current_location_id = l.id AND t.status = 'available'
+                    WHERE (l.location_type IN ('fedex_hub', 'customer') OR l.location_title LIKE 'FedEx%')
+                    AND l.is_base_location = 0
+                    GROUP BY l.id, l.location_title, l.city, l.state
+                    ORDER BY l.location_title
+                ''')
+        else:
+            # No locations table - return empty
+            cursor.execute("SELECT 1, 'FedEx Memphis', 'Memphis', 'TN', 0, 0 UNION SELECT 2, 'FedEx Indy', 'Indianapolis', 'IN', 0, 0 UNION SELECT 3, 'FedEx Chicago', 'Chicago', 'IL', 0, 0")
         all_locations = cursor.fetchall()
         
         # Create easy-to-understand location options
@@ -1089,20 +1128,56 @@ def create_new_move():
         st.markdown("### 3. Select OLD Trailer to Return")
         
         # Get OLD trailers at the selected destination
-        cursor.execute("SELECT id FROM locations WHERE location_title = ?", (destination,))
-        loc_result = cursor.fetchone()
+        # Check table structure first
+        cursor.execute("PRAGMA table_info(trailers)")
+        trailer_columns = [col[1] for col in cursor.fetchall()]
         
-        if loc_result:
-            loc_id = loc_result[0]
-            cursor.execute('''
-                SELECT trailer_number 
-                FROM trailers 
-                WHERE current_location_id = ?
-                AND is_new = 0
-                AND status = 'available'
-                ORDER BY trailer_number
-            ''', (loc_id,))
+        if 'current_location_id' in trailer_columns:
+            cursor.execute("SELECT id FROM locations WHERE location_title = ?", (destination,))
+            loc_result = cursor.fetchone()
             
+            if loc_result:
+                loc_id = loc_result[0]
+                if 'is_new' in trailer_columns:
+                    cursor.execute('''
+                        SELECT trailer_number 
+                        FROM trailers 
+                        WHERE current_location_id = ?
+                        AND is_new = 0
+                        AND status = 'available'
+                        ORDER BY trailer_number
+                    ''', (loc_id,))
+                else:
+                    # Without is_new column, get all trailers at location
+                    cursor.execute('''
+                        SELECT trailer_number 
+                        FROM trailers 
+                        WHERE current_location_id = ?
+                        AND status = 'available'
+                        ORDER BY trailer_number
+                    ''', (loc_id,))
+                old_trailers = cursor.fetchall()
+            else:
+                old_trailers = []
+        else:
+            # Simple schema with current_location as text
+            if 'is_new' in trailer_columns:
+                cursor.execute('''
+                    SELECT trailer_number 
+                    FROM trailers 
+                    WHERE current_location = ?
+                    AND is_new = 0
+                    AND status = 'available'
+                    ORDER BY trailer_number
+                ''', (destination,))
+            else:
+                cursor.execute('''
+                    SELECT trailer_number 
+                    FROM trailers 
+                    WHERE current_location = ?
+                    AND status = 'available'
+                    ORDER BY trailer_number
+                ''', (destination,))
             old_trailers = cursor.fetchall()
             
             if old_trailers:
@@ -1941,7 +2016,7 @@ def admin_panel():
     """Comprehensive admin panel for manual data management"""
     st.subheader("🔧 System Administration - Full Manual Control")
     
-    admin_tabs = st.tabs(["Edit Moves", "Edit Trailers", "Edit Drivers", "Edit Locations", "Database Manager"])
+    admin_tabs = st.tabs(["Edit Moves", "Edit Trailers", "Edit Drivers", "Edit Locations", "Database Manager", "View All Data"])
     
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -2051,7 +2126,22 @@ def admin_panel():
         
         # List and edit existing trailers
         st.write("#### Edit/Delete Existing Trailers")
-        cursor.execute("SELECT trailer_number, status, current_location FROM trailers ORDER BY trailer_number")
+        
+        # Check what columns exist in trailers table
+        cursor.execute("PRAGMA table_info(trailers)")
+        trailer_cols = [col[1] for col in cursor.fetchall()]
+        
+        if 'current_location_id' in trailer_cols:
+            cursor.execute('''
+                SELECT t.trailer_number, t.status, COALESCE(l.location_title, 'Fleet Memphis')
+                FROM trailers t
+                LEFT JOIN locations l ON t.current_location_id = l.id
+                ORDER BY t.trailer_number
+            ''')
+        elif 'current_location' in trailer_cols:
+            cursor.execute("SELECT trailer_number, status, current_location FROM trailers ORDER BY trailer_number")
+        else:
+            cursor.execute("SELECT trailer_number, status, 'Unknown' FROM trailers ORDER BY trailer_number")
         trailers = cursor.fetchall()
         
         if trailers:
@@ -2159,6 +2249,79 @@ def admin_panel():
                 driver_count = cursor.fetchone()[0]
                 
                 st.info(f"Moves: {move_count} | Trailers: {trailer_count} | Drivers: {driver_count}")
+    
+    with admin_tabs[5]:
+        st.write("### 📊 Complete Database View")
+        
+        data_view_tabs = st.tabs(["Trailers", "Locations", "Moves", "Drivers"])
+        
+        with data_view_tabs[0]:
+            st.write("#### All Trailers in Database")
+            cursor.execute("PRAGMA table_info(trailers)")
+            trailer_cols = [col[1] for col in cursor.fetchall()]
+            
+            cursor.execute("SELECT * FROM trailers ORDER BY trailer_number")
+            trailers = cursor.fetchall()
+            
+            if trailers:
+                df = pd.DataFrame(trailers, columns=trailer_cols)
+                st.dataframe(df, use_container_width=True, height=400)
+                st.caption(f"Total: {len(trailers)} trailers")
+            else:
+                st.warning("No trailers in database")
+        
+        with data_view_tabs[1]:
+            st.write("#### All Locations in Database")
+            cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='locations'")
+            if cursor.fetchone()[0] > 0:
+                cursor.execute("PRAGMA table_info(locations)")
+                location_cols = [col[1] for col in cursor.fetchall()]
+                
+                cursor.execute("SELECT * FROM locations ORDER BY location_title")
+                locations = cursor.fetchall()
+                
+                if locations:
+                    df = pd.DataFrame(locations, columns=location_cols)
+                    st.dataframe(df, use_container_width=True, height=400)
+                    st.caption(f"Total: {len(locations)} locations")
+                else:
+                    st.warning("No locations in database")
+            else:
+                st.error("Locations table does not exist")
+        
+        with data_view_tabs[2]:
+            st.write("#### All Moves in Database")
+            cursor.execute("PRAGMA table_info(moves)")
+            move_cols = [col[1] for col in cursor.fetchall()]
+            
+            cursor.execute("SELECT * FROM moves ORDER BY move_date DESC LIMIT 200")
+            moves = cursor.fetchall()
+            
+            if moves:
+                df = pd.DataFrame(moves, columns=move_cols)
+                st.dataframe(df, use_container_width=True, height=400)
+                st.caption(f"Showing latest {len(moves)} moves")
+            else:
+                st.warning("No moves in database")
+        
+        with data_view_tabs[3]:
+            st.write("#### All Drivers in Database")
+            cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='drivers'")
+            if cursor.fetchone()[0] > 0:
+                cursor.execute("PRAGMA table_info(drivers)")
+                driver_cols = [col[1] for col in cursor.fetchall()]
+                
+                cursor.execute("SELECT * FROM drivers ORDER BY driver_name")
+                drivers = cursor.fetchall()
+                
+                if drivers:
+                    df = pd.DataFrame(drivers, columns=driver_cols)
+                    st.dataframe(df, use_container_width=True, height=400)
+                    st.caption(f"Total: {len(drivers)} drivers")
+                else:
+                    st.warning("No drivers in database")
+            else:
+                st.error("Drivers table does not exist")
     
     conn.close()
 
