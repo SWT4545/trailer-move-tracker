@@ -41,8 +41,8 @@ st.set_page_config(
 )
 
 # Version for tracking updates - FORCE UPDATE  
-APP_VERSION = "2.5.0 - Complete Schema Fix"
-UPDATE_TIMESTAMP = "2025-08-16 04:15:00"  # Force Streamlit to recognize update
+APP_VERSION = "2.6.0 - Full Admin Access for Brandon"
+UPDATE_TIMESTAMP = "2025-08-16 04:20:00"  # Force Streamlit to recognize update
 
 # Force cache clear on version change
 if 'app_version' not in st.session_state or st.session_state.app_version != APP_VERSION:
@@ -1936,6 +1936,232 @@ def show_completed_moves():
     
     conn.close()
 
+# Admin Panel with Full Edit Capabilities
+def admin_panel():
+    """Comprehensive admin panel for manual data management"""
+    st.subheader("🔧 System Administration - Full Manual Control")
+    
+    admin_tabs = st.tabs(["Edit Moves", "Edit Trailers", "Edit Drivers", "Edit Locations", "Database Manager"])
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    with admin_tabs[0]:
+        st.write("### 📝 Edit/Delete Moves")
+        
+        # Get all moves
+        cursor.execute("PRAGMA table_info(moves)")
+        move_cols = [col[1] for col in cursor.fetchall()]
+        
+        cursor.execute("SELECT * FROM moves ORDER BY move_date DESC LIMIT 100")
+        moves = cursor.fetchall()
+        
+        if moves:
+            # Create editable dataframe
+            df = pd.DataFrame(moves, columns=move_cols)
+            
+            # Select a move to edit
+            move_id = st.selectbox("Select Move to Edit", df['system_id'] if 'system_id' in move_cols else df['order_number'])
+            
+            if move_id:
+                move_data = df[df['system_id'] == move_id] if 'system_id' in move_cols else df[df['order_number'] == move_id]
+                
+                if not move_data.empty:
+                    st.write("#### Edit Move Details")
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        new_status = st.selectbox("Status", ["active", "completed", "cancelled"], 
+                                                 index=["active", "completed", "cancelled"].index(move_data.iloc[0]['status']) if move_data.iloc[0]['status'] in ["active", "completed", "cancelled"] else 0)
+                        new_driver = st.text_input("Driver Name", value=move_data.iloc[0]['driver_name'])
+                        new_payment = st.selectbox("Payment Status", ["pending", "paid"], 
+                                                  index=["pending", "paid"].index(move_data.iloc[0].get('payment_status', 'pending')) if move_data.iloc[0].get('payment_status', 'pending') in ["pending", "paid"] else 0)
+                    
+                    with col2:
+                        if 'mlbl_number' in move_cols:
+                            new_mlbl = st.text_input("MLBL Number", value=move_data.iloc[0].get('mlbl_number', ''))
+                        if 'estimated_earnings' in move_cols:
+                            new_earnings = st.number_input("Earnings", value=float(move_data.iloc[0].get('estimated_earnings', 0)))
+                    
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        if st.button("💾 Update Move", type="primary"):
+                            update_query = f"UPDATE moves SET status = ?, driver_name = ?"
+                            params = [new_status, new_driver]
+                            
+                            if 'payment_status' in move_cols:
+                                update_query += ", payment_status = ?"
+                                params.append(new_payment)
+                            if 'mlbl_number' in move_cols:
+                                update_query += ", mlbl_number = ?"
+                                params.append(new_mlbl)
+                            if 'estimated_earnings' in move_cols:
+                                update_query += ", estimated_earnings = ?"
+                                params.append(new_earnings)
+                            
+                            if 'system_id' in move_cols:
+                                update_query += " WHERE system_id = ?"
+                            else:
+                                update_query += " WHERE order_number = ?"
+                            params.append(move_id)
+                            
+                            cursor.execute(update_query, params)
+                            conn.commit()
+                            st.success(f"Move {move_id} updated!")
+                            st.rerun()
+                    
+                    with col2:
+                        if st.button("🗑️ Delete Move", type="secondary"):
+                            if 'system_id' in move_cols:
+                                cursor.execute("DELETE FROM moves WHERE system_id = ?", (move_id,))
+                            else:
+                                cursor.execute("DELETE FROM moves WHERE order_number = ?", (move_id,))
+                            conn.commit()
+                            st.success(f"Move {move_id} deleted!")
+                            st.rerun()
+    
+    with admin_tabs[1]:
+        st.write("### 🚛 Edit/Add/Delete Trailers")
+        
+        # Add new trailer
+        st.write("#### Add New Trailer")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            new_trailer_num = st.text_input("Trailer Number")
+        with col2:
+            new_trailer_loc = st.text_input("Current Location", value="Fleet Memphis")
+        with col3:
+            if st.button("➕ Add Trailer"):
+                if new_trailer_num:
+                    cursor.execute("PRAGMA table_info(trailers)")
+                    trailer_cols = [col[1] for col in cursor.fetchall()]
+                    
+                    if 'current_location_id' in trailer_cols:
+                        cursor.execute("SELECT id FROM locations WHERE location_title = ?", (new_trailer_loc,))
+                        loc_id = cursor.fetchone()
+                        loc_id = loc_id[0] if loc_id else 1
+                        cursor.execute("INSERT INTO trailers (trailer_number, status, current_location_id) VALUES (?, 'available', ?)",
+                                     (new_trailer_num, loc_id))
+                    else:
+                        cursor.execute("INSERT INTO trailers (trailer_number, status, current_location) VALUES (?, 'available', ?)",
+                                     (new_trailer_num, new_trailer_loc))
+                    conn.commit()
+                    st.success(f"Trailer {new_trailer_num} added!")
+                    st.rerun()
+        
+        # List and edit existing trailers
+        st.write("#### Edit/Delete Existing Trailers")
+        cursor.execute("SELECT trailer_number, status, current_location FROM trailers ORDER BY trailer_number")
+        trailers = cursor.fetchall()
+        
+        if trailers:
+            for trailer in trailers:
+                col1, col2, col3, col4 = st.columns([2, 2, 1, 1])
+                with col1:
+                    st.text(f"🚛 {trailer[0]}")
+                with col2:
+                    st.text(f"📍 {trailer[2]}")
+                with col3:
+                    st.text(f"Status: {trailer[1]}")
+                with col4:
+                    if st.button("🗑️", key=f"del_trailer_{trailer[0]}"):
+                        cursor.execute("DELETE FROM trailers WHERE trailer_number = ?", (trailer[0],))
+                        conn.commit()
+                        st.success(f"Trailer {trailer[0]} deleted!")
+                        st.rerun()
+    
+    with admin_tabs[2]:
+        st.write("### 👤 Edit/Add/Delete Drivers")
+        
+        # Add new driver
+        st.write("#### Add New Driver")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            new_driver_name = st.text_input("Driver Name")
+        with col2:
+            new_driver_type = st.selectbox("Driver Type", ["driver", "contractor", "owner"])
+        with col3:
+            if st.button("➕ Add Driver"):
+                if new_driver_name:
+                    cursor.execute("INSERT INTO drivers (driver_name, status, driver_type) VALUES (?, 'active', ?)",
+                                 (new_driver_name, new_driver_type))
+                    conn.commit()
+                    st.success(f"Driver {new_driver_name} added!")
+                    st.rerun()
+        
+        # List and edit existing drivers
+        st.write("#### Edit/Delete Existing Drivers")
+        cursor.execute("SELECT driver_name, status, driver_type FROM drivers ORDER BY driver_name")
+        drivers = cursor.fetchall()
+        
+        if drivers:
+            for driver in drivers:
+                col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+                with col1:
+                    st.text(f"👤 {driver[0]}")
+                with col2:
+                    st.text(f"Status: {driver[1]}")
+                with col3:
+                    st.text(f"Type: {driver[2]}")
+                with col4:
+                    if st.button("🗑️", key=f"del_driver_{driver[0]}"):
+                        cursor.execute("DELETE FROM drivers WHERE driver_name = ?", (driver[0],))
+                        conn.commit()
+                        st.success(f"Driver {driver[0]} deleted!")
+                        st.rerun()
+    
+    with admin_tabs[3]:
+        st.write("### 📍 Edit/Add/Delete Locations")
+        
+        # Add new location
+        st.write("#### Add New Location")
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            new_loc_title = st.text_input("Location Name")
+        with col2:
+            new_loc_city = st.text_input("City")
+        with col3:
+            new_loc_state = st.text_input("State (2 letters)")
+        with col4:
+            if st.button("➕ Add Location"):
+                if new_loc_title:
+                    cursor.execute("INSERT INTO locations (location_title, city, state, location_type, is_base_location) VALUES (?, ?, ?, 'customer', 0)",
+                                 (new_loc_title, new_loc_city, new_loc_state))
+                    conn.commit()
+                    st.success(f"Location {new_loc_title} added!")
+                    st.rerun()
+    
+    with admin_tabs[4]:
+        st.write("### 🗄️ Database Management")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("🔄 Reload Production Data"):
+                load_initial_data()
+                st.success("Production data reloaded!")
+                st.rerun()
+        
+        with col2:
+            if st.button("🧹 Clear All Cache"):
+                st.cache_data.clear()
+                st.cache_resource.clear()
+                st.success("Cache cleared!")
+                st.rerun()
+        
+        with col3:
+            if st.button("📊 Database Statistics"):
+                cursor.execute("SELECT COUNT(*) FROM moves")
+                move_count = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM trailers")
+                trailer_count = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM drivers")
+                driver_count = cursor.fetchone()[0]
+                
+                st.info(f"Moves: {move_count} | Trailers: {trailer_count} | Drivers: {driver_count}")
+    
+    conn.close()
+
 # Main dashboard
 def show_dashboard():
     """Display role-specific dashboard"""
@@ -2362,11 +2588,7 @@ def show_dashboard():
             
             conn.close()
         with tabs[9]:
-            st.subheader(" System Administration")
-            if st.button(" Reload Production Data"):
-                load_initial_data()
-                st.success("Production data reloaded!")
-                st.rerun()
+            admin_panel()
     
     elif role == "Owner":  # Regular owner without driver role
         tabs = st.tabs([
@@ -2388,11 +2610,7 @@ def show_dashboard():
             st.subheader(" Financial Management")
             st.info("Financial management interface")
         with tabs[6]:
-            st.subheader(" System Administration")
-            if st.button(" Reload Production Data"):
-                load_initial_data()
-                st.success("Production data reloaded!")
-                st.rerun()
+            admin_panel()
     
     elif role == "Manager":
         tabs = st.tabs([

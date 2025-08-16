@@ -8,6 +8,7 @@
             ],
             "driver_name": "Brandon Smith",
             "is_owner": true,
+            "is_driver": true,
             "permissions": [
                 "ALL"
             ]
