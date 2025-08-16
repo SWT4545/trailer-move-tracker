@@ -553,15 +553,6 @@ def login():
     st.title("Trailer Fleet Management System")
     st.subheader("Smith & Williams Trucking LLC")
     
-    # Vernon protection notice
-    st.markdown("""
-    <div style='text-align: center; padding: 10px; background-color: #f0f2f6; border-radius: 5px; margin: 10px 0;'>
-        <small style='color: #28a745; font-weight: bold;'>
-            Data Protected by Vernon - Senior IT Security Manager
-        </small>
-    </div>
-    """, unsafe_allow_html=True)
-    
     with st.form("login_form"):
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
