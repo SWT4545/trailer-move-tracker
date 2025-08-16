@@ -35,10 +35,13 @@ except ImportError:
 # Page config
 st.set_page_config(
     page_title="Trailer Fleet Management System",
-    page_icon="truck",
+    page_icon="🚚",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Version for tracking updates
+APP_VERSION = "2.1.0 - Move Page Enhanced"
 
 # Clear cache periodically to prevent TypeError from stale modules
 if 'last_cache_clear' not in st.session_state:
@@ -50,7 +53,7 @@ elif (datetime.now() - st.session_state.last_cache_clear).seconds > 3600:  # Cle
     st.cache_resource.clear()
     st.session_state.last_cache_clear = datetime.now()
 
-# Custom CSS
+# Custom CSS - Applied Globally
 st.markdown("""
 <style>
     .logo-container { text-align: center; padding: 1rem; }
@@ -74,6 +77,17 @@ st.markdown("""
         border-radius: 0.3rem;
         font-size: 0.9em;
         display: inline-block;
+    }
+    /* Table borders - applied globally to all dataframes */
+    [data-testid="stDataFrame"] {
+        border: 2px solid #ddd !important;
+        border-radius: 5px !important;
+        padding: 5px !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+    }
+    /* Table headers */
+    [data-testid="stDataFrame"] thead {
+        background-color: #f8f9fa !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -613,6 +627,7 @@ def show_sidebar():
         st.markdown("###  User Information")
         st.write(f"**User:** {st.session_state.get('user', 'Unknown')}")
         st.write(f"**Role:** {st.session_state.get('role', 'Unknown')}")
+        st.caption(f"Version: {APP_VERSION}")
         
         # Cache clear button
         if st.button(" Clear Cache", use_container_width=True):
@@ -2054,17 +2069,6 @@ def show_dashboard():
             # Get trailer inventory by location
             st.markdown("### Current Trailer Locations")
             st.markdown("*Shows where all trailers are currently located - not all need to be moved*")
-            
-            # Add custom CSS for table borders
-            st.markdown("""
-            <style>
-            [data-testid="stDataFrame"] {
-                border: 2px solid #ddd;
-                border-radius: 5px;
-                padding: 5px;
-            }
-            </style>
-            """, unsafe_allow_html=True)
             
             # NEW trailers at Fleet Memphis (ready for delivery)
             st.info("**NEW Trailers at Fleet Memphis (Available for Delivery)**")
