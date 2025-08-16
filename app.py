@@ -2721,7 +2721,7 @@ def main():
         <div style='text-align: center; padding: 15px; margin-top: 50px;'>
             <p style='color: #666; font-size: 12px; margin: 0;'>
                 <strong>Data Protected by Vernon - Senior IT Security Manager</strong><br>
-                Trailer Fleet Management System - All Rights Reserved
+                Smith & Williams Trucking LLC - All Rights Reserved
             </p>
         </div>
         """, unsafe_allow_html=True)
