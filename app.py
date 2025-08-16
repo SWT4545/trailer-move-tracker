@@ -19,6 +19,13 @@ try:
 except ImportError:
     PDF_AVAILABLE = False
 
+# Import help system (safe - won't block login)
+try:
+    from help_system import get_help_system, show_contextual_help
+    HELP_AVAILABLE = True
+except ImportError:
+    HELP_AVAILABLE = False
+
 try:
     from inventory_pdf_generator import generate_inventory_pdf
     INVENTORY_PDF_AVAILABLE = True
@@ -359,19 +366,19 @@ def load_initial_data():
     try:
         cursor.execute("SELECT COUNT(*) FROM trailers")
         trailer_count = cursor.fetchone()[0]
-    except:
+    except (sqlite3.Error, TypeError):
         trailer_count = 0
     
     try:
         cursor.execute("SELECT COUNT(*) FROM moves")
         move_count = cursor.fetchone()[0]
-    except:
+    except (sqlite3.Error, TypeError):
         move_count = 0
     
     try:
         cursor.execute("SELECT COUNT(*) FROM drivers")
         driver_count = cursor.fetchone()[0]
-    except:
+    except (sqlite3.Error, TypeError):
         driver_count = 0
     
     # DEEP FIX: Force correct trailer inventory (38 total: 23 OLD, 15 NEW)
@@ -525,17 +532,23 @@ def login():
     if os.path.exists(animation_file):
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            # Use HTML5 video tag for better autoplay compatibility
-            with open(animation_file, 'rb') as video_file:
-                video_bytes = video_file.read()
-                video_b64 = base64.b64encode(video_bytes).decode()
-                video_html = f'''
-                <video width="100%" autoplay loop muted playsinline>
-                    <source src="data:video/mp4;base64,{video_b64}" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
-                '''
-                st.markdown(video_html, unsafe_allow_html=True)
+            try:
+                # Use HTML5 video tag for better autoplay compatibility
+                with open(animation_file, 'rb') as video_file:
+                    video_bytes = video_file.read()
+                    video_b64 = base64.b64encode(video_bytes).decode()
+                    video_html = f'''
+                    <video width="100%" autoplay loop muted playsinline>
+                        <source src="data:video/mp4;base64,{video_b64}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    '''
+                    st.markdown(video_html, unsafe_allow_html=True)
+            except Exception as e:
+                # If video fails, show logo instead
+                logo_path = "swt_logo_white.png" if os.path.exists("swt_logo_white.png") else "swt_logo.png"
+                if os.path.exists(logo_path):
+                    st.image(logo_path, use_container_width=True)
     
     st.title("Trailer Fleet Management System")
     st.subheader("Smith & Williams Trucking LLC")
@@ -575,6 +588,18 @@ def login():
                     st.error("Invalid password")
             else:
                 st.error("Invalid username")
+    
+    # Footer with Vernon protection and copyright
+    st.markdown("""
+    <div style='text-align: center; padding: 20px; margin-top: 60px; border-top: 1px solid #e0e0e0;'>
+        <p style='color: #28a745; font-size: 11px; margin: 0; font-weight: 600; letter-spacing: 0.5px;'>
+            DATA PROTECTED BY VERNON - SENIOR IT SECURITY MANAGER
+        </p>
+        <p style='color: #666; font-size: 10px; margin-top: 5px;'>
+            © 2025 Smith & Williams Trucking LLC - All Rights Reserved
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Sidebar
 def show_sidebar():
@@ -613,6 +638,15 @@ def show_sidebar():
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()
+        
+        # Add help section if available
+        if HELP_AVAILABLE:
+            try:
+                help_system = get_help_system()
+                help_system.show_sidebar_help()
+            except Exception as e:
+                # Don't let help system errors break the app
+                pass
         
         # Vernon footer at bottom of sidebar
         st.divider()
