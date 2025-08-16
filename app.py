@@ -40,8 +40,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Version for tracking updates - FORCE UPDATE
-APP_VERSION = "2.2.0 - Active Moves Fixed"
+# Version for tracking updates - FORCE UPDATE  
+APP_VERSION = "2.3.0 - Trailer Display Fixed"
+UPDATE_TIMESTAMP = "2025-08-16 03:30:00"  # Force Streamlit to recognize update
 
 # Force cache clear on version change
 if 'app_version' not in st.session_state or st.session_state.app_version != APP_VERSION:
@@ -1230,37 +1231,51 @@ def create_new_move():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("Available Trailers")
+        st.subheader("Available NEW Trailers at Fleet")
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
-        # Get available trailers - check database structure first
+        # Get available NEW trailers at Fleet Memphis ONLY
         cursor.execute("PRAGMA table_info(trailers)")
         columns = [col[1] for col in cursor.fetchall()]
         
         if 'current_location_id' in columns:
-            # Normalized structure
+            # Get Fleet Memphis ID
+            cursor.execute("SELECT id FROM locations WHERE location_title = 'Fleet Memphis'")
+            fleet_id = cursor.fetchone()
+            fleet_id = fleet_id[0] if fleet_id else 1
+            
+            # Get only NEW trailers at Fleet Memphis that are available
             cursor.execute('''
                 SELECT t.trailer_number, 
-                       COALESCE(l.location_title, 'Fleet Memphis') as location, 
+                       'Fleet Memphis' as location, 
                        t.status
                 FROM trailers t
-                LEFT JOIN locations l ON t.current_location_id = l.id
-                WHERE t.id NOT IN (
+                WHERE t.current_location_id = ?
+                AND t.is_new = 1
+                AND t.status = 'available'
+                AND t.id NOT IN (
                     SELECT trailer_id FROM moves 
                     WHERE status IN ('active', 'assigned', 'in_transit')
                     AND trailer_id IS NOT NULL
                 )
                 ORDER BY t.trailer_number
-            ''')
+            ''', (fleet_id,))
         else:
-            # Simple structure
+            # Simple structure - still only get NEW trailers at Fleet
             cursor.execute('''
                 SELECT t.trailer_number, 
-                       COALESCE(t.current_location, 'Fleet Memphis') as location, 
+                       'Fleet Memphis' as location, 
                        t.status
                 FROM trailers t
-                WHERE t.id NOT IN (
+                WHERE (t.current_location = 'Fleet Memphis' OR t.current_location IS NULL)
+                AND t.status = 'available'
+                AND (
+                    t.trailer_number LIKE '190%' OR 
+                    t.trailer_number LIKE '18V%' OR 
+                    t.trailer_number = '7728'
+                )
+                AND t.id NOT IN (
                     SELECT trailer_id FROM moves 
                     WHERE status IN ('active', 'assigned', 'in_transit')
                     AND trailer_id IS NOT NULL
@@ -1307,15 +1322,17 @@ def create_new_move():
         cursor.execute("PRAGMA table_info(moves)")
         move_columns = [col[1] for col in cursor.fetchall()]
         
-        if 'destination_location_id' in move_columns:
-            # Normalized structure with foreign keys
+        if 'new_trailer' in move_columns:
+            # Get NEW trailers that are assigned to active moves
             cursor.execute('''
-                SELECT t.trailer_number, m.driver_name, m.status,
-                       dest.location_title as destination
-                FROM trailers t
-                JOIN moves m ON t.id = m.trailer_id
-                LEFT JOIN locations dest ON m.destination_location_id = dest.id
+                SELECT m.new_trailer as trailer_number, 
+                       m.driver_name, 
+                       m.status,
+                       l.location_title as destination
+                FROM moves m
+                LEFT JOIN locations l ON m.destination_location_id = l.id
                 WHERE m.status IN ('active', 'assigned', 'in_transit')
+                AND m.new_trailer IS NOT NULL
                 ORDER BY m.status, m.move_date DESC
             ''')
         else:
