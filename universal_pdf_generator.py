@@ -1,221 +1,143 @@
 """
-Universal PDF Generator with COMPLETE Date Fix
+COMPLETE PDF SYSTEM REBUILD
 Smith & Williams Trucking LLC
-Version 4.2.0 - Handles all date formats
+All PDF generation in ONE working file
 """
 
 import os
-import io
-from datetime import datetime, date
 import sqlite3
+from datetime import datetime, date
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, landscape
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Image
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+from reportlab.pdfgen import canvas
 
-# Try to import reportlab
-try:
-    from reportlab.lib import colors
-    from reportlab.lib.pagesizes import letter
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.units import inch
-    from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
-    from reportlab.pdfgen import canvas
-    REPORTLAB_AVAILABLE = True
-except ImportError:
-    REPORTLAB_AVAILABLE = False
-
-# Database path
+# DATABASE
 DB_PATH = 'swt_fleet.db'
 
-# Logo path - USE THE WHITE LOGO
-LOGO_PATH = 'swt_logo_white.png'
+# COMPANY INFO - ONE PLACE
+COMPANY = {
+    'name': 'SMITH & WILLIAMS TRUCKING LLC',
+    'address': '7600 N 15th St Suite 150, Phoenix, AZ 85020',
+    'phone': '(951) 437-5474',
+    'email': 'Dispatch@smithwilliamstrucking.com',
+    'website': 'www.smithwilliamstrucking.com',
+    'dot': 'DOT #3675217',
+    'mc': 'MC #1276006',
+    'owner': 'Brandon Smith'
+}
 
-def add_company_header_footer(canvas_obj, doc):
-    """Professional header/footer with FULL company info for ALL PDFs"""
-    canvas_obj.saveState()
+def add_letterhead(canvas, doc):
+    """Add company letterhead to EVERY page of EVERY PDF"""
+    canvas.saveState()
     
-    # Add the WHITE logo that shows up
-    logo_added = False
+    # Logo
     if os.path.exists('swt_logo_white.png'):
         try:
-            canvas_obj.drawImage('swt_logo_white.png', 
-                               0.75*inch,
-                               doc.pagesize[1] - 1.2*inch,
-                               width=1.2*inch,
-                               height=0.6*inch,
-                               preserveAspectRatio=True)
-            logo_added = True
+            canvas.drawImage('swt_logo_white.png', 0.75*inch, doc.pagesize[1] - 1.2*inch,
+                           width=1.2*inch, height=0.6*inch, preserveAspectRatio=True)
         except:
             pass
     
-    # FULL COMPANY HEADER - Brandon's company info
-    canvas_obj.setFont('Helvetica-Bold', 16)
-    canvas_obj.setFillColor(colors.HexColor('#003366'))
-    x_pos = 2.2*inch if logo_added else 0.75*inch
-    canvas_obj.drawString(x_pos, doc.pagesize[1] - 0.85*inch, "SMITH & WILLIAMS TRUCKING LLC")
+    # Company Name
+    canvas.setFont('Helvetica-Bold', 16)
+    canvas.setFillColor(colors.HexColor('#003366'))
+    canvas.drawString(2.2*inch, doc.pagesize[1] - 0.85*inch, COMPANY['name'])
     
-    canvas_obj.setFont('Helvetica', 10)
-    canvas_obj.setFillColor(colors.black)
-    canvas_obj.drawString(x_pos, doc.pagesize[1] - 1*inch, "7600 N 15th St Suite 150, Phoenix, AZ 85020")
-    canvas_obj.drawString(x_pos, doc.pagesize[1] - 1.15*inch, "DOT #3675217 | MC #1276006")
+    # Address
+    canvas.setFont('Helvetica', 10)
+    canvas.setFillColor(colors.black)
+    canvas.drawString(2.2*inch, doc.pagesize[1] - 1*inch, COMPANY['address'])
+    canvas.drawString(2.2*inch, doc.pagesize[1] - 1.15*inch, f"{COMPANY['dot']} | {COMPANY['mc']}")
     
-    # Contact info on right
-    canvas_obj.setFont('Helvetica', 10)
-    canvas_obj.drawRightString(doc.pagesize[0] - inch, doc.pagesize[1] - 0.85*inch, 
-                              "Phone: (951) 437-5474")
-    canvas_obj.drawRightString(doc.pagesize[0] - inch, doc.pagesize[1] - 1*inch, 
-                              "Dispatch@smithwilliamstrucking.com")
-    canvas_obj.drawRightString(doc.pagesize[0] - inch, doc.pagesize[1] - 1.15*inch, 
-                              "www.smithwilliamstrucking.com")
+    # Contact
+    canvas.drawRightString(doc.pagesize[0] - inch, doc.pagesize[1] - 0.85*inch, f"Phone: {COMPANY['phone']}")
+    canvas.drawRightString(doc.pagesize[0] - inch, doc.pagesize[1] - 1*inch, COMPANY['email'])
+    canvas.drawRightString(doc.pagesize[0] - inch, doc.pagesize[1] - 1.15*inch, COMPANY['website'])
     
-    # Header line
-    canvas_obj.setStrokeColor(colors.HexColor('#DC143C'))
-    canvas_obj.setLineWidth(2)
-    canvas_obj.line(inch, doc.pagesize[1] - 1.4*inch, 
-                   doc.pagesize[0] - inch, doc.pagesize[1] - 1.4*inch)
+    # Header Line
+    canvas.setStrokeColor(colors.HexColor('#DC143C'))
+    canvas.setLineWidth(2)
+    canvas.line(inch, doc.pagesize[1] - 1.4*inch, doc.pagesize[0] - inch, doc.pagesize[1] - 1.4*inch)
     
     # Footer
-    canvas_obj.setStrokeColor(colors.HexColor('#003366'))
-    canvas_obj.setLineWidth(1)
-    canvas_obj.line(inch, 0.8*inch, doc.pagesize[0] - inch, 0.8*inch)
+    canvas.setStrokeColor(colors.HexColor('#003366'))
+    canvas.line(inch, 0.8*inch, doc.pagesize[0] - inch, 0.8*inch)
     
-    canvas_obj.setFont('Helvetica', 8)
-    canvas_obj.setFillColor(colors.HexColor('#666666'))
-    canvas_obj.drawString(inch, 0.6*inch, 
-                         f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}")
-    canvas_obj.drawRightString(doc.pagesize[0] - inch, 0.6*inch, 
-                              f"Page {doc.page}")
+    canvas.setFont('Helvetica', 8)
+    canvas.drawString(inch, 0.6*inch, f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}")
+    canvas.drawRightString(doc.pagesize[0] - inch, 0.6*inch, f"Page {doc.page}")
+    canvas.drawCentredString(doc.pagesize[0]/2, 0.4*inch, f"© {COMPANY['name']}")
     
-    canvas_obj.setFont('Helvetica-Bold', 8)
-    canvas_obj.drawCentredString(doc.pagesize[0]/2, 0.6*inch, 
-                                "Confidential - Property of Smith & Williams Trucking LLC")
-    
-    canvas_obj.restoreState()
+    canvas.restoreState()
 
-def generate_driver_receipt(driver_name, from_date, to_date):
-    """Generate driver receipt with COMPLETE date handling"""
-    
-    if not REPORTLAB_AVAILABLE:
-        return f"error_reportlab_not_installed_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-    
-    # CRITICAL FIX: Convert date objects to strings
-    if isinstance(from_date, date):
-        from_date = from_date.strftime('%Y-%m-%d')
-    if isinstance(to_date, date):
-        to_date = to_date.strftime('%Y-%m-%d')
-    
-    print(f"Generating PDF for {driver_name} from {from_date} to {to_date}")
-    
-    # Get data from database
+def get_contractor_info(driver_name):
+    """Get contractor company info for any driver"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Get driver's contractor company info from drivers table
-    driver_company = None
-    driver_phone = None
-    driver_email = None
-    
     try:
-        cursor.execute("""
-            SELECT company_name, phone, email 
-            FROM drivers 
-            WHERE name = ?
-        """, (driver_name,))
-        
+        cursor.execute("SELECT company_name, phone, email FROM drivers WHERE name = ?", (driver_name,))
         result = cursor.fetchone()
-        if result:
-            driver_company = result[0] if result[0] else None
-            driver_phone = result[1] if result[1] else None
-            driver_email = result[2] if result[2] else None
-    except Exception as e:
-        print(f"Error getting driver info: {e}")
-    
-    # Special handling for Brandon Smith (Owner)
-    if driver_name == "Brandon Smith" and not driver_company:
-        driver_company = "Smith & Williams Trucking LLC"
-        driver_phone = "(951) 437-5474"
-        driver_email = "brandon@smithwilliamstrucking.com"
-    
-    # If no company found, create a default
-    if not driver_company:
-        driver_company = f"{driver_name} Trucking Services"
-    
-    # Get ALL moves in date range - no status filter
-    moves = []
-    
-    try:
-        # IMPORTANT: Get ALL moves regardless of status
-        query = """
-            SELECT 
-                COALESCE(system_id, order_number, 'MOVE-' || id) as move_id,
-                move_date,
-                new_trailer,
-                old_trailer,
-                COALESCE(destination_location, delivery_location, 'Unknown') as destination,
-                COALESCE(estimated_miles, actual_miles, 0) as miles,
-                COALESCE(estimated_earnings, amount, 0) as earnings,
-                status
-            FROM moves
-            WHERE driver_name = ?
-            AND date(move_date) >= date(?)
-            AND date(move_date) <= date(?)
-            ORDER BY move_date DESC
-        """
-        
-        print(f"Executing query with: {driver_name}, {from_date}, {to_date}")
-        cursor.execute(query, (driver_name, from_date, to_date))
-        moves = cursor.fetchall()
-        print(f"Found {len(moves)} moves")
-        
-        # If no moves in date range, get recent moves as fallback
-        if not moves:
-            print(f"No moves in date range, getting recent moves...")
-            cursor.execute("""
-                SELECT 
-                    COALESCE(system_id, order_number, 'MOVE-' || id) as move_id,
-                    move_date,
-                    new_trailer,
-                    old_trailer,
-                    COALESCE(destination_location, delivery_location, 'Unknown') as destination,
-                    COALESCE(estimated_miles, actual_miles, 0) as miles,
-                    COALESCE(estimated_earnings, amount, 0) as earnings,
-                    status
-                FROM moves
-                WHERE driver_name = ?
-                ORDER BY move_date DESC
-                LIMIT 20
-            """, (driver_name,))
-            moves = cursor.fetchall()
-            print(f"Found {len(moves)} recent moves")
-        
-    except Exception as e:
-        print(f"Error getting moves: {e}")
-        # Absolute fallback
-        try:
-            cursor.execute("SELECT * FROM moves WHERE driver_name = ? LIMIT 50", (driver_name,))
-            raw_moves = cursor.fetchall()
-            moves = []
-            for row in raw_moves:
-                if len(row) >= 17:
-                    moves.append((
-                        row[1] or f"MOVE-{row[0]}",  # system_id or fallback
-                        row[4],  # move_date
-                        row[8],  # new_trailer
-                        row[9],  # old_trailer
-                        row[11] or row[12],  # destination_location or delivery_location
-                        row[14] or 0,  # estimated_miles
-                        row[16] or row[17] or 0,  # estimated_earnings or amount
-                        row[7]  # status
-                    ))
-            print(f"Fallback found {len(moves)} moves")
-        except Exception as e2:
-            print(f"Fallback error: {e2}")
-            moves = []
+        if result and result[0]:
+            conn.close()
+            return result[0], result[1] or 'Not on file', result[2] or 'Not on file'
+    except:
+        pass
     
     conn.close()
     
-    # Generate PDF
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"driver_receipt_{driver_name.replace(' ', '_')}_{timestamp}.pdf"
+    # Owner special case
+    if driver_name == "Brandon Smith":
+        return COMPANY['name'], COMPANY['phone'], COMPANY['email']
     
+    return f"{driver_name} Trucking", "Not on file", "Not on file"
+
+def fix_date(date_input):
+    """Convert any date format to string"""
+    if isinstance(date_input, date):
+        return date_input.strftime('%Y-%m-%d')
+    return str(date_input)
+
+def generate_driver_receipt(driver_name, from_date, to_date):
+    """Generate driver payment receipt with ALL fixes"""
+    
+    # Fix dates
+    from_date = fix_date(from_date)
+    to_date = fix_date(to_date)
+    
+    # Get contractor info
+    company_name, phone, email = get_contractor_info(driver_name)
+    
+    # Get moves from database
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT 
+            COALESCE(system_id, order_number, 'MOVE-' || id) as move_id,
+            move_date,
+            new_trailer,
+            old_trailer,
+            COALESCE(destination_location, delivery_location, 'Unknown') as destination,
+            COALESCE(estimated_miles, actual_miles, 0) as miles,
+            COALESCE(estimated_earnings, amount, 0) as earnings,
+            status
+        FROM moves
+        WHERE driver_name = ?
+        AND date(move_date) >= date(?)
+        AND date(move_date) <= date(?)
+        ORDER BY move_date DESC
+    """, (driver_name, from_date, to_date))
+    
+    moves = cursor.fetchall()
+    conn.close()
+    
+    # Create PDF
+    filename = f"driver_receipt_{driver_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     doc = SimpleDocTemplate(filename, pagesize=letter,
                           topMargin=1.75*inch, bottomMargin=inch,
                           leftMargin=0.75*inch, rightMargin=0.75*inch)
@@ -224,144 +146,213 @@ def generate_driver_receipt(driver_name, from_date, to_date):
     styles = getSampleStyleSheet()
     
     # Title
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        textColor=colors.HexColor('#003366'),
-        spaceAfter=30,
-        alignment=TA_CENTER
-    )
+    title_style = ParagraphStyle('Title', fontSize=24, textColor=colors.HexColor('#003366'),
+                                alignment=TA_CENTER, spaceAfter=30)
     elements.append(Paragraph("DRIVER PAYMENT RECEIPT", title_style))
     elements.append(Spacer(1, 0.3*inch))
     
-    # Driver and contractor info
-    info_style = ParagraphStyle(
-        'InfoStyle',
-        parent=styles['Normal'],
-        fontSize=11,
-        leftIndent=20
-    )
-    
-    # Build complete driver info with contractor details
-    driver_info_html = f"""
-    <b>Driver Information:</b><br/>
+    # Driver Info WITH Contractor Company
+    info_html = f"""
+    <b>DRIVER INFORMATION</b><br/><br/>
     <b>Name:</b> {driver_name}<br/>
-    <b>Contractor Company:</b> {driver_company}<br/>
-    <b>Phone:</b> {driver_phone if driver_phone else 'Not on file'}<br/>
-    <b>Email:</b> {driver_email if driver_email else 'Not on file'}<br/>
+    <b>Contractor Company:</b> {company_name}<br/>
+    <b>Phone:</b> {phone}<br/>
+    <b>Email:</b> {email}<br/>
     <br/>
-    <b>Report Period:</b> {from_date} to {to_date}<br/>
-    <b>Report Generated:</b> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}
+    <b>Period:</b> {from_date} to {to_date}<br/>
+    <b>Generated:</b> {datetime.now().strftime('%B %d, %Y')}
     """
     
-    elements.append(Paragraph(driver_info_html, info_style))
+    info_style = ParagraphStyle('Info', fontSize=11, leftIndent=20)
+    elements.append(Paragraph(info_html, info_style))
     elements.append(Spacer(1, 0.3*inch))
     
-    # Add moves table or message
     if moves:
-        # Create moves table
-        data = [['Move ID', 'Date', 'New Trailer', 'Old Trailer', 'Destination', 'Miles', 'Earnings', 'Status']]
+        # Table with moves
+        data = [['Move ID', 'Date', 'New', 'Old', 'Destination', 'Miles', 'Earnings', 'Status']]
         
         total_earnings = 0
         total_miles = 0
-        completed_count = 0
-        active_count = 0
         
         for move in moves:
-            move_id = str(move[0])[:15]
-            move_date = str(move[1])[:10] if move[1] else "N/A"
-            new_trailer = str(move[2]) if move[2] else "N/A"
-            old_trailer = str(move[3]) if move[3] else "-"
-            destination = str(move[4])[:20] if move[4] else "Unknown"
-            miles = float(move[5]) if move[5] else 0
             earnings = float(move[6]) if move[6] else 0
-            status = str(move[7]) if len(move) > 7 else "active"
-            
-            total_miles += miles
+            miles = float(move[5]) if move[5] else 0
             total_earnings += earnings
-            if status == 'completed':
-                completed_count += 1
-            elif status in ['active', 'in_transit']:
-                active_count += 1
+            total_miles += miles
             
             data.append([
-                move_id,
-                move_date,
-                new_trailer,
-                old_trailer,
-                destination,
-                f"{miles:.1f}",
+                str(move[0])[:12],
+                str(move[1])[:10],
+                str(move[2])[:8] if move[2] else '-',
+                str(move[3])[:8] if move[3] else '-',
+                str(move[4])[:20],
+                f"{miles:.0f}",
                 f"${earnings:.2f}",
-                status
+                move[7]
             ])
         
-        # Add summary row
-        data.append(['', '', '', '', 'TOTALS:', f"{total_miles:.1f}", f"${total_earnings:.2f}", f"{len(moves)} total"])
+        # Total row
+        data.append(['', '', '', '', 'TOTAL:', f"{total_miles:.0f}", f"${total_earnings:.2f}", ''])
         
         # Create table
-        table = Table(data, colWidths=[1.1*inch, 0.9*inch, 0.9*inch, 0.9*inch, 1.4*inch, 0.7*inch, 0.9*inch, 0.8*inch])
+        table = Table(data, colWidths=[1.1*inch, 0.9*inch, 0.8*inch, 0.8*inch, 1.5*inch, 0.6*inch, 0.9*inch, 0.8*inch])
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#003366')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
             ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#f0f0f0')),
-            ('FONTSIZE', (0, 1), (-1, -2), 8),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
         ]))
+        
         elements.append(table)
         elements.append(Spacer(1, 0.3*inch))
         
-        # Payment summary
+        # Summary
         factoring = total_earnings * 0.03
         net = total_earnings - factoring
         
         summary_html = f"""
-        <b>Payment Summary:</b><br/>
+        <b>PAYMENT SUMMARY</b><br/><br/>
         Total Moves: {len(moves)}<br/>
-        Completed Moves: {completed_count}<br/>
-        Active/In Transit: {active_count}<br/>
-        Total Miles: {total_miles:,.1f}<br/>
+        Total Miles: {total_miles:,.0f}<br/>
         Gross Earnings: ${total_earnings:,.2f}<br/>
-        Factoring Fee (3%): -${factoring:,.2f}<br/>
-        <b>Net Payment Due: ${net:,.2f}</b>
+        Factoring (3%): -${factoring:,.2f}<br/>
+        <b>NET PAYMENT: ${net:,.2f}</b>
         """
         elements.append(Paragraph(summary_html, info_style))
     else:
-        # No moves found message with debugging info
-        no_moves_html = f"""
-        <b>No moves found for this period.</b><br/>
-        <br/>
-        Driver: {driver_name}<br/>
-        Date Range: {from_date} to {to_date}<br/>
-        <br/>
-        Please verify:<br/>
-        • The date range includes move dates<br/>
-        • The driver name matches exactly<br/>
-        • Moves have been entered in the system<br/>
-        <br/>
-        Debug: Check that dates are in YYYY-MM-DD format
-        """
-        elements.append(Paragraph(no_moves_html, info_style))
+        elements.append(Paragraph(f"<b>No moves found for {driver_name} from {from_date} to {to_date}</b>", info_style))
     
-    # Build PDF with company header/footer
-    doc.build(elements, onFirstPage=add_company_header_footer, onLaterPages=add_company_header_footer)
-    
-    print(f"PDF generated: {filename}")
+    # Build with letterhead
+    doc.build(elements, onFirstPage=add_letterhead, onLaterPages=add_letterhead)
     return filename
 
-# Aliases for compatibility
-def generate_client_invoice(*args, **kwargs):
-    """Generate client invoice with company header"""
-    return generate_driver_receipt(*args, **kwargs)
+def generate_client_invoice(client_name, from_date, to_date):
+    """Generate client invoice - uses same system"""
+    return generate_driver_receipt(client_name, from_date, to_date)
 
-def generate_status_report(*args, **kwargs):
-    """Generate status report with company header"""
-    if len(args) == 2:  # Only from_date and to_date
-        # Default to showing all drivers
-        return generate_driver_receipt("All Drivers", args[0], args[1])
-    return generate_driver_receipt(*args, **kwargs)
+def generate_status_report(from_date, to_date):
+    """Generate status report with letterhead"""
+    
+    # Fix dates
+    from_date = fix_date(from_date)
+    to_date = fix_date(to_date)
+    
+    # Get data
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT COUNT(*) FROM moves WHERE status = 'active'")
+    active = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM moves WHERE status = 'completed'")
+    completed = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM trailers")
+    trailers = cursor.fetchone()[0]
+    
+    conn.close()
+    
+    # Create PDF
+    filename = f"status_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    doc = SimpleDocTemplate(filename, pagesize=letter,
+                          topMargin=1.75*inch, bottomMargin=inch,
+                          leftMargin=0.75*inch, rightMargin=0.75*inch)
+    
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Title
+    title_style = ParagraphStyle('Title', fontSize=24, textColor=colors.HexColor('#003366'),
+                                alignment=TA_CENTER, spaceAfter=30)
+    elements.append(Paragraph("FLEET STATUS REPORT", title_style))
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Info
+    info_html = f"""
+    <b>REPORT PERIOD:</b> {from_date} to {to_date}<br/><br/>
+    <b>FLEET STATISTICS</b><br/>
+    Active Moves: {active}<br/>
+    Completed Moves: {completed}<br/>
+    Total Trailers: {trailers}<br/>
+    """
+    
+    info_style = ParagraphStyle('Info', fontSize=11, leftIndent=20)
+    elements.append(Paragraph(info_html, info_style))
+    
+    # Build with letterhead
+    doc.build(elements, onFirstPage=add_letterhead, onLaterPages=add_letterhead)
+    return filename
+
+def generate_inventory_pdf():
+    """Generate inventory report with letterhead"""
+    
+    # Get data
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT 
+            t.trailer_number,
+            CASE WHEN t.current_location LIKE '%Memphis%' THEN 'Fleet Memphis' 
+                 WHEN t.current_location LIKE '%FedEx%' THEN 'FedEx Location'
+                 ELSE COALESCE(t.current_location, 'Unknown') END as location,
+            t.status
+        FROM trailers t
+        ORDER BY t.current_location, t.trailer_number
+    """)
+    
+    trailers = cursor.fetchall()
+    conn.close()
+    
+    # Create PDF
+    filename = f"inventory_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    doc = SimpleDocTemplate(filename, pagesize=landscape(letter),
+                          topMargin=1.75*inch, bottomMargin=inch,
+                          leftMargin=0.75*inch, rightMargin=0.75*inch)
+    
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Title
+    title_style = ParagraphStyle('Title', fontSize=24, textColor=colors.HexColor('#003366'),
+                                alignment=TA_CENTER, spaceAfter=30)
+    elements.append(Paragraph("TRAILER INVENTORY REPORT", title_style))
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Summary
+    info_html = f"""
+    <b>INVENTORY SUMMARY</b><br/>
+    Total Trailers: {len(trailers)}<br/>
+    Report Date: {datetime.now().strftime('%B %d, %Y')}
+    """
+    
+    info_style = ParagraphStyle('Info', fontSize=11, leftIndent=20)
+    elements.append(Paragraph(info_html, info_style))
+    elements.append(Spacer(1, 0.3*inch))
+    
+    if trailers:
+        # Table
+        data = [['Trailer Number', 'Location', 'Status']]
+        for trailer in trailers:
+            data.append(list(trailer))
+        
+        table = Table(data, colWidths=[3*inch, 4*inch, 2*inch])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#003366')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f0f0')]),
+        ]))
+        
+        elements.append(table)
+    
+    # Build with letterhead
+    doc.build(elements, onFirstPage=add_letterhead, onLaterPages=add_letterhead)
+    return filename
