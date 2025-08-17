@@ -16,12 +16,12 @@ except:
         return {
             'company_name': 'Smith & Williams Trucking',
             'company_email': 'Dispatch@smithwilliamstrucking.com',
-            'company_phone': '(901) 555-SHIP',
+            'company_phone': '(951) 437-5474',
             'company_website': 'www.smithwilliamstrucking.com',
-            'company_address': '3716 Hwy 78, Memphis, TN 38109',
+            'company_address': '7600 N 15th St Suite 150, Phoenix, AZ 85020',
             'company_tagline': 'Your cargo. Our mission. Moving forward.',
-            'dot_number': 'DOT #1234567',
-            'mc_number': 'MC #987654',
+            'dot_number': 'DOT #3675217',
+            'mc_number': 'MC #1276006',
             'ein': '12-3456789',
             'company_logo': 'swt_logo_white.png'
         }

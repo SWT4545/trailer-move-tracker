@@ -73,16 +73,16 @@ def add_universal_header_footer(canvas_obj, doc):
     canvas_obj.setFont('Helvetica', 9)
     canvas_obj.setFillColor(colors.black)
     canvas_obj.drawString(x_pos, doc.pagesize[1] - 1*inch, "Your cargo. Our mission. Moving forward.")
-    canvas_obj.drawString(x_pos, doc.pagesize[1] - 1.15*inch, "DOT #1234567 | MC #987654")
+    canvas_obj.drawString(x_pos, doc.pagesize[1] - 1.15*inch, "DOT #3675217 | MC #1276006")
     
     # Contact info on right
     canvas_obj.setFont('Helvetica', 9)
     canvas_obj.drawRightString(doc.pagesize[0] - inch, doc.pagesize[1] - 0.85*inch, 
-                              "Phone: (901) 555-SHIP")
+                              "Phone: (951) 437-5474")
     canvas_obj.drawRightString(doc.pagesize[0] - inch, doc.pagesize[1] - 1*inch, 
                               "Dispatch@smithwilliamstrucking.com")
     canvas_obj.drawRightString(doc.pagesize[0] - inch, doc.pagesize[1] - 1.15*inch, 
-                              "3716 Hwy 78, Memphis, TN 38109")
+                              "7600 N 15th St Suite 150, Phoenix, AZ 85020")
     
     # Header line
     canvas_obj.setStrokeColor(colors.HexColor('#DC143C'))
@@ -141,6 +141,28 @@ def generate_driver_receipt(driver_name, from_date, to_date):
     # Get data from database
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    
+    # Get driver company info
+    driver_company = None
+    driver_phone = None
+    driver_email = None
+    try:
+        cursor.execute("PRAGMA table_info(drivers)")
+        driver_cols = [col[1] for col in cursor.fetchall()]
+        
+        if 'company_name' in driver_cols:
+            cursor.execute('''
+                SELECT company_name, phone, email 
+                FROM drivers 
+                WHERE driver_name = ?
+            ''', (driver_name,))
+            result = cursor.fetchone()
+            if result:
+                driver_company = result[0]
+                driver_phone = result[1] if len(result) > 1 else None
+                driver_email = result[2] if len(result) > 2 else None
+    except:
+        pass
     
     # Get moves with comprehensive query that works with any schema
     moves = []
@@ -227,10 +249,20 @@ def generate_driver_receipt(driver_name, from_date, to_date):
         # Generate text fallback
         content = {
             "Driver": driver_name,
+        }
+        
+        if driver_company:
+            content["Company"] = driver_company
+        if driver_phone:
+            content["Phone"] = driver_phone
+        if driver_email:
+            content["Email"] = driver_email
+            
+        content.update({
             "Period": f"{from_date} to {to_date}",
             "Total Moves": len(moves),
             "Total Earnings": f"${sum(m[6] for m in moves if m[6]):,.2f}" if moves else "$0.00"
-        }
+        })
         return generate_text_fallback("DRIVER RECEIPT", content, f"driver_receipt_{driver_name}")
     
     # Generate PDF with reportlab
@@ -257,18 +289,35 @@ def generate_driver_receipt(driver_name, from_date, to_date):
     elements.append(Paragraph("DRIVER PAYMENT RECEIPT", title_style))
     elements.append(Spacer(1, 0.3*inch))
     
-    # Driver info
+    # Driver info with company details
     info_style = ParagraphStyle(
         'InfoStyle',
         parent=styles['Normal'],
         fontSize=11,
         leftIndent=20
     )
-    driver_info = f"""
-    <b>Driver:</b> {driver_name}<br/>
-    <b>Period:</b> {from_date} to {to_date}<br/>
-    <b>Report Date:</b> {datetime.now().strftime("%B %d, %Y")}
-    """
+    
+    # Build driver info including company details
+    driver_info_parts = [
+        f"<b>Driver:</b> {driver_name}"
+    ]
+    
+    if driver_company:
+        driver_info_parts.append(f"<b>Company:</b> {driver_company}")
+    
+    if driver_phone:
+        driver_info_parts.append(f"<b>Phone:</b> {driver_phone}")
+    
+    if driver_email:
+        driver_info_parts.append(f"<b>Email:</b> {driver_email}")
+    
+    driver_info_parts.extend([
+        f"<b>Period:</b> {from_date} to {to_date}",
+        f"<b>Report Date:</b> {datetime.now().strftime('%B %d, %Y')}"
+    ])
+    
+    driver_info = "<br/>".join(driver_info_parts)
+    
     elements.append(Paragraph(driver_info, info_style))
     elements.append(Spacer(1, 0.3*inch))
     
