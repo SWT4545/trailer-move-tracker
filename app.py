@@ -41,8 +41,8 @@ st.set_page_config(
 )
 
 # Version for tracking updates - FORCE UPDATE  
-APP_VERSION = "3.0.0 - Complete Admin Control Panel"
-UPDATE_TIMESTAMP = "2025-08-16 05:30:00"  # Force Streamlit to recognize update
+APP_VERSION = "3.0.1 - Admin Panel Database Error Fixes"
+UPDATE_TIMESTAMP = "2025-08-16 05:35:00"  # Force Streamlit to recognize update
 
 # Force cache clear on version change
 if 'app_version' not in st.session_state or st.session_state.app_version != APP_VERSION:
@@ -2266,25 +2266,48 @@ def admin_panel():
         cursor.execute("PRAGMA table_info(moves)")
         move_cols = [col[1] for col in cursor.fetchall()]
         
-        if 'system_id' in move_cols:
-            cursor.execute('''
-                SELECT system_id, driver_name, move_date, 
-                       COALESCE(destination_location_id, delivery_location, 'Unknown') as destination
-                FROM moves 
-                WHERE status IN ('active', 'assigned', 'in_transit')
-                ORDER BY move_date DESC
-            ''')
-        else:
-            cursor.execute('''
-                SELECT order_number, driver_name, 
-                       COALESCE(pickup_date, move_date), 
-                       COALESCE(delivery_location, 'Unknown')
-                FROM moves 
-                WHERE status IN ('active', 'assigned', 'in_transit')
-                ORDER BY order_number DESC
-            ''')
-        
-        active_moves = cursor.fetchall()
+        try:
+            if 'system_id' in move_cols:
+                if 'move_date' in move_cols:
+                    cursor.execute('''
+                        SELECT system_id, driver_name, move_date, 
+                               COALESCE(destination_location_id, delivery_location, 'Unknown') as destination
+                        FROM moves 
+                        WHERE status IN ('active', 'assigned', 'in_transit')
+                        ORDER BY move_date DESC
+                    ''')
+                else:
+                    cursor.execute('''
+                        SELECT system_id, driver_name, 
+                               COALESCE(pickup_date, completed_date, CURRENT_DATE), 
+                               COALESCE(delivery_location, 'Unknown')
+                        FROM moves 
+                        WHERE status IN ('active', 'assigned', 'in_transit')
+                        ORDER BY system_id DESC
+                    ''')
+            else:
+                if 'pickup_date' in move_cols:
+                    cursor.execute('''
+                        SELECT order_number, driver_name, 
+                               COALESCE(pickup_date, completed_date, CURRENT_DATE), 
+                               COALESCE(delivery_location, 'Unknown')
+                        FROM moves 
+                        WHERE status IN ('active', 'assigned', 'in_transit')
+                        ORDER BY order_number DESC
+                    ''')
+                else:
+                    cursor.execute('''
+                        SELECT order_number, driver_name, 
+                               CURRENT_DATE, 
+                               COALESCE(delivery_location, 'Unknown')
+                        FROM moves 
+                        WHERE status IN ('active', 'assigned', 'in_transit')
+                        ORDER BY order_number DESC
+                    ''')
+            active_moves = cursor.fetchall()
+        except sqlite3.OperationalError as e:
+            st.error(f"Database error: {str(e)}")
+            active_moves = []
         
         if active_moves:
             st.write("#### Select Move to Reassign")
@@ -2298,14 +2321,22 @@ def admin_panel():
                 
                 with col1:
                     # Get all drivers
-                    cursor.execute("SELECT driver_name FROM drivers WHERE status = 'active'")
-                    drivers = [d[0] for d in cursor.fetchall()]
+                    try:
+                        cursor.execute("SELECT driver_name FROM drivers WHERE status = 'active'")
+                        drivers = [d[0] for d in cursor.fetchall()]
+                    except:
+                        cursor.execute("SELECT DISTINCT driver_name FROM moves WHERE driver_name IS NOT NULL")
+                        drivers = [d[0] for d in cursor.fetchall()]
                     new_driver = st.selectbox("Reassign to Driver", drivers)
                 
                 with col2:
                     # Get all locations
-                    cursor.execute("SELECT location_title FROM locations WHERE location_title LIKE 'FedEx%'")
-                    locations = [l[0] for l in cursor.fetchall()]
+                    try:
+                        cursor.execute("SELECT location_title FROM locations WHERE location_title LIKE 'FedEx%'")
+                        locations = [l[0] for l in cursor.fetchall()]
+                    except:
+                        # Fallback to hardcoded locations
+                        locations = ['FedEx Memphis', 'FedEx Indy', 'FedEx Chicago', 'FedEx Dallas', 'FedEx Houston']
                     new_destination = st.selectbox("Change Destination", locations)
                 
                 with col3:
@@ -2339,16 +2370,32 @@ def admin_panel():
         cursor.execute("PRAGMA table_info(moves)")
         move_cols = [col[1] for col in cursor.fetchall()]
         
-        if 'old_trailer' in move_cols:
-            cursor.execute('''
-                SELECT system_id, driver_name, new_trailer, old_trailer, move_date
-                FROM moves 
-                WHERE status IN ('active', 'completed')
-                ORDER BY move_date DESC
-                LIMIT 50
-            ''')
-            
-            moves = cursor.fetchall()
+        try:
+            if 'old_trailer' in move_cols and 'new_trailer' in move_cols:
+                if 'move_date' in move_cols:
+                    cursor.execute('''
+                        SELECT system_id, driver_name, new_trailer, old_trailer, move_date
+                        FROM moves 
+                        WHERE status IN ('active', 'completed')
+                        ORDER BY move_date DESC
+                        LIMIT 50
+                    ''')
+                else:
+                    cursor.execute('''
+                        SELECT system_id, driver_name, new_trailer, old_trailer, 
+                               COALESCE(pickup_date, completed_date, CURRENT_DATE)
+                        FROM moves 
+                        WHERE status IN ('active', 'completed')
+                        ORDER BY system_id DESC
+                        LIMIT 50
+                    ''')
+                moves = cursor.fetchall()
+            else:
+                moves = []
+                st.warning("Return trailer tracking not available in this database schema")
+        except sqlite3.OperationalError as e:
+            st.error(f"Database error: {str(e)}")
+            moves = []
             
             if moves:
                 st.write("#### Select Move to Update Return Trailer")
