@@ -22,8 +22,8 @@ except ImportError:
 # Database path
 DB_PATH = 'swt_fleet.db'
 
-# Company logo paths - try multiple options
-LOGO_PATHS = ['swt_logo.png', 'swt_logo_white.png', 'logo.png']
+# Company logo path - use ONLY the transparent logo
+LOGO_PATH = 'swt_logo.png'  # Transparent logo, NOT the white one
 
 # Company colors
 PRIMARY_COLOR = colors.HexColor('#003366')  # Dark blue
@@ -34,17 +34,16 @@ def add_header_footer(canvas_obj, doc):
     """Add professional header and footer to each page"""
     canvas_obj.saveState()
     
-    # Header with logo or company name - try multiple logo paths
+    # Header with transparent logo
     logo_added = False
-    for logo_path in LOGO_PATHS:
-        if os.path.exists(logo_path):
-            try:
-                canvas_obj.drawImage(logo_path, inch, doc.pagesize[1] - 1.25*inch, 
-                                   width=1.5*inch, height=0.6*inch, preserveAspectRatio=True)
-                logo_added = True
-                break
-            except:
-                continue
+    if os.path.exists(LOGO_PATH):
+        try:
+            canvas_obj.drawImage(LOGO_PATH, inch, doc.pagesize[1] - 1.25*inch, 
+                               width=1.5*inch, height=0.6*inch, 
+                               preserveAspectRatio=True, mask='auto')  # mask='auto' preserves transparency
+            logo_added = True
+        except:
+            pass
     
     canvas_obj.setFont('Helvetica-Bold', 14)
     canvas_obj.drawRightString(doc.pagesize[0] - inch, doc.pagesize[1] - 0.75*inch, 

@@ -32,25 +32,28 @@ for path in DB_PATHS:
 if not DB_PATH:
     DB_PATH = 'swt_fleet.db'  # Default
 
-# Logo paths - try all possible locations
-LOGO_PATHS = ['swt_logo.png', 'swt_logo_white.png', 'logo.png', './swt_logo.png', '../swt_logo.png']
+# Logo path - ONLY use the transparent logo (not the white one)
+LOGO_PATH = 'swt_logo.png'  # The transparent logo without "white" in name
 
 def add_universal_header_footer(canvas_obj, doc):
     """Universal header/footer with logo for ALL PDFs"""
     canvas_obj.saveState()
     
-    # Try to add logo - check multiple paths
+    # Add the transparent logo
     logo_added = False
-    for logo_path in LOGO_PATHS:
-        if os.path.exists(logo_path):
-            try:
-                # Add logo to header
-                canvas_obj.drawImage(logo_path, inch, doc.pagesize[1] - 1.3*inch, 
-                                   width=1.5*inch, height=0.75*inch, preserveAspectRatio=True, mask='auto')
-                logo_added = True
-                break
-            except:
-                continue
+    if os.path.exists(LOGO_PATH):
+        try:
+            # Add logo to header - properly sized and positioned
+            canvas_obj.drawImage(LOGO_PATH, 
+                               0.75*inch,  # Left margin
+                               doc.pagesize[1] - 1.2*inch,  # From top
+                               width=1.2*inch,  # Logo width
+                               height=0.6*inch,  # Logo height
+                               preserveAspectRatio=True, 
+                               mask='auto')  # Preserve transparency
+            logo_added = True
+        except Exception as e:
+            print(f"Logo error: {e}")
     
     # If no logo file, create a text-based logo
     if not logo_added:
@@ -61,10 +64,10 @@ def add_universal_header_footer(canvas_obj, doc):
         canvas_obj.setFillColor(colors.black)
         canvas_obj.drawString(inch, doc.pagesize[1] - 1.1*inch, "Smith & Williams")
     
-    # Company name and info (adjust position based on logo)
+    # Company name and info (properly positioned next to logo)
     canvas_obj.setFont('Helvetica-Bold', 14)
     canvas_obj.setFillColor(colors.HexColor('#003366'))
-    x_pos = 3*inch if logo_added else 2.5*inch
+    x_pos = 2.2*inch if logo_added else 0.75*inch
     canvas_obj.drawString(x_pos, doc.pagesize[1] - 0.85*inch, "SMITH & WILLIAMS TRUCKING LLC")
     
     canvas_obj.setFont('Helvetica', 9)
@@ -139,31 +142,80 @@ def generate_driver_receipt(driver_name, from_date, to_date):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Try multiple query formats
+    # Get moves with comprehensive query that works with any schema
     moves = []
+    
+    # First check what columns exist
+    cursor.execute("PRAGMA table_info(moves)")
+    columns = [col[1] for col in cursor.fetchall()]
+    
+    # Build dynamic query based on available columns
     try:
-        # Try with all columns
-        cursor.execute('''
-            SELECT order_number, 
-                   COALESCE(move_date, pickup_date, completed_date, CURRENT_DATE) as date,
-                   COALESCE(new_trailer, order_number, '-') as new_trailer,
-                   COALESCE(old_trailer, '-') as old_trailer,
-                   COALESCE(destination_location, delivery_location, 'Unknown') as destination,
-                   COALESCE(estimated_miles, 0) as miles,
-                   COALESCE(estimated_earnings, amount, 0) as earnings
+        select_parts = []
+        
+        # ID field
+        if 'order_number' in columns:
+            select_parts.append('order_number as id')
+        elif 'system_id' in columns:
+            select_parts.append('system_id as id')
+        else:
+            select_parts.append("'MOVE-' || rowid as id")
+        
+        # Date field
+        date_fields = ['move_date', 'pickup_date', 'completed_date', 'created_at']
+        date_field = next((f for f in date_fields if f in columns), "date('now')")
+        select_parts.append(f"COALESCE({date_field}, date('now')) as move_date")
+        
+        # New trailer
+        if 'new_trailer' in columns:
+            select_parts.append("COALESCE(new_trailer, 'N/A') as new_trailer")
+        else:
+            select_parts.append("'N/A' as new_trailer")
+        
+        # Old trailer
+        if 'old_trailer' in columns:
+            select_parts.append("COALESCE(old_trailer, '-') as old_trailer")
+        else:
+            select_parts.append("'-' as old_trailer")
+        
+        # Destination
+        dest_fields = ['destination_location', 'delivery_location', 'drop_location']
+        dest_field = next((f for f in dest_fields if f in columns), "'Unknown'")
+        select_parts.append(f"COALESCE({dest_field}, 'Unknown') as destination")
+        
+        # Miles
+        if 'estimated_miles' in columns:
+            select_parts.append("COALESCE(estimated_miles, 0) as miles")
+        elif 'miles' in columns:
+            select_parts.append("COALESCE(miles, 0) as miles")
+        else:
+            select_parts.append("0 as miles")
+        
+        # Earnings
+        earnings_fields = ['estimated_earnings', 'amount', 'earnings', 'pay']
+        earnings_field = next((f for f in earnings_fields if f in columns), "0")
+        select_parts.append(f"COALESCE({earnings_field}, 0) as earnings")
+        
+        # Build and execute query
+        query = f"""
+            SELECT {', '.join(select_parts)}
             FROM moves
             WHERE driver_name = ?
-            AND status = 'completed'
-        ''', (driver_name,))
+            AND status IN ('completed', 'paid')
+            ORDER BY move_date DESC
+        """
+        
+        cursor.execute(query, (driver_name,))
         moves = cursor.fetchall()
-    except:
+        
+    except Exception as e:
+        # Ultimate fallback - just get basic info
         try:
-            # Simpler query
             cursor.execute('''
-                SELECT order_number, pickup_date, order_number, '-', 
-                       delivery_location, 0, 0
+                SELECT rowid, date('now'), 'N/A', '-', 'Unknown', 0, 0
                 FROM moves
                 WHERE driver_name = ?
+                LIMIT 50
             ''', (driver_name,))
             moves = cursor.fetchall()
         except:
@@ -221,27 +273,39 @@ def generate_driver_receipt(driver_name, from_date, to_date):
     elements.append(Spacer(1, 0.3*inch))
     
     if moves:
-        # Create moves table
-        data = [['Move ID', 'Date', 'New Trailer', 'Return', 'Destination', 'Miles', 'Earnings']]
+        # Create moves table with better formatting
+        data = [['Move ID', 'Date', 'Trailers', 'Route', 'Earnings']]
         
         total_earnings = 0
+        total_miles = 0
         for move in moves:
-            total_earnings += move[6] if move[6] else 0
+            earnings = float(move[6]) if move[6] else 0
+            miles = float(move[5]) if move[5] else 0
+            total_earnings += earnings
+            total_miles += miles
+            
+            # Format trailers column
+            trailer_info = f"{move[2] if move[2] and move[2] != '-' else 'N/A'}"
+            if move[3] and move[3] != '-':
+                trailer_info += f" / {move[3]}"
+            
+            # Format route
+            route = str(move[4])[:30] if move[4] else "Unknown"
+            
+            # Add row with properly formatted data
             data.append([
-                str(move[0])[:15],  # Truncate long IDs
-                str(move[1])[:10],  # Date only
-                str(move[2])[:10],
-                str(move[3])[:10],
-                str(move[4])[:20],  # Truncate destination
-                f"{move[5]:,.0f}" if move[5] else "0",
-                f"${move[6]:,.2f}" if move[6] else "$0.00"
+                str(move[0])[:20],  # Move ID
+                str(move[1])[:10] if move[1] else "N/A",  # Date
+                trailer_info,  # Combined trailers
+                route,  # Route
+                f"${earnings:,.2f}"  # Earnings
             ])
         
         # Add summary row
-        data.append(['', '', '', '', 'TOTAL:', '', f"${total_earnings:,.2f}"])
+        data.append(['', '', '', 'TOTAL:', f"${total_earnings:,.2f}"])
         
-        # Create and style table
-        table = Table(data, colWidths=[1.1*inch, 0.9*inch, 0.9*inch, 0.8*inch, 1.5*inch, 0.7*inch, 1*inch])
+        # Create and style table with better column widths
+        table = Table(data, colWidths=[1.3*inch, 1*inch, 1.8*inch, 2.2*inch, 1.2*inch])
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#003366')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),

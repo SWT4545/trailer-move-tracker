@@ -70,8 +70,8 @@ st.set_page_config(
 )
 
 # Version for tracking updates - FORCE UPDATE  
-APP_VERSION = "3.4.0 - COMPLETE PDF FIX WITH LOGOS"
-UPDATE_TIMESTAMP = "2025-08-16 06:30:00"  # Force Streamlit to recognize update
+APP_VERSION = "3.5.0 - TRANSPARENT LOGO & CLEAN PDF LAYOUT"
+UPDATE_TIMESTAMP = "2025-08-16 06:40:00"  # Force Streamlit to recognize update
 
 # Force cache clear on version change
 if 'app_version' not in st.session_state or st.session_state.app_version != APP_VERSION:

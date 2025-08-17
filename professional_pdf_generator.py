@@ -49,19 +49,17 @@ def generate_status_report_for_profile(username, role):
         def add_letterhead(canvas, doc):
             canvas.saveState()
             
-            # Add logo if exists - try multiple paths
+            # Add logo - use ONLY the transparent logo
             logo_paths = [
-                company_info.get('company_logo', 'swt_logo_white.png'),
-                'swt_logo_white.png',
-                'swt_logo.png',
-                'logo.png'
+                'swt_logo.png',  # Use transparent logo ONLY
             ]
             
             logo_added = False
             for logo_path in logo_paths:
                 if os.path.exists(logo_path):
                     try:
-                        canvas.drawImage(logo_path, 50, 720, width=100, height=60, preserveAspectRatio=True)
+                        canvas.drawImage(logo_path, 50, 720, width=100, height=60, 
+                                       preserveAspectRatio=True, mask='auto')  # Preserve transparency
                         logo_added = True
                         break
                     except:

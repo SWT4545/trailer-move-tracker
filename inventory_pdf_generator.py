@@ -20,18 +20,17 @@ class InventoryPDFGenerator:
         """Add header and footer to each page"""
         canvas.saveState()
         
-        # Try to add logo
+        # Try to add logo - use ONLY transparent logo
         import os
-        logo_paths = ['swt_logo.png', 'swt_logo_white.png', 'logo.png']
+        logo_path = 'swt_logo.png'  # Use transparent logo ONLY
         logo_added = False
-        for logo_path in logo_paths:
-            if os.path.exists(logo_path):
-                try:
-                    canvas.drawImage(logo_path, 50, 740, width=60, height=40, preserveAspectRatio=True)
-                    logo_added = True
-                    break
-                except:
-                    continue
+        if os.path.exists(logo_path):
+            try:
+                canvas.drawImage(logo_path, 50, 740, width=60, height=40, 
+                               preserveAspectRatio=True, mask='auto')  # Preserve transparency
+                logo_added = True
+            except:
+                pass
         
         # Header text - adjust position if logo is present
         x_pos = 120 if logo_added else 50
