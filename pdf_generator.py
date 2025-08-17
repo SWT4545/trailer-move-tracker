@@ -1,27 +1,109 @@
 """
 PDF Generator for Smith & Williams Trucking
-Generates driver receipts, client invoices, and status reports
+Generates professional driver receipts, client invoices, and status reports
 """
 
 import sqlite3
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
+import os
+
 try:
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, PageBreak
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import inch
-    from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+    from reportlab.pdfgen import canvas
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
-import os
 
 # Database path
 DB_PATH = 'swt_fleet.db'
 
+# Company logo path
+LOGO_PATH = 'swt_logo.png'
+
+# Company colors
+PRIMARY_COLOR = colors.HexColor('#003366')  # Dark blue
+SECONDARY_COLOR = colors.HexColor('#28a745')  # Green
+ACCENT_COLOR = colors.HexColor('#f8f9fa')  # Light gray
+
+def add_header_footer(canvas_obj, doc):
+    """Add professional header and footer to each page"""
+    canvas_obj.saveState()
+    
+    # Header with logo or company name
+    if os.path.exists(LOGO_PATH):
+        canvas_obj.drawImage(LOGO_PATH, inch, doc.pagesize[1] - 1.25*inch, 
+                           width=1.5*inch, height=0.6*inch, preserveAspectRatio=True)
+    
+    canvas_obj.setFont('Helvetica-Bold', 14)
+    canvas_obj.drawRightString(doc.pagesize[0] - inch, doc.pagesize[1] - 0.75*inch, 
+                              "Smith & Williams Trucking LLC")
+    
+    # Header line
+    canvas_obj.setStrokeColor(PRIMARY_COLOR)
+    canvas_obj.setLineWidth(2)
+    canvas_obj.line(inch, doc.pagesize[1] - 1.4*inch, 
+                   doc.pagesize[0] - inch, doc.pagesize[1] - 1.4*inch)
+    
+    # Footer
+    canvas_obj.setStrokeColor(PRIMARY_COLOR)
+    canvas_obj.setLineWidth(1)
+    canvas_obj.line(inch, 0.8*inch, doc.pagesize[0] - inch, 0.8*inch)
+    
+    canvas_obj.setFont('Helvetica', 8)
+    canvas_obj.setFillColor(colors.HexColor('#666666'))
+    canvas_obj.drawString(inch, 0.6*inch, 
+                         f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}")
+    canvas_obj.drawRightString(doc.pagesize[0] - inch, 0.6*inch, 
+                              f"Page {doc.page}")
+    
+    canvas_obj.drawCentredString(doc.pagesize[0]/2, 0.4*inch, 
+                                "Confidential - Property of Smith & Williams Trucking LLC")
+    
+    canvas_obj.restoreState()
+
+def get_professional_styles():
+    """Get customized professional styles for PDFs"""
+    styles = getSampleStyleSheet()
+    
+    # Title style
+    styles.add(ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=20,
+        textColor=PRIMARY_COLOR,
+        spaceAfter=20,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    ))
+    
+    # Subtitle style
+    styles.add(ParagraphStyle(
+        'CustomSubtitle',
+        parent=styles['Normal'],
+        fontSize=12,
+        textColor=colors.HexColor('#333333'),
+        alignment=TA_CENTER,
+        fontName='Helvetica'
+    ))
+    
+    # Info style
+    styles.add(ParagraphStyle(
+        'InfoStyle',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=colors.HexColor('#444444'),
+        fontName='Helvetica'
+    ))
+    
+    return styles
+
 def generate_driver_receipt(driver_name, from_date, to_date):
-    """Generate a driver payment receipt PDF"""
+    """Generate a professional driver payment receipt PDF"""
     
     if not REPORTLAB_AVAILABLE:
         raise ImportError("reportlab is not installed. Run: pip install reportlab")
@@ -30,10 +112,12 @@ def generate_driver_receipt(driver_name, from_date, to_date):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"driver_receipt_{driver_name.replace(' ', '_')}_{timestamp}.pdf"
     
-    # Create PDF
-    doc = SimpleDocTemplate(filename, pagesize=letter)
+    # Create PDF with professional margins
+    doc = SimpleDocTemplate(filename, pagesize=letter,
+                          topMargin=1.75*inch, bottomMargin=inch,
+                          leftMargin=0.75*inch, rightMargin=0.75*inch)
     elements = []
-    styles = getSampleStyleSheet()
+    styles = get_professional_styles()
     
     # Title
     title_style = ParagraphStyle(
@@ -172,12 +256,12 @@ def generate_driver_receipt(driver_name, from_date, to_date):
     else:
         elements.append(Paragraph("No completed moves found for this period.", styles['Normal']))
     
-    # Build PDF
-    doc.build(elements)
+    # Build PDF with professional header/footer
+    doc.build(elements, onFirstPage=add_header_footer, onLaterPages=add_header_footer)
     return filename
 
 def generate_client_invoice(client_name, from_date, to_date):
-    """Generate a client invoice PDF"""
+    """Generate a professional client invoice PDF"""
     
     if not REPORTLAB_AVAILABLE:
         raise ImportError("reportlab is not installed. Run: pip install reportlab")
@@ -186,44 +270,48 @@ def generate_client_invoice(client_name, from_date, to_date):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"client_invoice_{client_name.replace(' ', '_')}_{timestamp}.pdf"
     
-    # Create PDF
-    doc = SimpleDocTemplate(filename, pagesize=letter)
+    # Create PDF with professional margins
+    doc = SimpleDocTemplate(filename, pagesize=letter,
+                          topMargin=1.75*inch, bottomMargin=inch,
+                          leftMargin=0.75*inch, rightMargin=0.75*inch)
     elements = []
-    styles = getSampleStyleSheet()
+    styles = get_professional_styles()
+    
+    # Invoice number
+    invoice_num = f"INV-{datetime.now().strftime('%Y%m')}-{client_name[:3].upper()}"
     
     # Title
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        textColor=colors.HexColor('#1a1a1a'),
-        spaceAfter=30,
-        alignment=TA_CENTER
-    )
+    elements.append(Paragraph("INVOICE", styles['CustomTitle']))
+    elements.append(Spacer(1, 0.1*inch))
     
-    elements.append(Paragraph("INVOICE", title_style))
-    elements.append(Spacer(1, 0.2*inch))
+    # Invoice details box
+    invoice_data = [
+        ['INVOICE DETAILS', '', '', ''],
+        ['Invoice Number:', invoice_num, 'Invoice Date:', datetime.now().strftime("%B %d, %Y")],
+        ['Bill To:', client_name, 'Due Date:', (datetime.now() + timedelta(days=30)).strftime("%B %d, %Y")],
+        ['Service Period:', f'{from_date} to {to_date}', 'Terms:', 'Net 30'],
+    ]
     
-    # Company info
-    company_info = """
-    <para align=center>
-    <b>Smith & Williams Trucking LLC</b><br/>
-    Memphis, TN<br/>
-    </para>
-    """
-    elements.append(Paragraph(company_info, styles['Normal']))
-    elements.append(Spacer(1, 0.3*inch))
-    
-    # Client info
-    client_info = f"""
-    <para>
-    <b>Bill To:</b> {client_name}<br/>
-    <b>Period:</b> {from_date} to {to_date}<br/>
-    <b>Invoice Date:</b> {datetime.now().strftime("%Y-%m-%d")}
-    </para>
-    """
-    elements.append(Paragraph(client_info, styles['Normal']))
-    elements.append(Spacer(1, 0.3*inch))
+    invoice_table = Table(invoice_data, colWidths=[1.5*inch, 2*inch, 1.5*inch, 2*inch])
+    invoice_table.setStyle(TableStyle([
+        ('SPAN', (0, 0), (-1, 0)),
+        ('BACKGROUND', (0, 0), (-1, 0), PRIMARY_COLOR),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 11),
+        ('BACKGROUND', (0, 1), (-1, -1), ACCENT_COLOR),
+        ('BOX', (0, 0), (-1, -1), 1, PRIMARY_COLOR),
+        ('INNERGRID', (0, 1), (-1, -1), 0.5, colors.grey),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (2, 1), (2, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(invoice_table)
+    elements.append(Spacer(1, 0.4*inch))
     
     # Get moves from database
     conn = sqlite3.connect(DB_PATH)
@@ -314,12 +402,12 @@ def generate_client_invoice(client_name, from_date, to_date):
     else:
         elements.append(Paragraph("No completed moves found for this period.", styles['Normal']))
     
-    # Build PDF
-    doc.build(elements)
+    # Build PDF with professional header/footer
+    doc.build(elements, onFirstPage=add_header_footer, onLaterPages=add_header_footer)
     return filename
 
 def generate_status_report(from_date, to_date):
-    """Generate a comprehensive status report PDF"""
+    """Generate a professional comprehensive status report PDF"""
     
     if not REPORTLAB_AVAILABLE:
         raise ImportError("reportlab is not installed. Run: pip install reportlab")
@@ -328,10 +416,12 @@ def generate_status_report(from_date, to_date):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"status_report_{timestamp}.pdf"
     
-    # Create PDF
-    doc = SimpleDocTemplate(filename, pagesize=letter)
+    # Create PDF with professional margins
+    doc = SimpleDocTemplate(filename, pagesize=letter,
+                          topMargin=1.75*inch, bottomMargin=inch,
+                          leftMargin=0.75*inch, rightMargin=0.75*inch)
     elements = []
-    styles = getSampleStyleSheet()
+    styles = get_professional_styles()
     
     # Title
     title_style = ParagraphStyle(
@@ -435,6 +525,6 @@ def generate_status_report(from_date, to_date):
     
     conn.close()
     
-    # Build PDF
-    doc.build(elements)
+    # Build PDF with professional header/footer
+    doc.build(elements, onFirstPage=add_header_footer, onLaterPages=add_header_footer)
     return filename
