@@ -169,7 +169,7 @@ def generate_driver_receipt(driver_name, from_date, to_date):
             cursor.execute("""
                 SELECT company_name, phone, email 
                 FROM drivers 
-                WHERE driver_name = ?
+                WHERE name = ?
             """, (driver_name,))
             
             result = cursor.fetchone()
@@ -181,9 +181,9 @@ def generate_driver_receipt(driver_name, from_date, to_date):
         # Try fallback if columns don't exist
         try:
             cursor.execute("""
-                SELECT driver_name, status, driver_type 
+                SELECT name, status, driver_type 
                 FROM drivers 
-                WHERE driver_name = ?
+                WHERE name = ?
             """, (driver_name,))
             result = cursor.fetchone()
             if result and result[2] == 'owner':

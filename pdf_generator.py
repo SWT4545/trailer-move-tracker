@@ -160,7 +160,7 @@ def generate_driver_receipt(driver_name, from_date, to_date):
         cursor.execute("""
             SELECT company_name, phone, email 
             FROM drivers 
-            WHERE driver_name = ?
+            WHERE name = ?
         """, (driver_name,))
         result = cursor.fetchone()
         if result:
