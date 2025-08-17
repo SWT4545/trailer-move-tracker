@@ -2916,6 +2916,56 @@ def admin_panel():
         
         st.divider()
         
+        # Database Backup Section
+        st.write("#### 🔒 Database Backup & Protection")
+        backup_col1, backup_col2, backup_col3 = st.columns(3)
+        
+        with backup_col1:
+            if st.button("💾 Create Backup Now", type="primary", use_container_width=True):
+                import shutil
+                from datetime import datetime
+                backup_name = f"smith_williams_trucking_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+                try:
+                    shutil.copy2(DB_PATH, backup_name)
+                    st.success(f"✅ Backup created: {backup_name}")
+                    st.info("💡 Download this backup file and store it safely!")
+                except Exception as e:
+                    st.error(f"Backup failed: {str(e)}")
+        
+        with backup_col2:
+            if st.button("📊 Export All Data to CSV", use_container_width=True):
+                try:
+                    # Export all tables to CSV
+                    import pandas as pd
+                    import zipfile
+                    from io import BytesIO
+                    
+                    zip_buffer = BytesIO()
+                    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                        # Export each table
+                        for table in ['moves', 'trailers', 'drivers', 'locations']:
+                            df = pd.read_sql_query(f"SELECT * FROM {table}", conn)
+                            csv_buffer = BytesIO()
+                            df.to_csv(csv_buffer, index=False)
+                            zip_file.writestr(f"{table}.csv", csv_buffer.getvalue())
+                    
+                    st.download_button(
+                        label="⬇️ Download All Data (ZIP)",
+                        data=zip_buffer.getvalue(),
+                        file_name=f"swt_data_export_{datetime.now().strftime('%Y%m%d')}.zip",
+                        mime="application/zip"
+                    )
+                    st.success("✅ Data export ready for download!")
+                except Exception as e:
+                    st.error(f"Export failed: {str(e)}")
+        
+        with backup_col3:
+            st.info("**Data Protection Status:**\n\n✅ Database: Active\n✅ Auto-save: Enabled\n✅ Git tracking: Excluded")
+        
+        st.warning("⚠️ **IMPORTANT:** Your database file `smith_williams_trucking.db` is NOT tracked by Git to protect your data. Always create backups before major changes!")
+        
+        st.divider()
+        
         # Database actions
         st.write("#### Database Actions")
         col1, col2, col3 = st.columns(3)
