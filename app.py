@@ -48,8 +48,8 @@ st.set_page_config(
 )
 
 # Version for tracking updates - FORCE UPDATE  
-APP_VERSION = "3.2.1 - Safer Reassignment Controls"
-UPDATE_TIMESTAMP = "2025-08-16 06:10:00"  # Force Streamlit to recognize update
+APP_VERSION = "3.3.0 - Driver Status Updates & PDF Fixes"
+UPDATE_TIMESTAMP = "2025-08-16 06:20:00"  # Force Streamlit to recognize update
 
 # Force cache clear on version change
 if 'app_version' not in st.session_state or st.session_state.app_version != APP_VERSION:
@@ -3540,6 +3540,37 @@ def show_dashboard():
                             'Earnings': st.column_config.TextColumn(width='medium')
                         }
                     )
+                    
+                    # Add status update section
+                    st.divider()
+                    st.write("#### Update Move Status")
+                    
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        move_to_update = st.selectbox(
+                            "Select Move to Update",
+                            [f"{m[0]} - {m[5]}" for m in active_moves],
+                            help="Select a move to update its status"
+                        )
+                    
+                    with col2:
+                        new_status = st.selectbox(
+                            "New Status",
+                            ["in_transit", "completed"],
+                            help="Update the status of your move"
+                        )
+                    
+                    with col3:
+                        if st.button("Update Status", type="primary"):
+                            move_id = move_to_update.split(" - ")[0]
+                            cursor.execute('''
+                                UPDATE moves 
+                                SET status = ?, completed_date = CASE WHEN ? = 'completed' THEN date('now') ELSE completed_date END
+                                WHERE system_id = ? AND driver_name = ?
+                            ''', (new_status, new_status, move_id, driver_name))
+                            conn.commit()
+                            st.success(f"Move {move_id} status updated to {new_status}")
+                            st.rerun()
                 else:
                     st.info("No active moves")
                 
@@ -3659,18 +3690,34 @@ def show_dashboard():
                         conn = sqlite3.connect(DB_PATH)
                         cursor = conn.cursor()
                         
-                        # Build query based on payment filter
-                        base_query = '''
-                            SELECT m.system_id, m.move_date, m.new_trailer, m.old_trailer,
-                                   orig.location_title || ' -> ' || dest.location_title as route,
-                                   m.estimated_miles, m.estimated_earnings, m.payment_status
-                            FROM moves m
-                            LEFT JOIN locations orig ON m.origin_location_id = orig.id
-                            LEFT JOIN locations dest ON m.destination_location_id = dest.id
-                            WHERE m.driver_name = ? 
-                            AND m.status = 'completed'
-                            AND date(m.move_date) BETWEEN date(?) AND date(?)
-                        '''
+                        # Check available columns
+                        cursor.execute("PRAGMA table_info(moves)")
+                        available_cols = [col[1] for col in cursor.fetchall()]
+                        
+                        # Build query based on available columns
+                        if 'new_trailer' in available_cols and 'old_trailer' in available_cols:
+                            base_query = '''
+                                SELECT m.order_number, m.move_date, m.new_trailer, m.old_trailer,
+                                       COALESCE(m.origin_location, 'Fleet Memphis') || ' -> ' || 
+                                       COALESCE(m.destination_location, m.delivery_location, 'Unknown') as route,
+                                       COALESCE(m.estimated_miles, 0), COALESCE(m.estimated_earnings, 0), 
+                                       COALESCE(m.payment_status, 'pending')
+                                FROM moves m
+                                WHERE m.driver_name = ? 
+                                AND m.status = 'completed'
+                                AND date(m.move_date) BETWEEN date(?) AND date(?)
+                            '''
+                        else:
+                            base_query = '''
+                                SELECT m.order_number, m.pickup_date, m.order_number, '-',
+                                       COALESCE(m.origin_location, 'Fleet Memphis') || ' -> ' || 
+                                       COALESCE(m.destination_location, m.delivery_location, 'Unknown') as route,
+                                       0, 0, 'pending'
+                                FROM moves m
+                                WHERE m.driver_name = ? 
+                                AND m.status = 'completed'
+                                AND date(m.pickup_date) BETWEEN date(?) AND date(?)
+                            '''
                         
                         if payment_filter == "Paid Only":
                             base_query += " AND m.payment_status = 'paid'"
@@ -3688,9 +3735,9 @@ def show_dashboard():
                             factoring_fee = total_earnings * 0.03
                             after_factoring = total_earnings - factoring_fee
                             
-                            # Generate PDF
-                            if PDF_AVAILABLE:
-                                try:
+                            # Generate PDF or text report
+                            try:
+                                if PDF_AVAILABLE:
                                     # Use the already imported PDF generator
                                     filename = generate_driver_receipt(driver_name, from_date, to_date)
                                     
@@ -3701,43 +3748,51 @@ def show_dashboard():
                                             file_name=f"driver_invoice_{driver_name.replace(' ', '_')}_{from_date}_{to_date}.pdf",
                                             mime="application/pdf"
                                         )
+                                else:
+                                    # Generate text report as fallback
+                                    report_text = f"""
+DRIVER INVOICE REPORT
+=====================
+Driver: {driver_name}
+Period: {from_date} to {to_date}
+
+MOVES COMPLETED:
+"""
+                                    for move in moves:
+                                        report_text += f"\nID: {move[0]}, Date: {move[1]}, Route: {move[4]}, Earnings: ${move[6]:,.2f}"
                                     
-                                    # Display summary
-                                    st.success("Invoice generated successfully!")
-                                    col1, col2, col3 = st.columns(3)
-                                    with col1:
-                                        st.metric("Total Earnings", f"${total_earnings:,.2f}")
-                                    with col2:
-                                        st.metric("Factoring Fee (3%)", f"-${factoring_fee:,.2f}")
-                                    with col3:
-                                        st.metric("After Factoring", f"${after_factoring:,.2f}")
-                                    
-                                    st.caption("*Service fees are not included in the total. Only the 3% factoring fee has been deducted.")
-                                    
-                                except Exception as e:
-                                    st.error(f"Error generating PDF: {str(e)}")
-                                    # Fallback to display data in table
-                                    st.write("### Invoice Details")
-                                    df = pd.DataFrame(moves, columns=[
-                                        'System ID', 'Date', 'New Trailer', 'Return Trailer', 
-                                        'Route', 'Miles', 'Earnings', 'Payment Status'
-                                    ])
-                                    df['Earnings'] = df['Earnings'].apply(lambda x: f"${x:,.2f}" if x else "")
-                                    st.dataframe(df, use_container_width=True, hide_index=True)
-                                    
-                                    st.divider()
-                                    st.write("### Summary")
-                                    col1, col2, col3 = st.columns(3)
-                                    with col1:
-                                        st.metric("Total Earnings", f"${total_earnings:,.2f}")
-                                    with col2:
-                                        st.metric("Factoring Fee (3%)", f"-${factoring_fee:,.2f}")
-                                    with col3:
-                                        st.metric("After Factoring", f"${after_factoring:,.2f}")
-                                    
-                                    st.caption("*Service fees are not included in the total. Only the 3% factoring fee has been deducted.")
-                            else:
-                                # No PDF library, show data in table format
+                                    report_text += f"""
+
+SUMMARY:
+Total Earnings: ${total_earnings:,.2f}
+Factoring Fee (3%): ${factoring_fee:,.2f}
+After Factoring: ${after_factoring:,.2f}
+
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+Smith & Williams Trucking LLC
+"""
+                                    st.download_button(
+                                        label="Download Invoice Report (Text)",
+                                        data=report_text,
+                                        file_name=f"driver_invoice_{driver_name.replace(' ', '_')}_{from_date}_{to_date}.txt",
+                                        mime="text/plain"
+                                    )
+                                
+                                # Display summary
+                                st.success("Invoice generated successfully!")
+                                col1, col2, col3 = st.columns(3)
+                                with col1:
+                                    st.metric("Total Earnings", f"${total_earnings:,.2f}")
+                                with col2:
+                                    st.metric("Factoring Fee (3%)", f"-${factoring_fee:,.2f}")
+                                with col3:
+                                    st.metric("After Factoring", f"${after_factoring:,.2f}")
+                                
+                                st.caption("*Service fees are not included in the total. Only the 3% factoring fee has been deducted.")
+                                
+                            except Exception as e:
+                                st.error(f"Error generating report: {str(e)}")
+                                # Fallback to display data in table
                                 st.write("### Invoice Details")
                                 df = pd.DataFrame(moves, columns=[
                                     'System ID', 'Date', 'New Trailer', 'Return Trailer', 
@@ -3756,8 +3811,7 @@ def show_dashboard():
                                 with col3:
                                     st.metric("After Factoring", f"${after_factoring:,.2f}")
                                 
-                                st.caption("*Service fees have not been applied to these amounts")
-                                st.warning("PDF generation not available. Install reportlab: pip install reportlab")
+                                st.caption("*Service fees are not included in the total. Only the 3% factoring fee has been deducted.")
                         else:
                             st.info(f"No completed moves found between {from_date} and {to_date}")
                         
