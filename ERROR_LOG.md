@@ -407,6 +407,34 @@ grep -r "✓" *.py
   - Ensured old_trailer and new_trailer columns are properly queried
 **Files Affected:** `app.py` lines 2505-2565
 
+### 31. CRITICAL: Wrong Database File Being Used (RESOLVED)
+**Date:** 2025-08-17
+**Error:** Persistent `sqlite3.OperationalError: no such column: delivery_location` despite fixes
+**Root Cause Discovery:** 
+  - App was using `smith_williams_trucking.db` (line 128: DB_PATH = 'smith_williams_trucking.db')
+  - All fixes were being applied to `swt_fleet.db` 
+  - Multiple database files existed in directory causing confusion
+**Investigation:**
+  - smith_williams_trucking.db had completely different schema
+  - Used foreign keys (origin_location_id, destination_location_id) instead of text fields
+  - Missing columns: delivery_location, destination_location, origin_location, pickup_date, completed_date, amount, order_number
+**Solution:**
+  1. Added missing columns to smith_williams_trucking.db:
+     - delivery_location TEXT
+     - destination_location TEXT  
+     - origin_location TEXT
+     - pickup_date DATE
+     - completed_date DATE
+     - amount REAL
+     - order_number TEXT
+  2. Updated location text columns from location ID references
+  3. Populated text fields from locations table using foreign keys
+**Files Affected:** smith_williams_trucking.db (database structure)
+**Prevention:**
+  - Always verify which database file is being used (check DB_PATH variable)
+  - Never assume database file - multiple .db files can exist
+  - Use consistent database naming across environment
+
 ---
 
 Last Updated: 2025-08-17
