@@ -148,14 +148,41 @@ def generate_driver_receipt(driver_name, from_date, to_date):
     elements.append(Paragraph(company_info, styles['Normal']))
     elements.append(Spacer(1, 0.3*inch))
     
-    # Driver info
-    driver_info = f"""
-    <para>
-    <b>Driver:</b> {driver_name}<br/>
-    <b>Period:</b> {from_date} to {to_date}<br/>
-    <b>Generated:</b> {datetime.now().strftime("%Y-%m-%d %H:%M")}
-    </para>
-    """
+    # Get driver company info from database
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    driver_company = None
+    driver_phone = None
+    driver_email = None
+    
+    try:
+        cursor.execute("""
+            SELECT company_name, phone, email 
+            FROM drivers 
+            WHERE driver_name = ?
+        """, (driver_name,))
+        result = cursor.fetchone()
+        if result:
+            driver_company = result[0] if result[0] else None
+            driver_phone = result[1] if result[1] else None
+            driver_email = result[2] if result[2] else None
+    except:
+        pass
+    
+    # Build driver info with company details
+    driver_info_parts = [f"<b>Driver:</b> {driver_name}"]
+    if driver_company:
+        driver_info_parts.append(f"<b>Company:</b> {driver_company}")
+    if driver_phone:
+        driver_info_parts.append(f"<b>Phone:</b> {driver_phone}")
+    if driver_email:
+        driver_info_parts.append(f"<b>Email:</b> {driver_email}")
+    driver_info_parts.append(f"<b>Period:</b> {from_date} to {to_date}")
+    driver_info_parts.append(f"<b>Generated:</b> {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    
+    driver_info = "<para>" + "<br/>".join(driver_info_parts) + "</para>"
+    
     elements.append(Paragraph(driver_info, styles['Normal']))
     elements.append(Spacer(1, 0.3*inch))
     

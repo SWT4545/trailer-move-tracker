@@ -70,8 +70,8 @@ st.set_page_config(
 )
 
 # Version for tracking updates - FORCE UPDATE  
-APP_VERSION = "3.9.0 - Driver Company Info & PDF Date Fix"
-UPDATE_TIMESTAMP = "2025-08-16 07:20:00"  # Force Streamlit to recognize update
+APP_VERSION = "4.0.0 - GLOBAL Driver Info Integration"
+UPDATE_TIMESTAMP = "2025-08-16 07:30:00"  # Force Streamlit to recognize update
 
 # Force cache clear on version change
 if 'app_version' not in st.session_state or st.session_state.app_version != APP_VERSION:
@@ -3475,6 +3475,28 @@ def show_dashboard():
                 
                 conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
+                
+                # Get and display driver company info from database
+                try:
+                    cursor.execute("""
+                        SELECT company_name, phone, email, driver_type 
+                        FROM drivers 
+                        WHERE driver_name = ?
+                    """, (driver_name,))
+                    driver_info = cursor.fetchone()
+                    
+                    if driver_info and driver_info[0]:  # If company info exists
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.info(f"**Company:** {driver_info[0]}")
+                        with col2:
+                            if driver_info[1]:
+                                st.info(f"**Phone:** {driver_info[1]}")
+                        with col3:
+                            if driver_info[2]:
+                                st.info(f"**Email:** {driver_info[2]}")
+                except:
+                    pass  # If no driver info, continue without it
                 
                 # Get driver's moves summary
                 cursor.execute('''

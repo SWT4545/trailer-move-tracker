@@ -156,54 +156,51 @@ def generate_driver_receipt(driver_name, from_date, to_date):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Get driver company info - try multiple approaches
+    # ALWAYS get driver info from the drivers table - this is the SOURCE OF TRUTH
     driver_company = None
     driver_phone = None
     driver_email = None
     
-    # First check if drivers table exists
     try:
+        # First ensure columns exist
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='drivers'")
         if cursor.fetchone():
-            cursor.execute("PRAGMA table_info(drivers)")
-            driver_cols = [col[1] for col in cursor.fetchall()]
+            # Get the driver's info directly - SIMPLE QUERY
+            cursor.execute("""
+                SELECT company_name, phone, email 
+                FROM drivers 
+                WHERE driver_name = ?
+            """, (driver_name,))
             
-            # Try to get company info with various column names
-            company_fields = ['company_name', 'company', 'contractor_company']
-            phone_fields = ['phone', 'phone_number', 'contact_phone']
-            email_fields = ['email', 'email_address', 'contact_email']
-            
-            for company_field in company_fields:
-                if company_field in driver_cols:
-                    for phone_field in phone_fields:
-                        if phone_field in driver_cols:
-                            for email_field in email_fields:
-                                if email_field in driver_cols:
-                                    query = f'''
-                                        SELECT {company_field}, {phone_field}, {email_field}
-                                        FROM drivers 
-                                        WHERE driver_name = ?
-                                    '''
-                                    cursor.execute(query, (driver_name,))
-                                    result = cursor.fetchone()
-                                    if result:
-                                        driver_company = result[0] if result[0] else "Independent Contractor"
-                                        driver_phone = result[1] if result[1] else None
-                                        driver_email = result[2] if result[2] else None
-                                    break
-                            break
-                    break
+            result = cursor.fetchone()
+            if result:
+                driver_company = result[0] if result[0] else None
+                driver_phone = result[1] if result[1] else None
+                driver_email = result[2] if result[2] else None
     except Exception as e:
-        print(f"Driver info error: {e}")
+        # Try fallback if columns don't exist
+        try:
+            cursor.execute("""
+                SELECT driver_name, status, driver_type 
+                FROM drivers 
+                WHERE driver_name = ?
+            """, (driver_name,))
+            result = cursor.fetchone()
+            if result and result[2] == 'owner':
+                # This is an owner
+                driver_company = "Smith & Williams Trucking LLC"
+        except:
+            pass
     
-    # Special handling for Brandon Smith (Owner)
-    if driver_name == "Brandon Smith" or driver_name.lower() == "brandon smith":
+    # Special handling for Brandon Smith (Owner) - ONLY if not in database
+    if (driver_name == "Brandon Smith" or driver_name.lower() == "brandon smith") and not driver_company:
         driver_company = "Smith & Williams Trucking LLC"
         driver_phone = "(951) 437-5474"
         driver_email = "brandon@smithwilliamstrucking.com"
-    # If still no company info for other drivers, use default
-    elif not driver_company:
-        driver_company = f"{driver_name} Trucking LLC"
+    
+    # Default company name if nothing found
+    if not driver_company:
+        driver_company = f"{driver_name} Trucking"
     
     # Get moves with comprehensive query that works with any schema
     moves = []
