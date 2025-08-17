@@ -18,6 +18,13 @@ try:
     PDF_AVAILABLE = True
 except ImportError:
     PDF_AVAILABLE = False
+    # Define stub functions that raise errors when called
+    def generate_driver_receipt(*args, **kwargs):
+        raise ImportError("PDF generation not available. Please install reportlab: pip install reportlab")
+    def generate_client_invoice(*args, **kwargs):
+        raise ImportError("PDF generation not available. Please install reportlab: pip install reportlab")
+    def generate_status_report(*args, **kwargs):
+        raise ImportError("PDF generation not available. Please install reportlab: pip install reportlab")
 
 # Import help system (safe - won't block login)
 try:
@@ -2239,37 +2246,81 @@ def admin_panel():
                             st.rerun()
     
     with admin_tabs[1]:
-        st.write("### 🚛 Manage Trailers & Update Locations")
+        st.write("### 🚛 Manage Trailers - Location & Status")
         
-        # Update trailer location
-        st.write("#### 🔄 Change Trailer Location")
+        # Update trailer location AND status
+        st.write("#### 🔄 Update Trailer Location & Status")
         cursor.execute("PRAGMA table_info(trailers)")
         trailer_cols = [col[1] for col in cursor.fetchall()]
         
-        # Get all trailers
-        cursor.execute("SELECT trailer_number FROM trailers ORDER BY trailer_number")
-        all_trailers = [t[0] for t in cursor.fetchall()]
+        # Get all trailers with current status
+        if 'status' in trailer_cols:
+            cursor.execute("SELECT trailer_number, status, current_location FROM trailers ORDER BY trailer_number")
+            trailer_data = cursor.fetchall()
+            all_trailers = [f"{t[0]} (Status: {t[1]}, Loc: {t[2]})" for t in trailer_data]
+            trailer_nums = [t[0] for t in trailer_data]
+        else:
+            cursor.execute("SELECT trailer_number FROM trailers ORDER BY trailer_number")
+            all_trailers = [t[0] for t in cursor.fetchall()]
+            trailer_nums = all_trailers
         
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            selected_trailer = st.selectbox("Select Trailer", all_trailers)
-        with col2:
-            cursor.execute("SELECT location_title FROM locations ORDER BY location_title")
-            locations = [l[0] for l in cursor.fetchall()]
-            new_location = st.selectbox("Move to Location", locations)
-        with col3:
-            if st.button("🚚 Update Location", type="primary"):
-                if 'current_location_id' in trailer_cols:
-                    cursor.execute("SELECT id FROM locations WHERE location_title = ?", (new_location,))
-                    loc_id = cursor.fetchone()[0]
-                    cursor.execute("UPDATE trailers SET current_location_id = ? WHERE trailer_number = ?", 
-                                 (loc_id, selected_trailer))
-                else:
-                    cursor.execute("UPDATE trailers SET current_location = ? WHERE trailer_number = ?",
-                                 (new_location, selected_trailer))
-                conn.commit()
-                st.success(f"Trailer {selected_trailer} moved to {new_location}")
-                st.rerun()
+        selected_display = st.selectbox("Select Trailer", all_trailers)
+        if selected_display:
+            # Extract just the trailer number
+            selected_trailer = trailer_nums[all_trailers.index(selected_display)]
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                # Location update
+                cursor.execute("SELECT location_title FROM locations ORDER BY location_title")
+                locations = [l[0] for l in cursor.fetchall()]
+                new_location = st.selectbox("New Location", locations)
+            
+            with col2:
+                # Status update
+                trailer_statuses = ['available', 'in_use', 'in_transit', 'maintenance', 'out_of_service']
+                new_status = st.selectbox("New Status", trailer_statuses)
+            
+            with col3:
+                # Is New trailer toggle
+                if 'is_new' in trailer_cols:
+                    is_new = st.selectbox("Trailer Type", ["OLD (0)", "NEW (1)"], index=0)
+                    is_new_val = 1 if "NEW" in is_new else 0
+            
+            with col4:
+                if st.button("📝 Update Trailer", type="primary"):
+                    # Update location
+                    if 'current_location_id' in trailer_cols:
+                        cursor.execute("SELECT id FROM locations WHERE location_title = ?", (new_location,))
+                        loc_result = cursor.fetchone()
+                        if loc_result:
+                            loc_id = loc_result[0]
+                            update_query = "UPDATE trailers SET current_location_id = ?, status = ?"
+                            params = [loc_id, new_status]
+                            
+                            if 'is_new' in trailer_cols:
+                                update_query += ", is_new = ?"
+                                params.append(is_new_val)
+                            
+                            update_query += " WHERE trailer_number = ?"
+                            params.append(selected_trailer)
+                            cursor.execute(update_query, params)
+                    else:
+                        update_query = "UPDATE trailers SET current_location = ?, status = ?"
+                        params = [new_location, new_status]
+                        
+                        if 'is_new' in trailer_cols:
+                            update_query += ", is_new = ?"
+                            params.append(is_new_val)
+                        
+                        update_query += " WHERE trailer_number = ?"
+                        params.append(selected_trailer)
+                        cursor.execute(update_query, params)
+                    
+                    conn.commit()
+                    st.success(f"✅ Trailer {selected_trailer} updated: Location={new_location}, Status={new_status}")
+                    st.rerun()
         
         st.divider()
         
@@ -2616,31 +2667,84 @@ def admin_panel():
     with admin_tabs[6]:
         st.write("### 🗄️ Database Management")
         
+        # Check database status
+        st.write("#### Database Status")
+        col1, col2, col3, col4 = st.columns(4)
+        
+        try:
+            cursor.execute("SELECT COUNT(*) FROM moves")
+            move_count = cursor.fetchone()[0]
+        except:
+            move_count = 0
+            
+        try:
+            cursor.execute("SELECT COUNT(*) FROM trailers")
+            trailer_count = cursor.fetchone()[0]
+        except:
+            trailer_count = 0
+            
+        try:
+            cursor.execute("SELECT COUNT(*) FROM drivers")
+            driver_count = cursor.fetchone()[0]
+        except:
+            driver_count = 0
+            
+        try:
+            cursor.execute("SELECT COUNT(*) FROM locations")
+            location_count = cursor.fetchone()[0]
+        except:
+            location_count = 0
+        
+        with col1:
+            st.metric("Moves", move_count)
+        with col2:
+            st.metric("Trailers", trailer_count)
+        with col3:
+            st.metric("Drivers", driver_count)
+        with col4:
+            st.metric("Locations", location_count)
+        
+        st.divider()
+        
+        # Database actions
+        st.write("#### Database Actions")
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            if st.button("🔄 Reload Production Data"):
+            if st.button("🚀 Initialize All Data", type="primary"):
+                # Initialize database tables
+                init_database()
+                
+                # Load initial data
                 load_initial_data()
-                st.success("Production data reloaded!")
+                
+                # Try to load production data
+                try:
+                    from init_production_data import init_production_data
+                    init_production_data()
+                    st.success("✅ All databases initialized with production data!")
+                except Exception as e:
+                    st.warning(f"Basic data loaded. Production data error: {str(e)}")
+                
                 st.rerun()
         
         with col2:
+            if st.button("🔄 Reload Production Data"):
+                load_initial_data()
+                try:
+                    from init_production_data import init_production_data
+                    init_production_data()
+                    st.success("Production data reloaded!")
+                except:
+                    st.warning("Basic data reloaded")
+                st.rerun()
+        
+        with col3:
             if st.button("🧹 Clear All Cache"):
                 st.cache_data.clear()
                 st.cache_resource.clear()
                 st.success("Cache cleared!")
                 st.rerun()
-        
-        with col3:
-            if st.button("📊 Database Statistics"):
-                cursor.execute("SELECT COUNT(*) FROM moves")
-                move_count = cursor.fetchone()[0]
-                cursor.execute("SELECT COUNT(*) FROM trailers")
-                trailer_count = cursor.fetchone()[0]
-                cursor.execute("SELECT COUNT(*) FROM drivers")
-                driver_count = cursor.fetchone()[0]
-                
-                st.info(f"Moves: {move_count} | Trailers: {trailer_count} | Drivers: {driver_count}")
     
     with admin_tabs[7]:
         st.write("### 📊 Complete Database View")
@@ -2649,18 +2753,37 @@ def admin_panel():
         
         with data_view_tabs[0]:
             st.write("#### All Trailers in Database")
-            cursor.execute("PRAGMA table_info(trailers)")
-            trailer_cols = [col[1] for col in cursor.fetchall()]
-            
-            cursor.execute("SELECT * FROM trailers ORDER BY trailer_number")
-            trailers = cursor.fetchall()
-            
-            if trailers:
-                df = pd.DataFrame(trailers, columns=trailer_cols)
-                st.dataframe(df, use_container_width=True, height=400)
-                st.caption(f"Total: {len(trailers)} trailers")
-            else:
-                st.warning("No trailers in database")
+            try:
+                cursor.execute("PRAGMA table_info(trailers)")
+                trailer_cols = [col[1] for col in cursor.fetchall()]
+                
+                if trailer_cols:
+                    cursor.execute("SELECT * FROM trailers ORDER BY trailer_number")
+                    trailers = cursor.fetchall()
+                    
+                    if trailers:
+                        df = pd.DataFrame(trailers, columns=trailer_cols)
+                        st.dataframe(df, use_container_width=True, height=400)
+                        st.caption(f"Total: {len(trailers)} trailers")
+                        
+                        # Add button to initialize sample data
+                        if len(trailers) == 0:
+                            if st.button("🔄 Initialize Sample Trailers"):
+                                from init_production_data import init_production_data
+                                init_production_data()
+                                st.success("Sample trailers added!")
+                                st.rerun()
+                    else:
+                        st.warning("No trailers in database")
+                        if st.button("🔄 Initialize Sample Trailers"):
+                            from init_production_data import init_production_data
+                            init_production_data()
+                            st.success("Sample trailers added!")
+                            st.rerun()
+                else:
+                    st.error("Trailers table structure not found")
+            except Exception as e:
+                st.error(f"Error loading trailers: {str(e)}")
         
         with data_view_tabs[1]:
             st.write("#### All Locations in Database")
@@ -3481,8 +3604,7 @@ def show_dashboard():
                             # Generate PDF
                             if PDF_AVAILABLE:
                                 try:
-                                    # Use existing PDF generator with modifications
-                                    from pdf_generator import generate_driver_receipt
+                                    # Use the already imported PDF generator
                                     filename = generate_driver_receipt(driver_name, from_date, to_date)
                                     
                                     with open(filename, "rb") as pdf_file:
