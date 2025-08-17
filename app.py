@@ -2558,10 +2558,8 @@ def admin_panel():
                             conn.commit()
                             st.success(f"Return trailer updated for move {move_id}")
                             st.rerun()
-            else:
-                st.info("No moves found")
-    else:
-        st.warning("Return trailer tracking not available in this database schema")
+        else:
+            st.info("No moves found")
     
     with admin_tabs[5]:
         st.write("### 👤 Edit/Add/Delete Drivers")
