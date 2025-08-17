@@ -41,8 +41,8 @@ st.set_page_config(
 )
 
 # Version for tracking updates - FORCE UPDATE  
-APP_VERSION = "3.0.1 - Admin Panel Database Error Fixes"
-UPDATE_TIMESTAMP = "2025-08-16 05:35:00"  # Force Streamlit to recognize update
+APP_VERSION = "3.1.0 - Fine-Tuned Admin Controls"
+UPDATE_TIMESTAMP = "2025-08-16 05:45:00"  # Force Streamlit to recognize update
 
 # Force cache clear on version change
 if 'app_version' not in st.session_state or st.session_state.app_version != APP_VERSION:
@@ -61,8 +61,31 @@ st.markdown("""
     .logo-container { text-align: center; padding: 1rem; }
     .logo-img { max-width: 200px; margin: 0 auto; }
     .main { padding: 0; }
-    .stTabs [data-baseweb="tab-list"] { gap: 24px; }
-    .stTabs [data-baseweb="tab"] { padding: 10px 20px; }
+    .stTabs [data-baseweb="tab-list"] { 
+        gap: 8px; 
+        overflow-x: auto !important;
+        white-space: nowrap !important;
+        scrollbar-width: thin;
+        -webkit-overflow-scrolling: touch;
+    }
+    .stTabs [data-baseweb="tab"] { 
+        padding: 8px 16px;
+        min-width: fit-content;
+        flex-shrink: 0;
+    }
+    .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar {
+        height: 6px;
+    }
+    .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+    .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 3px;
+    }
+    .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
     .system-id { 
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white; 
@@ -2115,11 +2138,35 @@ def admin_panel():
                     with col1:
                         new_status = st.selectbox("Status", ["active", "completed", "cancelled"], 
                                                  index=["active", "completed", "cancelled"].index(move_data.iloc[0]['status']) if move_data.iloc[0]['status'] in ["active", "completed", "cancelled"] else 0)
-                        new_driver = st.text_input("Driver Name", value=move_data.iloc[0]['driver_name'])
+                        # Get drivers from database for dropdown
+                        try:
+                            cursor.execute("SELECT driver_name FROM drivers WHERE status = 'active' ORDER BY driver_name")
+                            driver_list = [d[0] for d in cursor.fetchall()]
+                            current_driver = move_data.iloc[0]['driver_name']
+                            if current_driver not in driver_list:
+                                driver_list.append(current_driver)
+                            new_driver = st.selectbox("Driver", driver_list, index=driver_list.index(current_driver))
+                        except:
+                            new_driver = st.text_input("Driver Name", value=move_data.iloc[0]['driver_name'])
+                        
                         new_payment = st.selectbox("Payment Status", ["pending", "paid"], 
                                                   index=["pending", "paid"].index(move_data.iloc[0].get('payment_status', 'pending')) if move_data.iloc[0].get('payment_status', 'pending') in ["pending", "paid"] else 0)
                     
                     with col2:
+                        # Add trailer editing
+                        if 'new_trailer' in move_cols:
+                            cursor.execute("SELECT trailer_number FROM trailers ORDER BY trailer_number")
+                            all_trailers = [t[0] for t in cursor.fetchall()]
+                            current_new = move_data.iloc[0].get('new_trailer', '')
+                            if current_new and current_new not in all_trailers:
+                                all_trailers.append(current_new)
+                            new_trailer = st.selectbox("New Trailer", all_trailers, 
+                                                      index=all_trailers.index(current_new) if current_new in all_trailers else 0)
+                        
+                        if 'old_trailer' in move_cols:
+                            current_old = move_data.iloc[0].get('old_trailer', '')
+                            old_trailer = st.text_input("Return Trailer", value=current_old or '')
+                        
                         if 'mlbl_number' in move_cols:
                             new_mlbl = st.text_input("MLBL Number", value=move_data.iloc[0].get('mlbl_number', ''))
                         if 'estimated_earnings' in move_cols:
@@ -2128,9 +2175,21 @@ def admin_panel():
                     col1, col2, col3 = st.columns(3)
                     with col1:
                         if st.button("💾 Update Move", type="primary"):
+                            # Store old trailer info before updating
+                            old_trailer_num = None
+                            if 'new_trailer' in move_cols:
+                                old_trailer_num = move_data.iloc[0].get('new_trailer', None)
+                            
                             update_query = f"UPDATE moves SET status = ?, driver_name = ?"
                             params = [new_status, new_driver]
                             
+                            # Add trailer updates
+                            if 'new_trailer' in move_cols:
+                                update_query += ", new_trailer = ?"
+                                params.append(new_trailer)
+                            if 'old_trailer' in move_cols:
+                                update_query += ", old_trailer = ?"
+                                params.append(old_trailer)
                             if 'payment_status' in move_cols:
                                 update_query += ", payment_status = ?"
                                 params.append(new_payment)
@@ -2140,6 +2199,23 @@ def admin_panel():
                             if 'estimated_earnings' in move_cols:
                                 update_query += ", estimated_earnings = ?"
                                 params.append(new_earnings)
+                            
+                            # Update trailer statuses when trailers are changed
+                            if 'new_trailer' in move_cols and old_trailer_num != new_trailer:
+                                # Release old trailer back to available
+                                if old_trailer_num:
+                                    cursor.execute('''
+                                        UPDATE trailers 
+                                        SET status = 'available'
+                                        WHERE trailer_number = ?
+                                    ''', (old_trailer_num,))
+                                
+                                # Set new trailer to in_use
+                                cursor.execute('''
+                                    UPDATE trailers 
+                                    SET status = 'in_use'
+                                    WHERE trailer_number = ?
+                                ''', (new_trailer,))
                             
                             if 'system_id' in move_cols:
                                 update_query += " WHERE system_id = ?"
