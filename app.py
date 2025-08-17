@@ -48,8 +48,8 @@ st.set_page_config(
 )
 
 # Version for tracking updates - FORCE UPDATE  
-APP_VERSION = "3.2.0 - Enhanced Admin Controls & PDF Logos"
-UPDATE_TIMESTAMP = "2025-08-16 06:00:00"  # Force Streamlit to recognize update
+APP_VERSION = "3.2.1 - Safer Reassignment Controls"
+UPDATE_TIMESTAMP = "2025-08-16 06:10:00"  # Force Streamlit to recognize update
 
 # Force cache clear on version change
 if 'app_version' not in st.session_state or st.session_state.app_version != APP_VERSION:
@@ -2460,17 +2460,19 @@ def admin_panel():
             if selected_move:
                 move_id = selected_move.split(" - ")[0]
                 
-                col1, col2, col3, col4 = st.columns(4)
+                st.info("Leave any field as 'No Change' to keep the current value")
+                
+                col1, col2 = st.columns(2)
                 
                 with col1:
                     # Get all drivers
                     try:
-                        cursor.execute("SELECT driver_name FROM drivers WHERE status = 'active'")
+                        cursor.execute("SELECT driver_name FROM drivers WHERE status = 'active' ORDER BY driver_name")
                         drivers = [d[0] for d in cursor.fetchall()]
                     except:
-                        cursor.execute("SELECT DISTINCT driver_name FROM moves WHERE driver_name IS NOT NULL")
+                        cursor.execute("SELECT DISTINCT driver_name FROM moves WHERE driver_name IS NOT NULL ORDER BY driver_name")
                         drivers = [d[0] for d in cursor.fetchall()]
-                    new_driver = st.selectbox("Reassign to Driver", drivers)
+                    new_driver = st.selectbox("Change Driver", ['No Change'] + drivers, index=0)
                 
                 with col2:
                     # Get all locations including Fleet Memphis
@@ -2482,43 +2484,78 @@ def admin_panel():
                     except:
                         # Fallback to hardcoded locations
                         locations = ['Fleet Memphis', 'FedEx Memphis', 'FedEx Indy', 'FedEx Chicago', 'FedEx Dallas', 'FedEx Houston']
-                    new_destination = st.selectbox("Change Destination", locations)
+                    new_destination = st.selectbox("Change Destination", ['No Change'] + locations, index=0)
+                
+                col3, col4 = st.columns(2)
                 
                 with col3:
-                    # Add trailer reassignment
+                    # Add new trailer reassignment
                     cursor.execute("SELECT trailer_number FROM trailers WHERE status = 'available' ORDER BY trailer_number")
                     available_trailers = [t[0] for t in cursor.fetchall()]
                     if 'new_trailer' in move_cols:
-                        new_trailer = st.selectbox("Reassign Trailer", ['Keep Current'] + available_trailers)
-                    
+                        new_trailer = st.selectbox("Change New Trailer", ['No Change'] + available_trailers, index=0)
+                    else:
+                        new_trailer = 'No Change'
+                
                 with col4:
-                    if st.button("✅ Update Move", type="primary"):
-                        # Update driver and destination
+                    # Add old/return trailer reassignment
+                    if 'old_trailer' in move_cols:
+                        old_trailer = st.text_input("Change Return Trailer", placeholder="Enter trailer number or leave blank")
+                    else:
+                        old_trailer = None
+                    
+                if st.button("✅ Update Move", type="primary", use_container_width=True):
+                    # Build update query dynamically based on what's changed
+                    update_parts = []
+                    params = []
+                    changes_made = []
+                    
+                    # Check and add driver update
+                    if new_driver != 'No Change':
+                        update_parts.append("driver_name = ?")
+                        params.append(new_driver)
+                        changes_made.append(f"Driver: {new_driver}")
+                    
+                    # Check and add destination update
+                    if new_destination != 'No Change':
                         if 'destination_location_id' in move_cols:
                             cursor.execute("SELECT id FROM locations WHERE location_title = ?", (new_destination,))
                             loc_id = cursor.fetchone()
                             if loc_id:
-                                update_query = "UPDATE moves SET driver_name = ?, destination_location_id = ?"
-                                params = [new_driver, loc_id[0]]
+                                update_parts.append("destination_location_id = ?")
+                                params.append(loc_id[0])
                         else:
-                            update_query = "UPDATE moves SET driver_name = ?, destination_location = ?"
-                            params = [new_driver, new_destination]
+                            update_parts.append("destination_location = ?")
+                            params.append(new_destination)
+                        changes_made.append(f"Destination: {new_destination}")
+                    
+                    # Check and add new trailer update
+                    if 'new_trailer' in move_cols and new_trailer != 'No Change':
+                        # Get current trailer to release it
+                        cursor.execute("SELECT new_trailer FROM moves WHERE order_number = ? OR system_id = ?", (move_id, move_id))
+                        current_trailer = cursor.fetchone()
+                        if current_trailer and current_trailer[0]:
+                            # Release current trailer
+                            cursor.execute("UPDATE trailers SET status = 'available' WHERE trailer_number = ?", (current_trailer[0],))
                         
-                        # Add trailer update if changed
-                        if 'new_trailer' in move_cols and new_trailer != 'Keep Current':
-                            # Get current trailer to release it
-                            cursor.execute("SELECT new_trailer FROM moves WHERE order_number = ? OR system_id = ?", (move_id, move_id))
-                            current_trailer = cursor.fetchone()
-                            if current_trailer and current_trailer[0]:
-                                # Release current trailer
-                                cursor.execute("UPDATE trailers SET status = 'available' WHERE trailer_number = ?", (current_trailer[0],))
-                            
-                            # Update move with new trailer
-                            update_query += ", new_trailer = ?"
-                            params.append(new_trailer)
-                            
-                            # Mark new trailer as in_use
-                            cursor.execute("UPDATE trailers SET status = 'in_use' WHERE trailer_number = ?", (new_trailer,))
+                        # Add new trailer to update
+                        update_parts.append("new_trailer = ?")
+                        params.append(new_trailer)
+                        changes_made.append(f"New Trailer: {new_trailer}")
+                        
+                        # Mark new trailer as in_use
+                        cursor.execute("UPDATE trailers SET status = 'in_use' WHERE trailer_number = ?", (new_trailer,))
+                    
+                    # Check and add old trailer update
+                    if 'old_trailer' in move_cols and old_trailer and old_trailer.strip():
+                        update_parts.append("old_trailer = ?")
+                        params.append(old_trailer.strip())
+                        changes_made.append(f"Return Trailer: {old_trailer.strip()}")
+                    
+                    # Only update if there are changes
+                    if update_parts:
+                        # Build the complete update query
+                        update_query = f"UPDATE moves SET {', '.join(update_parts)}"
                         
                         # Add WHERE clause
                         if 'system_id' in move_cols:
@@ -2527,14 +2564,15 @@ def admin_panel():
                             update_query += " WHERE order_number = ?"
                         params.append(move_id)
                         
+                        # Execute the update
                         cursor.execute(update_query, params)
                         conn.commit()
                         
-                        success_msg = f"Move {move_id} updated: Driver={new_driver}, Destination={new_destination}"
-                        if 'new_trailer' in move_cols and new_trailer != 'Keep Current':
-                            success_msg += f", Trailer={new_trailer}"
-                        st.success(success_msg)
+                        # Show success message with what was changed
+                        st.success(f"Move {move_id} updated: {', '.join(changes_made)}")
                         st.rerun()
+                    else:
+                        st.warning("No changes were made. Select at least one field to update.")
         else:
             st.info("No active moves to reassign")
     
