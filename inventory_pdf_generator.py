@@ -20,11 +20,25 @@ class InventoryPDFGenerator:
         """Add header and footer to each page"""
         canvas.saveState()
         
-        # Header
+        # Try to add logo
+        import os
+        logo_paths = ['swt_logo.png', 'swt_logo_white.png', 'logo.png']
+        logo_added = False
+        for logo_path in logo_paths:
+            if os.path.exists(logo_path):
+                try:
+                    canvas.drawImage(logo_path, 50, 740, width=60, height=40, preserveAspectRatio=True)
+                    logo_added = True
+                    break
+                except:
+                    continue
+        
+        # Header text - adjust position if logo is present
+        x_pos = 120 if logo_added else 50
         canvas.setFont("Helvetica-Bold", 16)
-        canvas.drawString(50, 750, "Smith & Williams Trucking")
+        canvas.drawString(x_pos, 750, "Smith & Williams Trucking")
         canvas.setFont("Helvetica", 12)
-        canvas.drawString(50, 735, "Trailer Inventory Report")
+        canvas.drawString(x_pos, 735, "Trailer Inventory Report")
         canvas.drawRightString(750, 735, datetime.now().strftime("%B %d, %Y"))
         
         # Line under header

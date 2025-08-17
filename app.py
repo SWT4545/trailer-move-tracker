@@ -48,8 +48,8 @@ st.set_page_config(
 )
 
 # Version for tracking updates - FORCE UPDATE  
-APP_VERSION = "3.1.2 - Column Check Fix"
-UPDATE_TIMESTAMP = "2025-08-16 05:55:00"  # Force Streamlit to recognize update
+APP_VERSION = "3.2.0 - Enhanced Admin Controls & PDF Logos"
+UPDATE_TIMESTAMP = "2025-08-16 06:00:00"  # Force Streamlit to recognize update
 
 # Force cache clear on version change
 if 'app_version' not in st.session_state or st.session_state.app_version != APP_VERSION:
@@ -2346,7 +2346,7 @@ def admin_panel():
         with col1:
             new_trailer_num = st.text_input("Trailer Number")
         with col2:
-            new_trailer_loc = st.text_input("Current Location", value="Fleet Memphis")
+            new_trailer_loc = st.text_input("Current Location", placeholder="Fleet Memphis")
         with col3:
             if st.button("➕ Add Trailer"):
                 if new_trailer_num:
@@ -2460,7 +2460,7 @@ def admin_panel():
             if selected_move:
                 move_id = selected_move.split(" - ")[0]
                 
-                col1, col2, col3 = st.columns(3)
+                col1, col2, col3, col4 = st.columns(4)
                 
                 with col1:
                     # Get all drivers
@@ -2473,35 +2473,67 @@ def admin_panel():
                     new_driver = st.selectbox("Reassign to Driver", drivers)
                 
                 with col2:
-                    # Get all locations
+                    # Get all locations including Fleet Memphis
                     try:
-                        cursor.execute("SELECT location_title FROM locations WHERE location_title LIKE 'FedEx%'")
+                        cursor.execute("SELECT location_title FROM locations WHERE location_title LIKE 'FedEx%' OR location_title = 'Fleet Memphis'")
                         locations = [l[0] for l in cursor.fetchall()]
+                        if 'Fleet Memphis' not in locations:
+                            locations.append('Fleet Memphis')
                     except:
                         # Fallback to hardcoded locations
-                        locations = ['FedEx Memphis', 'FedEx Indy', 'FedEx Chicago', 'FedEx Dallas', 'FedEx Houston']
+                        locations = ['Fleet Memphis', 'FedEx Memphis', 'FedEx Indy', 'FedEx Chicago', 'FedEx Dallas', 'FedEx Houston']
                     new_destination = st.selectbox("Change Destination", locations)
                 
                 with col3:
-                    if st.button("✅ Update Route", type="primary"):
+                    # Add trailer reassignment
+                    cursor.execute("SELECT trailer_number FROM trailers WHERE status = 'available' ORDER BY trailer_number")
+                    available_trailers = [t[0] for t in cursor.fetchall()]
+                    if 'new_trailer' in move_cols:
+                        new_trailer = st.selectbox("Reassign Trailer", ['Keep Current'] + available_trailers)
+                    
+                with col4:
+                    if st.button("✅ Update Move", type="primary"):
+                        # Update driver and destination
                         if 'destination_location_id' in move_cols:
                             cursor.execute("SELECT id FROM locations WHERE location_title = ?", (new_destination,))
                             loc_id = cursor.fetchone()
                             if loc_id:
-                                cursor.execute('''
-                                    UPDATE moves 
-                                    SET driver_name = ?, destination_location_id = ?
-                                    WHERE system_id = ?
-                                ''', (new_driver, loc_id[0], move_id))
+                                update_query = "UPDATE moves SET driver_name = ?, destination_location_id = ?"
+                                params = [new_driver, loc_id[0]]
                         else:
-                            cursor.execute('''
-                                UPDATE moves 
-                                SET driver_name = ?, destination_location = ?
-                                WHERE order_number = ?
-                            ''', (new_driver, new_destination, move_id))
+                            update_query = "UPDATE moves SET driver_name = ?, destination_location = ?"
+                            params = [new_driver, new_destination]
                         
+                        # Add trailer update if changed
+                        if 'new_trailer' in move_cols and new_trailer != 'Keep Current':
+                            # Get current trailer to release it
+                            cursor.execute("SELECT new_trailer FROM moves WHERE order_number = ? OR system_id = ?", (move_id, move_id))
+                            current_trailer = cursor.fetchone()
+                            if current_trailer and current_trailer[0]:
+                                # Release current trailer
+                                cursor.execute("UPDATE trailers SET status = 'available' WHERE trailer_number = ?", (current_trailer[0],))
+                            
+                            # Update move with new trailer
+                            update_query += ", new_trailer = ?"
+                            params.append(new_trailer)
+                            
+                            # Mark new trailer as in_use
+                            cursor.execute("UPDATE trailers SET status = 'in_use' WHERE trailer_number = ?", (new_trailer,))
+                        
+                        # Add WHERE clause
+                        if 'system_id' in move_cols:
+                            update_query += " WHERE system_id = ?"
+                        else:
+                            update_query += " WHERE order_number = ?"
+                        params.append(move_id)
+                        
+                        cursor.execute(update_query, params)
                         conn.commit()
-                        st.success(f"Route {move_id} reassigned to {new_driver} going to {new_destination}")
+                        
+                        success_msg = f"Move {move_id} updated: Driver={new_driver}, Destination={new_destination}"
+                        if 'new_trailer' in move_cols and new_trailer != 'Keep Current':
+                            success_msg += f", Trailer={new_trailer}"
+                        st.success(success_msg)
                         st.rerun()
         else:
             st.info("No active moves to reassign")
