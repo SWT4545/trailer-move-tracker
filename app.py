@@ -41,8 +41,8 @@ st.set_page_config(
 )
 
 # Version for tracking updates - FORCE UPDATE  
-APP_VERSION = "2.7.1 - Syntax Error Fix"
-UPDATE_TIMESTAMP = "2025-08-16 04:50:00"  # Force Streamlit to recognize update
+APP_VERSION = "2.8.0 - Round Trip Calculation & Status Updates"
+UPDATE_TIMESTAMP = "2025-08-16 05:00:00"  # Force Streamlit to recognize update
 
 # Force cache clear on version change
 if 'app_version' not in st.session_state or st.session_state.app_version != APP_VERSION:
@@ -1087,17 +1087,19 @@ def create_new_move():
         st.info(f" **Auto-calculated mileage for {destination}:** {default_miles:,.2f} miles")
         
         miles = st.number_input(
-            " Total Round Trip Miles", 
+            "📍 One-Way Miles to Destination", 
             min_value=0.0, 
             value=default_miles, 
             step=10.0,
-            help="Auto-calculated based on destination. You can adjust if needed.",
+            help="Enter one-way distance. Round trip will be calculated automatically (x2).",
             key=f"miles_{destination}"
         )
         
         # Show LIVE earnings calculation
         st.markdown("###  Real-Time Earnings Calculation")
-        earnings = miles * 2.10
+        # Round trip calculation: miles * 2 * rate per mile
+        total_miles = miles * 2  # Round trip
+        earnings = total_miles * 2.10
         factoring_amount = earnings * 0.03
         after_factoring = earnings - factoring_amount
         
@@ -1114,11 +1116,11 @@ def create_new_move():
         # Detailed metrics
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("Miles", f"{miles:,.2f}")
+            st.metric("One-Way Miles", f"{miles:,.2f}")
         with col2:
-            st.metric("Rate", "$2.10/mile")
+            st.metric("Round Trip", f"{total_miles:,.2f} mi")
         with col3:
-            st.metric("Gross", f"${earnings:,.2f}")
+            st.metric("Rate", "$2.10/mile")
         with col4:
             st.metric("NET (after 3%)", f"${after_factoring:,.2f}")
         
@@ -1179,28 +1181,29 @@ def create_new_move():
                     ORDER BY trailer_number
                 ''', (destination,))
             old_trailers = cursor.fetchall()
+        
+        # Now handle the display of OLD trailers
+        if old_trailers:
+            st.success(f"🔄 {len(old_trailers)} OLD trailer{'s' if len(old_trailers) > 1 else ''} available for pickup at {destination}")
             
-            if old_trailers:
-                st.success(f"🔄 {len(old_trailers)} OLD trailer{'s' if len(old_trailers) > 1 else ''} available for pickup at {destination}")
-                
-                # Create dropdown for OLD trailer selection
-                old_trailer_options = [f"Trailer #{t[0]} (OLD)" for t in old_trailers]
-                selected_old_display = st.selectbox(
-                    "Select OLD Trailer to Pick Up",
-                    options=old_trailer_options,
-                    help="This trailer will be picked up from FedEx and returned to Fleet Memphis"
-                )
-                
-                # Extract trailer number
-                swap_trailer = selected_old_display.split("#")[1].split(" ")[0] if selected_old_display else None
-            else:
-                st.warning(f"WARNING: No OLD trailers currently at {destination}")
-                st.info("💡 You can still create the move and specify which trailer to pick up later")
-                swap_trailer = st.text_input(
-                    "Enter OLD Trailer # to Pick Up (optional)",
-                    placeholder="e.g., 6014",
-                    help="Leave blank if you'll determine this later"
-                )
+            # Create dropdown for OLD trailer selection
+            old_trailer_options = [f"Trailer #{t[0]} (OLD)" for t in old_trailers]
+            selected_old_display = st.selectbox(
+                "Select OLD Trailer to Pick Up",
+                options=old_trailer_options,
+                help="This trailer will be picked up from FedEx and returned to Fleet Memphis"
+            )
+            
+            # Extract trailer number
+            swap_trailer = selected_old_display.split("#")[1].split(" ")[0] if selected_old_display else None
+        else:
+            st.warning(f"⚠️ No OLD trailers currently at {destination}")
+            st.info("💡 You can still create the move and specify which trailer to pick up later")
+            swap_trailer = st.text_input(
+                "Enter OLD Trailer # to Pick Up (optional)",
+                placeholder="e.g., 6014",
+                help="Leave blank if you'll determine this later"
+            )
         
         st.divider()
         
@@ -1245,7 +1248,9 @@ def create_new_move():
                     system_id = generate_system_id()
                     
                     # Calculate earnings
-                    earnings = miles * 2.10
+                    # Round trip calculation
+                    total_miles = miles * 2  # Round trip
+                    earnings = total_miles * 2.10
                     
                     # Create move - check schema first
                     move_columns = get_table_columns(cursor, 'moves')
@@ -1864,6 +1869,74 @@ def show_active_moves():
         moves = []
     
     if moves:
+        st.write("### Active Moves with Status Updates")
+        
+        # Add expandable sections for each move with update buttons
+        for move in moves:
+            system_id, mlbl, date, driver, location, new_trailer, return_trailer, status, miles, earnings = move
+            
+            with st.expander(f"📦 {system_id} - {driver} - {location} [{status.upper()}]"):
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.write("**Move Details:**")
+                    st.write(f"System ID: {system_id}")
+                    st.write(f"MLBL: {mlbl or 'Not assigned'}")
+                    st.write(f"Date: {date}")
+                    st.write(f"Driver: {driver}")
+                
+                with col2:
+                    st.write("**Trailer Info:**")
+                    st.write(f"New Trailer: {new_trailer}")
+                    st.write(f"Return Trailer: {return_trailer}")
+                    st.write(f"Location: {location}")
+                    st.write(f"Miles: {miles:,.2f}" if miles else "Miles: 0")
+                
+                with col3:
+                    st.write("**Status & Earnings:**")
+                    st.write(f"Current Status: **{status.upper()}**")
+                    st.write(f"Est. Earnings: ${earnings:,.2f}" if earnings else "Est. Earnings: $0")
+                
+                st.divider()
+                st.write("**Update Status:**")
+                
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    if st.button("🚛 In Transit", key=f"transit_{system_id}", disabled=(status == 'in_transit')):
+                        cursor.execute("UPDATE moves SET status = 'in_transit' WHERE system_id = ? OR order_number = ?", 
+                                     (system_id, system_id))
+                        conn.commit()
+                        st.success("Status updated to In Transit!")
+                        st.rerun()
+                
+                with col2:
+                    if st.button("📍 At Destination", key=f"dest_{system_id}", disabled=(status == 'at_destination')):
+                        cursor.execute("UPDATE moves SET status = 'at_destination' WHERE system_id = ? OR order_number = ?", 
+                                     (system_id, system_id))
+                        conn.commit()
+                        st.success("Status updated to At Destination!")
+                        st.rerun()
+                
+                with col3:
+                    if st.button("🔄 Returning", key=f"return_{system_id}", disabled=(status == 'returning')):
+                        cursor.execute("UPDATE moves SET status = 'returning' WHERE system_id = ? OR order_number = ?", 
+                                     (system_id, system_id))
+                        conn.commit()
+                        st.success("Status updated to Returning!")
+                        st.rerun()
+                
+                with col4:
+                    if st.button("✅ Complete", key=f"complete_{system_id}", type="primary"):
+                        cursor.execute("UPDATE moves SET status = 'completed' WHERE system_id = ? OR order_number = ?", 
+                                     (system_id, system_id))
+                        conn.commit()
+                        st.success("Move marked as Completed!")
+                        st.rerun()
+        
+        # Also show the summary table
+        st.divider()
+        st.write("### Summary Table")
         df = pd.DataFrame(moves, columns=[
             'System ID', 'MLBL', 'Date', 'Driver', 'Location',
             'New Trailer', 'Return Trailer', 'Status', 'Miles', 'Est. Earnings'
