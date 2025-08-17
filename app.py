@@ -2409,7 +2409,7 @@ def admin_panel():
                 if 'move_date' in move_cols:
                     cursor.execute('''
                         SELECT system_id, driver_name, move_date, 
-                               COALESCE(destination_location_id, delivery_location, 'Unknown') as destination
+                               COALESCE(destination_location, delivery_location, 'Unknown') as destination
                         FROM moves 
                         WHERE status IN ('active', 'assigned', 'in_transit')
                         ORDER BY move_date DESC
@@ -2418,7 +2418,7 @@ def admin_panel():
                     cursor.execute('''
                         SELECT system_id, driver_name, 
                                COALESCE(pickup_date, completed_date, CURRENT_DATE), 
-                               COALESCE(delivery_location, 'Unknown')
+                               COALESCE(destination_location, delivery_location, 'Unknown')
                         FROM moves 
                         WHERE status IN ('active', 'assigned', 'in_transit')
                         ORDER BY system_id DESC
@@ -2428,7 +2428,7 @@ def admin_panel():
                     cursor.execute('''
                         SELECT order_number, driver_name, 
                                COALESCE(pickup_date, completed_date, CURRENT_DATE), 
-                               COALESCE(delivery_location, 'Unknown')
+                               COALESCE(destination_location, delivery_location, 'Unknown')
                         FROM moves 
                         WHERE status IN ('active', 'assigned', 'in_transit')
                         ORDER BY order_number DESC
@@ -2437,7 +2437,7 @@ def admin_panel():
                     cursor.execute('''
                         SELECT order_number, driver_name, 
                                CURRENT_DATE, 
-                               COALESCE(delivery_location, 'Unknown')
+                               COALESCE(destination_location, delivery_location, 'Unknown')
                         FROM moves 
                         WHERE status IN ('active', 'assigned', 'in_transit')
                         ORDER BY order_number DESC
@@ -2491,7 +2491,7 @@ def admin_panel():
                         else:
                             cursor.execute('''
                                 UPDATE moves 
-                                SET driver_name = ?, delivery_location = ?
+                                SET driver_name = ?, destination_location = ?
                                 WHERE order_number = ?
                             ''', (new_driver, new_destination, move_id))
                         
@@ -2534,8 +2534,8 @@ def admin_panel():
         except sqlite3.OperationalError as e:
             st.error(f"Database error: {str(e)}")
             moves = []
-            
-            if moves:
+        
+        if moves:
                 st.write("#### Select Move to Update Return Trailer")
                 move_options = [f"{m[0]} - {m[1]} - New: {m[2]} - Old: {m[3] or 'None'}" for m in moves]
                 selected_move = st.selectbox("Move", move_options)
@@ -2560,8 +2560,8 @@ def admin_panel():
                             st.rerun()
             else:
                 st.info("No moves found")
-        else:
-            st.warning("Return trailer tracking not available in this database schema")
+    else:
+        st.warning("Return trailer tracking not available in this database schema")
     
     with admin_tabs[5]:
         st.write("### 👤 Edit/Add/Delete Drivers")
