@@ -48,8 +48,8 @@ st.set_page_config(
 )
 
 # Version for tracking updates - FORCE UPDATE  
-APP_VERSION = "3.1.0 - Fine-Tuned Admin Controls"
-UPDATE_TIMESTAMP = "2025-08-16 05:45:00"  # Force Streamlit to recognize update
+APP_VERSION = "3.1.1 - Database & Status Management"
+UPDATE_TIMESTAMP = "2025-08-16 05:50:00"  # Force Streamlit to recognize update
 
 # Force cache clear on version change
 if 'app_version' not in st.session_state or st.session_state.app_version != APP_VERSION:
@@ -2815,18 +2815,21 @@ def admin_panel():
         
         with data_view_tabs[2]:
             st.write("#### All Moves in Database")
-            cursor.execute("PRAGMA table_info(moves)")
-            move_cols = [col[1] for col in cursor.fetchall()]
+            try:
+                cursor.execute("PRAGMA table_info(moves)")
+                move_cols = [col[1] for col in cursor.fetchall()]
             
-            cursor.execute("SELECT * FROM moves ORDER BY move_date DESC LIMIT 200")
-            moves = cursor.fetchall()
-            
-            if moves:
-                df = pd.DataFrame(moves, columns=move_cols)
-                st.dataframe(df, use_container_width=True, height=400)
-                st.caption(f"Showing latest {len(moves)} moves")
-            else:
-                st.warning("No moves in database")
+                cursor.execute("SELECT * FROM moves ORDER BY move_date DESC LIMIT 200")
+                moves = cursor.fetchall()
+                
+                if moves:
+                    df = pd.DataFrame(moves, columns=move_cols)
+                    st.dataframe(df, use_container_width=True, height=400)
+                    st.caption(f"Showing latest {len(moves)} moves")
+                else:
+                    st.warning("No moves in database")
+            except Exception as e:
+                st.error(f"Error loading moves: {str(e)}")
         
         with data_view_tabs[3]:
             st.write("#### All Drivers in Database")
