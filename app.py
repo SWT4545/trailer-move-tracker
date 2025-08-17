@@ -41,8 +41,8 @@ st.set_page_config(
 )
 
 # Version for tracking updates - FORCE UPDATE  
-APP_VERSION = "2.9.0 - PDF Generation & Admin Panel Fixed"
-UPDATE_TIMESTAMP = "2025-08-16 05:15:00"  # Force Streamlit to recognize update
+APP_VERSION = "3.0.0 - Complete Admin Control Panel"
+UPDATE_TIMESTAMP = "2025-08-16 05:30:00"  # Force Streamlit to recognize update
 
 # Force cache clear on version change
 if 'app_version' not in st.session_state or st.session_state.app_version != APP_VERSION:
@@ -2081,15 +2081,15 @@ def show_completed_moves():
 # Admin Panel with Full Edit Capabilities
 def admin_panel():
     """Comprehensive admin panel for manual data management"""
-    st.subheader("🔧 System Administration - Full Manual Control")
+    st.subheader("🔧 Full System Control Panel")
     
-    admin_tabs = st.tabs(["Edit Moves", "Edit Trailers", "Edit Drivers", "Edit Locations", "Database Manager", "View All Data"])
+    admin_tabs = st.tabs(["Manage Moves", "Manage Trailers", "Manage Locations", "Reassign Routes", "Update Return Trailers", "Edit Drivers", "Database Manager", "View All Data"])
     
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     with admin_tabs[0]:
-        st.write("### 📝 Edit/Delete Moves")
+        st.write("### 📝 Manage All Moves")
         
         # Get all moves
         cursor.execute("PRAGMA table_info(moves)")
@@ -2163,7 +2163,39 @@ def admin_panel():
                             st.rerun()
     
     with admin_tabs[1]:
-        st.write("### 🚛 Edit/Add/Delete Trailers")
+        st.write("### 🚛 Manage Trailers & Update Locations")
+        
+        # Update trailer location
+        st.write("#### 🔄 Change Trailer Location")
+        cursor.execute("PRAGMA table_info(trailers)")
+        trailer_cols = [col[1] for col in cursor.fetchall()]
+        
+        # Get all trailers
+        cursor.execute("SELECT trailer_number FROM trailers ORDER BY trailer_number")
+        all_trailers = [t[0] for t in cursor.fetchall()]
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            selected_trailer = st.selectbox("Select Trailer", all_trailers)
+        with col2:
+            cursor.execute("SELECT location_title FROM locations ORDER BY location_title")
+            locations = [l[0] for l in cursor.fetchall()]
+            new_location = st.selectbox("Move to Location", locations)
+        with col3:
+            if st.button("🚚 Update Location", type="primary"):
+                if 'current_location_id' in trailer_cols:
+                    cursor.execute("SELECT id FROM locations WHERE location_title = ?", (new_location,))
+                    loc_id = cursor.fetchone()[0]
+                    cursor.execute("UPDATE trailers SET current_location_id = ? WHERE trailer_number = ?", 
+                                 (loc_id, selected_trailer))
+                else:
+                    cursor.execute("UPDATE trailers SET current_location = ? WHERE trailer_number = ?",
+                                 (new_location, selected_trailer))
+                conn.commit()
+                st.success(f"Trailer {selected_trailer} moved to {new_location}")
+                st.rerun()
+        
+        st.divider()
         
         # Add new trailer
         st.write("#### Add New Trailer")
@@ -2227,7 +2259,126 @@ def admin_panel():
                         st.success(f"Trailer {trailer[0]} deleted!")
                         st.rerun()
     
-    with admin_tabs[2]:
+    with admin_tabs[3]:
+        st.write("### 🔄 Reassign Routes")
+        
+        # Get active moves
+        cursor.execute("PRAGMA table_info(moves)")
+        move_cols = [col[1] for col in cursor.fetchall()]
+        
+        if 'system_id' in move_cols:
+            cursor.execute('''
+                SELECT system_id, driver_name, move_date, 
+                       COALESCE(destination_location_id, delivery_location, 'Unknown') as destination
+                FROM moves 
+                WHERE status IN ('active', 'assigned', 'in_transit')
+                ORDER BY move_date DESC
+            ''')
+        else:
+            cursor.execute('''
+                SELECT order_number, driver_name, 
+                       COALESCE(pickup_date, move_date), 
+                       COALESCE(delivery_location, 'Unknown')
+                FROM moves 
+                WHERE status IN ('active', 'assigned', 'in_transit')
+                ORDER BY order_number DESC
+            ''')
+        
+        active_moves = cursor.fetchall()
+        
+        if active_moves:
+            st.write("#### Select Move to Reassign")
+            move_options = [f"{m[0]} - {m[1]} to {m[3]}" for m in active_moves]
+            selected_move = st.selectbox("Active Move", move_options)
+            
+            if selected_move:
+                move_id = selected_move.split(" - ")[0]
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    # Get all drivers
+                    cursor.execute("SELECT driver_name FROM drivers WHERE status = 'active'")
+                    drivers = [d[0] for d in cursor.fetchall()]
+                    new_driver = st.selectbox("Reassign to Driver", drivers)
+                
+                with col2:
+                    # Get all locations
+                    cursor.execute("SELECT location_title FROM locations WHERE location_title LIKE 'FedEx%'")
+                    locations = [l[0] for l in cursor.fetchall()]
+                    new_destination = st.selectbox("Change Destination", locations)
+                
+                with col3:
+                    if st.button("✅ Update Route", type="primary"):
+                        if 'destination_location_id' in move_cols:
+                            cursor.execute("SELECT id FROM locations WHERE location_title = ?", (new_destination,))
+                            loc_id = cursor.fetchone()
+                            if loc_id:
+                                cursor.execute('''
+                                    UPDATE moves 
+                                    SET driver_name = ?, destination_location_id = ?
+                                    WHERE system_id = ?
+                                ''', (new_driver, loc_id[0], move_id))
+                        else:
+                            cursor.execute('''
+                                UPDATE moves 
+                                SET driver_name = ?, delivery_location = ?
+                                WHERE order_number = ?
+                            ''', (new_driver, new_destination, move_id))
+                        
+                        conn.commit()
+                        st.success(f"Route {move_id} reassigned to {new_driver} going to {new_destination}")
+                        st.rerun()
+        else:
+            st.info("No active moves to reassign")
+    
+    with admin_tabs[4]:
+        st.write("### 🔄 Update Return Trailers")
+        
+        # Get moves that might need return trailer updates
+        cursor.execute("PRAGMA table_info(moves)")
+        move_cols = [col[1] for col in cursor.fetchall()]
+        
+        if 'old_trailer' in move_cols:
+            cursor.execute('''
+                SELECT system_id, driver_name, new_trailer, old_trailer, move_date
+                FROM moves 
+                WHERE status IN ('active', 'completed')
+                ORDER BY move_date DESC
+                LIMIT 50
+            ''')
+            
+            moves = cursor.fetchall()
+            
+            if moves:
+                st.write("#### Select Move to Update Return Trailer")
+                move_options = [f"{m[0]} - {m[1]} - New: {m[2]} - Old: {m[3] or 'None'}" for m in moves]
+                selected_move = st.selectbox("Move", move_options)
+                
+                if selected_move:
+                    move_id = selected_move.split(" - ")[0]
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        new_return_trailer = st.text_input("New Return Trailer Number", placeholder="Enter trailer number")
+                    
+                    with col2:
+                        if st.button("📝 Update Return Trailer", type="primary"):
+                            cursor.execute('''
+                                UPDATE moves 
+                                SET old_trailer = ?
+                                WHERE system_id = ?
+                            ''', (new_return_trailer, move_id))
+                            conn.commit()
+                            st.success(f"Return trailer updated for move {move_id}")
+                            st.rerun()
+            else:
+                st.info("No moves found")
+        else:
+            st.warning("Return trailer tracking not available in this database schema")
+    
+    with admin_tabs[5]:
         st.write("### 👤 Edit/Add/Delete Drivers")
         
         # Add new driver
@@ -2267,8 +2418,59 @@ def admin_panel():
                         st.success(f"Driver {driver[0]} deleted!")
                         st.rerun()
     
-    with admin_tabs[3]:
-        st.write("### 📍 Edit/Add/Delete Locations")
+    with admin_tabs[2]:
+        st.write("### 📍 Manage Locations with Full Address")
+        
+        # Add/Edit location with full address
+        st.write("#### Add/Edit Location")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            location_name = st.text_input("Location Name", placeholder="FedEx Memphis")
+            street_address = st.text_input("Street Address", placeholder="123 Main St")
+            city = st.text_input("City", placeholder="Memphis")
+        
+        with col2:
+            state = st.text_input("State", placeholder="TN", max_chars=2)
+            zip_code = st.text_input("ZIP Code", placeholder="38103")
+            location_type = st.selectbox("Type", ["customer", "fedex_hub", "base"])
+        
+        if st.button("💾 Save Location", type="primary"):
+            if location_name:
+                # Check if address column exists
+                cursor.execute("PRAGMA table_info(locations)")
+                loc_cols = [col[1] for col in cursor.fetchall()]
+                
+                full_address = f"{street_address}, {city}, {state} {zip_code}"
+                
+                if 'address' in loc_cols:
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO locations 
+                        (location_title, address, city, state, location_type, is_base_location)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (location_name, full_address, city, state, location_type, 
+                         1 if location_type == 'base' else 0))
+                else:
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO locations 
+                        (location_title, city, state, location_type, is_base_location)
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', (location_name, city, state, location_type, 
+                         1 if location_type == 'base' else 0))
+                
+                conn.commit()
+                st.success(f"Location {location_name} saved with address: {full_address}")
+                st.rerun()
+        
+        # Display existing locations
+        st.write("#### Existing Locations")
+        cursor.execute("SELECT * FROM locations ORDER BY location_title")
+        locations = cursor.fetchall()
+        if locations:
+            cursor.execute("PRAGMA table_info(locations)")
+            cols = [col[1] for col in cursor.fetchall()]
+            df = pd.DataFrame(locations, columns=cols)
+            st.dataframe(df, use_container_width=True, height=300)
         
         # Add new location
         st.write("#### Add New Location")
@@ -2288,7 +2490,7 @@ def admin_panel():
                     st.success(f"Location {new_loc_title} added!")
                     st.rerun()
     
-    with admin_tabs[4]:
+    with admin_tabs[6]:
         st.write("### 🗄️ Database Management")
         
         col1, col2, col3 = st.columns(3)
@@ -2317,7 +2519,7 @@ def admin_panel():
                 
                 st.info(f"Moves: {move_count} | Trailers: {trailer_count} | Drivers: {driver_count}")
     
-    with admin_tabs[5]:
+    with admin_tabs[7]:
         st.write("### 📊 Complete Database View")
         
         data_view_tabs = st.tabs(["Trailers", "Locations", "Moves", "Drivers"])
