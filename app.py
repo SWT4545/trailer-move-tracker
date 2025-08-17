@@ -48,8 +48,8 @@ st.set_page_config(
 )
 
 # Version for tracking updates - FORCE UPDATE  
-APP_VERSION = "3.1.1 - Database & Status Management"
-UPDATE_TIMESTAMP = "2025-08-16 05:50:00"  # Force Streamlit to recognize update
+APP_VERSION = "3.1.2 - Column Check Fix"
+UPDATE_TIMESTAMP = "2025-08-16 05:55:00"  # Force Streamlit to recognize update
 
 # Force cache clear on version change
 if 'app_version' not in st.session_state or st.session_state.app_version != APP_VERSION:
@@ -2265,10 +2265,15 @@ def admin_panel():
         trailer_cols = [col[1] for col in cursor.fetchall()]
         
         # Get all trailers with current status
-        if 'status' in trailer_cols:
+        if 'status' in trailer_cols and 'current_location' in trailer_cols:
             cursor.execute("SELECT trailer_number, status, current_location FROM trailers ORDER BY trailer_number")
             trailer_data = cursor.fetchall()
             all_trailers = [f"{t[0]} (Status: {t[1]}, Loc: {t[2]})" for t in trailer_data]
+            trailer_nums = [t[0] for t in trailer_data]
+        elif 'status' in trailer_cols:
+            cursor.execute("SELECT trailer_number, status FROM trailers ORDER BY trailer_number")
+            trailer_data = cursor.fetchall()
+            all_trailers = [f"{t[0]} (Status: {t[1]})" for t in trailer_data]
             trailer_nums = [t[0] for t in trailer_data]
         else:
             cursor.execute("SELECT trailer_number FROM trailers ORDER BY trailer_number")
