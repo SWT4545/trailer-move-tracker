@@ -1112,6 +1112,11 @@ def create_new_move():
             
             location_display_map[display] = title
         
+        # Create location_options mapping for IDs
+        location_options = {}
+        for loc_id, title, city, state, has_addr, trailer_count in all_locations:
+            location_options[title] = loc_id
+        
         # Combine locations - ones with trailers first
         all_location_options = []
         
