@@ -606,6 +606,11 @@ def load_user_accounts():
                 "driver_name": "Carl Strickland",
                 "is_driver": True,
                 "permissions": ["view_own_moves", "upload_documents", "self_assign"]
+            },
+            "viewer": {
+                "password": "view123",
+                "roles": ["Viewer"],
+                "permissions": ["view_inventory", "view_moves", "run_reports_no_financial"]
             }
         }
     }
@@ -4005,6 +4010,265 @@ def show_dashboard():
                             st.success("Document saved successfully!")
         else:
             st.error("Driver profile not configured. Please contact administrator.")
+    
+    elif role == "Viewer":
+        # Viewer dashboard - no financial information
+        st.markdown("### 👁️ Viewer Dashboard - Fleet Operations Overview")
+        
+        tabs = st.tabs([
+            "📊 Statistics & Charts", 
+            "🚛 Trailer Inventory", 
+            "📦 Active Moves", 
+            "✅ Completed Moves",
+            "📈 Reports (Non-Financial)"
+        ])
+        
+        with tabs[0]:
+            st.subheader("📊 Fleet Statistics Dashboard")
+            
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            
+            # Get statistics (no financial data)
+            col1, col2, col3, col4 = st.columns(4)
+            
+            # Total trailers
+            cursor.execute("SELECT COUNT(*) FROM trailers")
+            total_trailers = cursor.fetchone()[0]
+            
+            # Active moves
+            cursor.execute("SELECT COUNT(*) FROM moves WHERE status IN ('active', 'assigned', 'in_transit')")
+            active_moves = cursor.fetchone()[0]
+            
+            # Completed moves this month
+            cursor.execute("""
+                SELECT COUNT(*) FROM moves 
+                WHERE status = 'completed' 
+                AND date(move_date) >= date('now', 'start of month')
+            """)
+            monthly_completed = cursor.fetchone()[0]
+            
+            # Total locations
+            cursor.execute("SELECT COUNT(*) FROM locations")
+            total_locations = cursor.fetchone()[0]
+            
+            with col1:
+                st.metric("Total Trailers", total_trailers, help="Total fleet size")
+            with col2:
+                st.metric("Active Moves", active_moves, help="Currently in progress")
+            with col3:
+                st.metric("Monthly Completed", monthly_completed, help="Completed this month")
+            with col4:
+                st.metric("Locations", total_locations, help="Total service locations")
+            
+            st.divider()
+            
+            # Charts section
+            chart_col1, chart_col2 = st.columns(2)
+            
+            with chart_col1:
+                st.subheader("📈 Trailer Status Distribution")
+                cursor.execute("""
+                    SELECT status, COUNT(*) as count 
+                    FROM trailers 
+                    GROUP BY status
+                """)
+                status_data = cursor.fetchall()
+                if status_data:
+                    import pandas as pd
+                    df_status = pd.DataFrame(status_data, columns=['Status', 'Count'])
+                    st.bar_chart(df_status.set_index('Status'))
+            
+            with chart_col2:
+                st.subheader("📍 Trailers by Location")
+                cursor.execute("""
+                    SELECT l.location_title, COUNT(t.id) as trailer_count
+                    FROM locations l
+                    LEFT JOIN trailers t ON t.current_location_id = l.id
+                    GROUP BY l.location_title
+                    HAVING trailer_count > 0
+                    ORDER BY trailer_count DESC
+                    LIMIT 10
+                """)
+                location_data = cursor.fetchall()
+                if location_data:
+                    df_loc = pd.DataFrame(location_data, columns=['Location', 'Trailers'])
+                    st.bar_chart(df_loc.set_index('Location'))
+            
+            st.divider()
+            
+            # Daily moves chart
+            st.subheader("📅 Move Activity (Last 30 Days)")
+            cursor.execute("""
+                SELECT date(move_date) as date, COUNT(*) as moves
+                FROM moves
+                WHERE date(move_date) >= date('now', '-30 days')
+                GROUP BY date(move_date)
+                ORDER BY date
+            """)
+            daily_moves = cursor.fetchall()
+            if daily_moves:
+                df_daily = pd.DataFrame(daily_moves, columns=['Date', 'Moves'])
+                st.line_chart(df_daily.set_index('Date'))
+            
+            conn.close()
+        
+        with tabs[1]:
+            st.subheader("🚛 Trailer Inventory")
+            
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            
+            # Trailer filters
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                status_filter = st.selectbox("Filter by Status", ["All", "available", "in_use", "in_transit", "delivered"])
+            with col2:
+                type_filter = st.selectbox("Filter by Type", ["All", "New", "Old"])
+            with col3:
+                location_filter = st.selectbox("Filter by Location", ["All", "Fleet Memphis", "FedEx Locations"])
+            
+            # Build query
+            query = "SELECT trailer_number, status, is_new, current_location FROM trailers WHERE 1=1"
+            params = []
+            
+            if status_filter != "All":
+                query += " AND status = ?"
+                params.append(status_filter)
+            
+            if type_filter == "New":
+                query += " AND is_new = 1"
+            elif type_filter == "Old":
+                query += " AND is_new = 0"
+            
+            if location_filter == "Fleet Memphis":
+                query += " AND current_location LIKE '%Fleet%'"
+            elif location_filter == "FedEx Locations":
+                query += " AND current_location LIKE '%FedEx%'"
+            
+            cursor.execute(query, params)
+            trailers = cursor.fetchall()
+            
+            if trailers:
+                df = pd.DataFrame(trailers, columns=['Trailer #', 'Status', 'Type', 'Location'])
+                df['Type'] = df['Type'].apply(lambda x: 'NEW' if x == 1 else 'OLD')
+                
+                st.dataframe(df, use_container_width=True, hide_index=True)
+                st.info(f"Total: {len(trailers)} trailers")
+            else:
+                st.info("No trailers found with selected filters")
+            
+            conn.close()
+        
+        with tabs[2]:
+            st.subheader("📦 Active Moves (No Financial Data)")
+            
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT system_id, move_date, driver_name, new_trailer, old_trailer,
+                       destination_location, status
+                FROM moves
+                WHERE status IN ('active', 'assigned', 'in_transit')
+                ORDER BY move_date DESC
+            """)
+            
+            active_moves = cursor.fetchall()
+            
+            if active_moves:
+                df = pd.DataFrame(active_moves, columns=[
+                    'Move ID', 'Date', 'Driver', 'New Trailer', 'Old Trailer', 'Destination', 'Status'
+                ])
+                
+                st.dataframe(df, use_container_width=True, hide_index=True)
+            else:
+                st.info("No active moves")
+            
+            conn.close()
+        
+        with tabs[3]:
+            st.subheader("✅ Completed Moves (No Financial Data)")
+            
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            
+            # Date range filter
+            col1, col2 = st.columns(2)
+            with col1:
+                from_date = st.date_input("From Date", value=date.today() - timedelta(days=30))
+            with col2:
+                to_date = st.date_input("To Date", value=date.today())
+            
+            cursor.execute("""
+                SELECT system_id, move_date, driver_name, new_trailer, old_trailer,
+                       destination_location, estimated_miles
+                FROM moves
+                WHERE status = 'completed'
+                AND date(move_date) BETWEEN date(?) AND date(?)
+                ORDER BY move_date DESC
+            """, (from_date, to_date))
+            
+            completed_moves = cursor.fetchall()
+            
+            if completed_moves:
+                df = pd.DataFrame(completed_moves, columns=[
+                    'Move ID', 'Date', 'Driver', 'New Trailer', 'Old Trailer', 'Destination', 'Miles'
+                ])
+                
+                st.dataframe(df, use_container_width=True, hide_index=True)
+                
+                # Summary metrics (no financial)
+                total_miles = sum([m[6] for m in completed_moves if m[6]])
+                st.info(f"Total Moves: {len(completed_moves)} | Total Miles: {total_miles:,.0f}")
+            else:
+                st.info("No completed moves in selected date range")
+            
+            conn.close()
+        
+        with tabs[4]:
+            st.subheader("📈 Generate Reports (Non-Financial)")
+            
+            report_type = st.selectbox(
+                "Select Report Type",
+                ["Trailer Inventory Report", "Move Activity Report", "Fleet Status Report"]
+            )
+            
+            if st.button("Generate Report", type="primary"):
+                if report_type == "Trailer Inventory Report":
+                    try:
+                        from inventory_pdf_generator import generate_inventory_pdf
+                        filename = generate_inventory_pdf()
+                        with open(filename, 'rb') as f:
+                            st.download_button(
+                                label="📥 Download Inventory Report",
+                                data=f.read(),
+                                file_name=filename,
+                                mime="application/pdf"
+                            )
+                        st.success("Inventory report generated!")
+                    except:
+                        st.error("Report generation failed")
+                
+                elif report_type == "Fleet Status Report":
+                    try:
+                        from professional_pdf_generator import generate_status_report
+                        from_date = st.date_input("Report From", value=date.today() - timedelta(days=30), key="status_from")
+                        to_date = st.date_input("Report To", value=date.today(), key="status_to")
+                        filename = generate_status_report(from_date, to_date)
+                        with open(filename, 'rb') as f:
+                            st.download_button(
+                                label="📥 Download Status Report",
+                                data=f.read(),
+                                file_name=filename,
+                                mime="application/pdf"
+                            )
+                        st.success("Status report generated!")
+                    except:
+                        st.error("Report generation failed")
+                
+                else:
+                    st.info("Move Activity Report - Coming Soon")
     
     else:
         tabs = st.tabs([" Overview"])
