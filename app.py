@@ -41,8 +41,8 @@ st.set_page_config(
 )
 
 # Version for tracking updates - FORCE UPDATE  
-APP_VERSION = "2.8.0 - Round Trip Calculation & Status Updates"
-UPDATE_TIMESTAMP = "2025-08-16 05:00:00"  # Force Streamlit to recognize update
+APP_VERSION = "2.9.0 - PDF Generation & Admin Panel Fixed"
+UPDATE_TIMESTAMP = "2025-08-16 05:15:00"  # Force Streamlit to recognize update
 
 # Force cache clear on version change
 if 'app_version' not in st.session_state or st.session_state.app_version != APP_VERSION:
