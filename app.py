@@ -777,9 +777,13 @@ def show_overview_metrics():
     trailer_columns = get_table_columns(cursor, 'trailers') if table_exists(cursor, 'trailers') else []
     
     if 'is_new' in trailer_columns:
-        # Count ALL old trailers (is_new = 0) - available, in_transit, delivered, etc.
-        cursor.execute('SELECT COUNT(*) FROM trailers WHERE is_new = 0')
+        # Count ALL old trailers (is_new = 0) but exclude delivered ones for active count
+        cursor.execute('SELECT COUNT(*) FROM trailers WHERE is_new = 0 AND status != "delivered"')
         old_trailers_total = cursor.fetchone()[0]
+        
+        # Count delivered old trailers separately  
+        cursor.execute('SELECT COUNT(*) FROM trailers WHERE is_new = 0 AND status = "delivered"')
+        old_delivered = cursor.fetchone()[0]
         
         # Count ALL new trailers (is_new = 1) - available, in_transit, delivered, etc.
         cursor.execute('SELECT COUNT(*) FROM trailers WHERE is_new = 1')
@@ -868,9 +872,10 @@ def show_overview_metrics():
         st.metric("Active Moves", active_moves)
     
     with col2:
-        # Show total old trailers with available count
+        # Show total old trailers with available count and delivered
+        delivered_text = f" | {old_delivered} delivered" if 'is_new' in trailer_columns else ""
         st.metric("Old Trailers", f"{old_trailers_total} ({old_available} avail)", 
-                  help=f"Total old trailers: {old_trailers_total}\nAvailable for pickup: {old_available}")
+                  help=f"Total active old trailers: {old_trailers_total}\nAvailable for pickup: {old_available}{delivered_text}")
     
     with col3:
         # Show total new trailers with available count
@@ -1061,7 +1066,7 @@ def create_new_move():
                            CASE WHEN l.address = '' OR l.address = 'Address TBD' OR l.address IS NULL THEN 0 ELSE 1 END as has_address,
                            COUNT(t.id) as old_trailer_count
                     FROM locations l
-                    LEFT JOIN trailers t ON t.current_location_id = l.id AND t.is_new = 0 AND t.status = 'available'
+                    LEFT JOIN trailers t ON t.current_location_id = l.id AND t.is_new = 0 AND t.status IN ('available', 'in_use')
                     WHERE (l.location_type IN ('fedex_hub', 'customer') OR l.location_title LIKE 'FedEx%')
                     AND l.is_base_location = 0
                     GROUP BY l.id, l.location_title, l.city, l.state
@@ -1073,7 +1078,7 @@ def create_new_move():
                            CASE WHEN l.address = '' OR l.address = 'Address TBD' OR l.address IS NULL THEN 0 ELSE 1 END as has_address,
                            COUNT(t.id) as old_trailer_count
                     FROM locations l
-                    LEFT JOIN trailers t ON t.current_location_id = l.id AND t.status = 'available'
+                    LEFT JOIN trailers t ON t.current_location_id = l.id AND t.status IN ('available', 'in_use')
                     WHERE (l.location_type IN ('fedex_hub', 'customer') OR l.location_title LIKE 'FedEx%')
                     AND l.is_base_location = 0
                     GROUP BY l.id, l.location_title, l.city, l.state
@@ -1085,7 +1090,7 @@ def create_new_move():
                            0 as has_address,
                            COUNT(t.id) as old_trailer_count
                     FROM locations l
-                    LEFT JOIN trailers t ON t.current_location_id = l.id AND t.status = 'available'
+                    LEFT JOIN trailers t ON t.current_location_id = l.id AND t.status IN ('available', 'in_use')
                     WHERE (l.location_type IN ('fedex_hub', 'customer') OR l.location_title LIKE 'FedEx%')
                     AND l.is_base_location = 0
                     GROUP BY l.id, l.location_title, l.city, l.state
@@ -1996,8 +2001,18 @@ def show_active_moves():
                 
                 with col4:
                     if st.button("✅ Complete", key=f"complete_{system_id}", type="primary"):
+                        # Update move status
                         cursor.execute("UPDATE moves SET status = 'completed' WHERE system_id = ? OR order_number = ?", 
                                      (system_id, system_id))
+                        
+                        # If there's an old trailer, mark it as delivered/completed
+                        if old_trailer and old_trailer != '-':
+                            cursor.execute("UPDATE trailers SET status = 'delivered' WHERE trailer_number = ?", (old_trailer,))
+                        
+                        # Update new trailer status to available at destination
+                        if new_trailer and new_trailer != '-':
+                            cursor.execute("UPDATE trailers SET status = 'available' WHERE trailer_number = ?", (new_trailer,))
+                        
                         conn.commit()
                         st.success("Move marked as Completed!")
                         st.rerun()
@@ -2322,7 +2337,7 @@ def admin_panel():
             
             with col2:
                 # Status update
-                trailer_statuses = ['available', 'in_use', 'in_transit', 'maintenance', 'out_of_service']
+                trailer_statuses = ['available', 'in_use', 'in_transit', 'delivered', 'maintenance', 'out_of_service']
                 new_status = st.selectbox("New Status", trailer_statuses)
             
             with col3:
