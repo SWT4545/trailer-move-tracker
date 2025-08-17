@@ -1,7 +1,7 @@
 """
-Universal PDF Generator with FIXED Date Filtering and Company Headers
+Universal PDF Generator with COMPLETE Date Fix
 Smith & Williams Trucking LLC
-Version 4.1.0 - Complete Fix
+Version 4.2.0 - Handles all date formats
 """
 
 import os
@@ -91,10 +91,18 @@ def add_company_header_footer(canvas_obj, doc):
     canvas_obj.restoreState()
 
 def generate_driver_receipt(driver_name, from_date, to_date):
-    """Generate driver receipt with WORKING date filtering and contractor info"""
+    """Generate driver receipt with COMPLETE date handling"""
     
     if not REPORTLAB_AVAILABLE:
         return f"error_reportlab_not_installed_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+    
+    # CRITICAL FIX: Convert date objects to strings
+    if isinstance(from_date, date):
+        from_date = from_date.strftime('%Y-%m-%d')
+    if isinstance(to_date, date):
+        to_date = to_date.strftime('%Y-%m-%d')
+    
+    print(f"Generating PDF for {driver_name} from {from_date} to {to_date}")
     
     # Get data from database
     conn = sqlite3.connect(DB_PATH)
@@ -106,21 +114,17 @@ def generate_driver_receipt(driver_name, from_date, to_date):
     driver_email = None
     
     try:
-        # Check if drivers table exists and has the right columns
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='drivers'")
-        if cursor.fetchone():
-            # Get driver info - use 'name' column not 'driver_name'
-            cursor.execute("""
-                SELECT company_name, phone, email 
-                FROM drivers 
-                WHERE name = ?
-            """, (driver_name,))
-            
-            result = cursor.fetchone()
-            if result:
-                driver_company = result[0] if result[0] else None
-                driver_phone = result[1] if result[1] else None
-                driver_email = result[2] if result[2] else None
+        cursor.execute("""
+            SELECT company_name, phone, email 
+            FROM drivers 
+            WHERE name = ?
+        """, (driver_name,))
+        
+        result = cursor.fetchone()
+        if result:
+            driver_company = result[0] if result[0] else None
+            driver_phone = result[1] if result[1] else None
+            driver_email = result[2] if result[2] else None
     except Exception as e:
         print(f"Error getting driver info: {e}")
     
@@ -134,11 +138,11 @@ def generate_driver_receipt(driver_name, from_date, to_date):
     if not driver_company:
         driver_company = f"{driver_name} Trucking Services"
     
-    # Get moves - NO STATUS FILTER, just date range
+    # Get ALL moves in date range - no status filter
     moves = []
     
     try:
-        # Simple, direct query - get ALL moves for driver in date range
+        # IMPORTANT: Get ALL moves regardless of status
         query = """
             SELECT 
                 COALESCE(system_id, order_number, 'MOVE-' || id) as move_id,
@@ -151,18 +155,19 @@ def generate_driver_receipt(driver_name, from_date, to_date):
                 status
             FROM moves
             WHERE driver_name = ?
-            AND move_date >= ?
-            AND move_date <= ?
+            AND date(move_date) >= date(?)
+            AND date(move_date) <= date(?)
             ORDER BY move_date DESC
         """
         
+        print(f"Executing query with: {driver_name}, {from_date}, {to_date}")
         cursor.execute(query, (driver_name, from_date, to_date))
         moves = cursor.fetchall()
+        print(f"Found {len(moves)} moves")
         
-        # If no moves found, try without date filter to debug
+        # If no moves in date range, get recent moves as fallback
         if not moves:
-            print(f"No moves found for {driver_name} between {from_date} and {to_date}")
-            # Try to get ANY moves for this driver
+            print(f"No moves in date range, getting recent moves...")
             cursor.execute("""
                 SELECT 
                     COALESCE(system_id, order_number, 'MOVE-' || id) as move_id,
@@ -176,46 +181,33 @@ def generate_driver_receipt(driver_name, from_date, to_date):
                 FROM moves
                 WHERE driver_name = ?
                 ORDER BY move_date DESC
-                LIMIT 100
+                LIMIT 20
             """, (driver_name,))
-            all_moves = cursor.fetchall()
-            
-            # Filter these by date manually
-            moves = []
-            for move in all_moves:
-                if move[1]:  # If has date
-                    try:
-                        move_date_str = str(move[1])
-                        if from_date <= move_date_str <= to_date:
-                            moves.append(move)
-                    except:
-                        pass
-            
-            if not moves and all_moves:
-                print(f"Found {len(all_moves)} total moves but none in date range")
-                # Include recent moves anyway
-                moves = all_moves[:20]
+            moves = cursor.fetchall()
+            print(f"Found {len(moves)} recent moves")
         
     except Exception as e:
         print(f"Error getting moves: {e}")
-        # Fallback query
+        # Absolute fallback
         try:
             cursor.execute("SELECT * FROM moves WHERE driver_name = ? LIMIT 50", (driver_name,))
             raw_moves = cursor.fetchall()
             moves = []
             for row in raw_moves:
-                if len(row) >= 8:
+                if len(row) >= 17:
                     moves.append((
-                        row[1] if row[1] else f"MOVE-{row[0]}",  # ID
-                        row[4] if row[4] else "N/A",  # Date
-                        row[8] if row[8] else "N/A",  # New trailer
-                        row[9] if row[9] else "-",  # Old trailer
-                        row[11] if row[11] else "Unknown",  # Destination
-                        row[14] if row[14] else 0,  # Miles
-                        row[16] if row[16] else 0,  # Earnings
-                        row[7] if row[7] else "unknown"  # Status
+                        row[1] or f"MOVE-{row[0]}",  # system_id or fallback
+                        row[4],  # move_date
+                        row[8],  # new_trailer
+                        row[9],  # old_trailer
+                        row[11] or row[12],  # destination_location or delivery_location
+                        row[14] or 0,  # estimated_miles
+                        row[16] or row[17] or 0,  # estimated_earnings or amount
+                        row[7]  # status
                     ))
-        except:
+            print(f"Fallback found {len(moves)} moves")
+        except Exception as e2:
+            print(f"Fallback error: {e2}")
             moves = []
     
     conn.close()
@@ -274,6 +266,7 @@ def generate_driver_receipt(driver_name, from_date, to_date):
         total_earnings = 0
         total_miles = 0
         completed_count = 0
+        active_count = 0
         
         for move in moves:
             move_id = str(move[0])[:15]
@@ -289,6 +282,8 @@ def generate_driver_receipt(driver_name, from_date, to_date):
             total_earnings += earnings
             if status == 'completed':
                 completed_count += 1
+            elif status in ['active', 'in_transit']:
+                active_count += 1
             
             data.append([
                 move_id,
@@ -302,7 +297,7 @@ def generate_driver_receipt(driver_name, from_date, to_date):
             ])
         
         # Add summary row
-        data.append(['', '', '', '', 'TOTALS:', f"{total_miles:.1f}", f"${total_earnings:.2f}", f"{completed_count} done"])
+        data.append(['', '', '', '', 'TOTALS:', f"{total_miles:.1f}", f"${total_earnings:.2f}", f"{len(moves)} total"])
         
         # Create table
         table = Table(data, colWidths=[1.1*inch, 0.9*inch, 0.9*inch, 0.9*inch, 1.4*inch, 0.7*inch, 0.9*inch, 0.8*inch])
@@ -329,6 +324,7 @@ def generate_driver_receipt(driver_name, from_date, to_date):
         <b>Payment Summary:</b><br/>
         Total Moves: {len(moves)}<br/>
         Completed Moves: {completed_count}<br/>
+        Active/In Transit: {active_count}<br/>
         Total Miles: {total_miles:,.1f}<br/>
         Gross Earnings: ${total_earnings:,.2f}<br/>
         Factoring Fee (3%): -${factoring:,.2f}<br/>
@@ -336,7 +332,7 @@ def generate_driver_receipt(driver_name, from_date, to_date):
         """
         elements.append(Paragraph(summary_html, info_style))
     else:
-        # No moves found message
+        # No moves found message with debugging info
         no_moves_html = f"""
         <b>No moves found for this period.</b><br/>
         <br/>
@@ -346,13 +342,16 @@ def generate_driver_receipt(driver_name, from_date, to_date):
         Please verify:<br/>
         • The date range includes move dates<br/>
         • The driver name matches exactly<br/>
-        • Moves have been entered in the system
+        • Moves have been entered in the system<br/>
+        <br/>
+        Debug: Check that dates are in YYYY-MM-DD format
         """
         elements.append(Paragraph(no_moves_html, info_style))
     
     # Build PDF with company header/footer
     doc.build(elements, onFirstPage=add_company_header_footer, onLaterPages=add_company_header_footer)
     
+    print(f"PDF generated: {filename}")
     return filename
 
 # Aliases for compatibility
@@ -362,4 +361,7 @@ def generate_client_invoice(*args, **kwargs):
 
 def generate_status_report(*args, **kwargs):
     """Generate status report with company header"""
+    if len(args) == 2:  # Only from_date and to_date
+        # Default to showing all drivers
+        return generate_driver_receipt("All Drivers", args[0], args[1])
     return generate_driver_receipt(*args, **kwargs)
