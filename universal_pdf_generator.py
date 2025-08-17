@@ -32,8 +32,8 @@ for path in DB_PATHS:
 if not DB_PATH:
     DB_PATH = 'swt_fleet.db'  # Default
 
-# Logo path - ONLY use the correct small transparent logo
-LOGO_PATH = 'swt_logo.png'  # The 2KB transparent logo, NOT the 823KB white one
+# Logo path - USE THE WHITE LOGO (the one that shows up properly)
+LOGO_PATH = 'swt_logo_white.png'  # Use the WHITE logo that's visible
 
 def add_universal_header_footer(canvas_obj, doc):
     """Universal header/footer with logo for ALL PDFs"""
@@ -42,24 +42,23 @@ def add_universal_header_footer(canvas_obj, doc):
     # Add the correct logo - try multiple methods
     logo_added = False
     
-    # First try the correct small logo file
-    if os.path.exists('swt_logo.png'):
+    # Use the WHITE logo that's visible
+    if os.path.exists('swt_logo_white.png'):
         try:
             # Add logo to header - properly sized and positioned
-            canvas_obj.drawImage('swt_logo.png', 
+            canvas_obj.drawImage('swt_logo_white.png', 
                                0.75*inch,  # Left margin
                                doc.pagesize[1] - 1.2*inch,  # From top
                                width=1.2*inch,  # Logo width
                                height=0.6*inch,  # Logo height
-                               preserveAspectRatio=True, 
-                               mask='auto')  # Preserve transparency
+                               preserveAspectRatio=True)
             logo_added = True
         except Exception as e:
-            print(f"Logo error with swt_logo.png: {e}")
+            print(f"Logo error: {e}")
     
-    # If that fails, try any logo file
+    # Fallback to other logo files
     if not logo_added:
-        for logo_file in ['swt_logo.png', 'logo.png', 'company_logo.png']:
+        for logo_file in ['swt_logo.png', 'logo.png']:
             if os.path.exists(logo_file):
                 try:
                     canvas_obj.drawImage(logo_file, 0.75*inch, doc.pagesize[1] - 1.2*inch,
@@ -197,8 +196,13 @@ def generate_driver_receipt(driver_name, from_date, to_date):
     except Exception as e:
         print(f"Driver info error: {e}")
     
-    # If still no company info, use default
-    if not driver_company:
+    # Special handling for Brandon Smith (Owner)
+    if driver_name == "Brandon Smith" or driver_name.lower() == "brandon smith":
+        driver_company = "Smith & Williams Trucking LLC"
+        driver_phone = "(951) 437-5474"
+        driver_email = "brandon@smithwilliamstrucking.com"
+    # If still no company info for other drivers, use default
+    elif not driver_company:
         driver_company = f"{driver_name} Trucking LLC"
     
     # Get moves with comprehensive query that works with any schema
@@ -388,13 +392,9 @@ def generate_driver_receipt(driver_name, from_date, to_date):
     elements.append(Paragraph(driver_info, info_style))
     elements.append(Spacer(1, 0.3*inch))
     
-    # If still no moves, add sample data to show structure
+    # Only show message if no moves found - don't add fake data
     if not moves or len(moves) == 0:
-        moves = [
-            ('SAMPLE-001', datetime.now().strftime('%Y-%m-%d'), 'T-123', 'T-456', 'Phoenix to Memphis', 500, 1000),
-            ('SAMPLE-002', datetime.now().strftime('%Y-%m-%d'), 'T-789', 'T-012', 'Memphis to Dallas', 300, 600)
-        ]
-        elements.append(Paragraph("<b>Note: Showing sample data - no actual moves found</b>", info_style))
+        elements.append(Paragraph("<b>No moves found for this period. Please check the date range or driver name.</b>", info_style))
         elements.append(Spacer(1, 0.2*inch))
     
     if moves:

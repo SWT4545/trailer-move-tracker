@@ -22,8 +22,8 @@ except ImportError:
 # Database path
 DB_PATH = 'swt_fleet.db'
 
-# Company logo path - use ONLY the transparent logo
-LOGO_PATH = 'swt_logo.png'  # Transparent logo, NOT the white one
+# Company logo path - use the WHITE logo (the visible one)
+LOGO_PATH = 'swt_logo_white.png'  # Use WHITE logo that shows up properly
 
 # Company colors
 PRIMARY_COLOR = colors.HexColor('#003366')  # Dark blue

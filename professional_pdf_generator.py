@@ -49,9 +49,10 @@ def generate_status_report_for_profile(username, role):
         def add_letterhead(canvas, doc):
             canvas.saveState()
             
-            # Add logo - use ONLY the transparent logo
+            # Add logo - use the WHITE logo that shows up
             logo_paths = [
-                'swt_logo.png',  # Use transparent logo ONLY
+                'swt_logo_white.png',  # Use WHITE logo that's visible
+                'swt_logo.png',  # Fallback
             ]
             
             logo_added = False
