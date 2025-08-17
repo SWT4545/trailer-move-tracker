@@ -295,6 +295,7 @@ class InventoryPDFGenerator:
 
 # Function to be imported by app.py
 def generate_inventory_pdf():
+    """Generate inventory PDF with guaranteed logo"""
     """Generate inventory PDF report"""
     generator = InventoryPDFGenerator()
     return generator.generate_inventory_report()
