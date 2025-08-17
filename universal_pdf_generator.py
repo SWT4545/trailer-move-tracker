@@ -259,7 +259,8 @@ def generate_driver_receipt(driver_name, from_date, to_date):
         earnings_field = next((f for f in earnings_fields if f in columns), "0")
         select_parts.append(f"COALESCE({earnings_field}, 0) as earnings")
         
-        # Build and execute query - be more flexible with status
+        # Build and execute query - match the Active/My Moves page query
+        # Don't filter by dates in the base query - let the caller filter
         query = f"""
             SELECT {', '.join(select_parts)}
             FROM moves
@@ -268,14 +269,35 @@ def generate_driver_receipt(driver_name, from_date, to_date):
         """
         
         cursor.execute(query, (driver_name,))
-        moves = cursor.fetchall()
+        all_moves = cursor.fetchall()
         
-        # If no moves found, try without any filters
+        # Filter by date range if we have moves
+        moves = []
+        if all_moves and from_date and to_date:
+            for move in all_moves:
+                move_date = move[1]  # Date is second field
+                if move_date:
+                    # Handle different date formats
+                    try:
+                        if isinstance(move_date, str):
+                            # Parse the date
+                            if len(move_date) == 10:  # YYYY-MM-DD format
+                                if from_date <= move_date <= to_date:
+                                    moves.append(move)
+                            else:
+                                moves.append(move)  # Include if can't parse
+                    except:
+                        moves.append(move)  # Include on error
+        else:
+            moves = all_moves  # No date filter, use all
+        
+        # If still no moves, try broader search
         if not moves:
             query_simple = f"""
                 SELECT {', '.join(select_parts)}
                 FROM moves
                 WHERE driver_name LIKE ?
+                ORDER BY move_date DESC
                 LIMIT 100
             """
             cursor.execute(query_simple, (f'%{driver_name}%',))

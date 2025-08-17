@@ -70,8 +70,8 @@ st.set_page_config(
 )
 
 # Version for tracking updates - FORCE UPDATE  
-APP_VERSION = "3.8.0 - Owner Info & White Logo Fix"
-UPDATE_TIMESTAMP = "2025-08-16 07:10:00"  # Force Streamlit to recognize update
+APP_VERSION = "3.9.0 - Driver Company Info & PDF Date Fix"
+UPDATE_TIMESTAMP = "2025-08-16 07:20:00"  # Force Streamlit to recognize update
 
 # Force cache clear on version change
 if 'app_version' not in st.session_state or st.session_state.app_version != APP_VERSION:
@@ -2659,44 +2659,84 @@ def admin_panel():
             st.info("No moves found")
     
     with admin_tabs[5]:
-        st.write("### 👤 Edit/Add/Delete Drivers")
+        st.write("### 👤 Edit/Add/Delete Drivers & Company Info")
         
-        # Add new driver
+        # Check if company columns exist, if not add them
+        cursor.execute("PRAGMA table_info(drivers)")
+        driver_cols = [col[1] for col in cursor.fetchall()]
+        
+        if 'company_name' not in driver_cols:
+            cursor.execute("ALTER TABLE drivers ADD COLUMN company_name TEXT")
+            conn.commit()
+        if 'phone' not in driver_cols:
+            cursor.execute("ALTER TABLE drivers ADD COLUMN phone TEXT")
+            conn.commit()
+        if 'email' not in driver_cols:
+            cursor.execute("ALTER TABLE drivers ADD COLUMN email TEXT")
+            conn.commit()
+        
+        # Add new driver with company info
         st.write("#### Add New Driver")
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2)
         with col1:
-            new_driver_name = st.text_input("Driver Name")
+            new_driver_name = st.text_input("Driver Name", placeholder="Enter driver name")
+            new_company = st.text_input("Company Name", placeholder="Enter company name (for contractors)")
+            new_phone = st.text_input("Phone Number", placeholder="(XXX) XXX-XXXX")
         with col2:
-            new_driver_type = st.selectbox("Driver Type", ["driver", "contractor", "owner"])
-        with col3:
-            if st.button("➕ Add Driver"):
+            new_email = st.text_input("Email", placeholder="driver@company.com")
+            new_driver_type = st.selectbox("Driver Type", ["contractor", "driver", "owner"])
+            if st.button("➕ Add Driver", type="primary", use_container_width=True):
                 if new_driver_name:
-                    cursor.execute("INSERT INTO drivers (driver_name, status, driver_type) VALUES (?, 'active', ?)",
-                                 (new_driver_name, new_driver_type))
+                    cursor.execute("""
+                        INSERT INTO drivers (driver_name, status, driver_type, company_name, phone, email) 
+                        VALUES (?, 'active', ?, ?, ?, ?)
+                    """, (new_driver_name, new_driver_type, new_company, new_phone, new_email))
                     conn.commit()
-                    st.success(f"Driver {new_driver_name} added!")
+                    st.success(f"Driver {new_driver_name} added with company info!")
                     st.rerun()
         
+        st.divider()
+        
         # List and edit existing drivers
-        st.write("#### Edit/Delete Existing Drivers")
-        cursor.execute("SELECT driver_name, status, driver_type FROM drivers ORDER BY driver_name")
+        st.write("#### Edit/Update Driver Company Information")
+        cursor.execute("""
+            SELECT driver_name, status, driver_type, 
+                   COALESCE(company_name, ''), 
+                   COALESCE(phone, ''), 
+                   COALESCE(email, '') 
+            FROM drivers 
+            ORDER BY driver_name
+        """)
         drivers = cursor.fetchall()
         
         if drivers:
             for driver in drivers:
-                col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
-                with col1:
-                    st.text(f"👤 {driver[0]}")
-                with col2:
-                    st.text(f"Status: {driver[1]}")
-                with col3:
-                    st.text(f"Type: {driver[2]}")
-                with col4:
-                    if st.button("🗑️", key=f"del_driver_{driver[0]}"):
-                        cursor.execute("DELETE FROM drivers WHERE driver_name = ?", (driver[0],))
-                        conn.commit()
-                        st.success(f"Driver {driver[0]} deleted!")
-                        st.rerun()
+                with st.expander(f"👤 {driver[0]} - {driver[2].upper()} ({driver[1]})"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        updated_company = st.text_input("Company Name", value=driver[3], key=f"company_{driver[0]}", placeholder="Enter company name")
+                        updated_phone = st.text_input("Phone", value=driver[4], key=f"phone_{driver[0]}", placeholder="(XXX) XXX-XXXX")
+                    with col2:
+                        updated_email = st.text_input("Email", value=driver[5], key=f"email_{driver[0]}", placeholder="email@company.com")
+                        updated_status = st.selectbox("Status", ["active", "inactive"], index=0 if driver[1]=="active" else 1, key=f"status_{driver[0]}")
+                    
+                    col3, col4 = st.columns(2)
+                    with col3:
+                        if st.button("💾 Update Info", key=f"update_{driver[0]}", type="primary"):
+                            cursor.execute("""
+                                UPDATE drivers 
+                                SET company_name = ?, phone = ?, email = ?, status = ?
+                                WHERE driver_name = ?
+                            """, (updated_company, updated_phone, updated_email, updated_status, driver[0]))
+                            conn.commit()
+                            st.success(f"Updated {driver[0]}'s information!")
+                            st.rerun()
+                    with col4:
+                        if st.button("🗑️ Delete Driver", key=f"del_{driver[0]}"):
+                            cursor.execute("DELETE FROM drivers WHERE driver_name = ?", (driver[0],))
+                            conn.commit()
+                            st.success(f"Driver {driver[0]} deleted!")
+                            st.rerun()
     
     with admin_tabs[2]:
         st.write("### 📍 Manage Locations with Full Address")
