@@ -192,21 +192,31 @@ def init_database():
         FOREIGN KEY (current_location_id) REFERENCES locations(id)
     )''')
     
-    # Moves table - Central hub
+    # Moves table - Central hub with all required columns
     cursor.execute('''CREATE TABLE IF NOT EXISTS moves (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         system_id TEXT UNIQUE NOT NULL,
+        order_number TEXT,
         mlbl_number TEXT UNIQUE,
         move_date DATE,
+        pickup_date DATE,
+        completed_date DATE,
         trailer_id INTEGER,
+        new_trailer TEXT,
+        old_trailer TEXT,
+        origin_location TEXT,
         origin_location_id INTEGER,
+        destination_location TEXT,
         destination_location_id INTEGER,
+        delivery_location TEXT,
         client TEXT,
         driver_id INTEGER,
         driver_name TEXT,
         estimated_miles REAL,
+        actual_miles REAL,
         base_rate REAL DEFAULT 2.10,
         estimated_earnings REAL,
+        amount REAL,
         actual_client_payment REAL,
         factoring_fee REAL,
         service_fee REAL,
@@ -221,6 +231,7 @@ def init_database():
         payment_batch_id TEXT,
         notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (trailer_id) REFERENCES trailers(id),
         FOREIGN KEY (origin_location_id) REFERENCES locations(id),
         FOREIGN KEY (destination_location_id) REFERENCES locations(id),

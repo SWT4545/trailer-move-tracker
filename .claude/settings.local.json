@@ -33,7 +33,8 @@
       "Bash(pip config:*)",
       "Bash(copy app.py app_backup_before_enhancement.py)",
       "Bash(git pull:*)",
-      "Bash(touch:*)"
+      "Bash(touch:*)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
