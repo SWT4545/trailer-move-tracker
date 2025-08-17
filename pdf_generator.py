@@ -80,7 +80,7 @@ def get_contractor_info(driver_name):
     cursor = conn.cursor()
     
     try:
-        cursor.execute("SELECT company_name, phone, email FROM drivers WHERE name = ?", (driver_name,))
+        cursor.execute("SELECT company_name, phone, email FROM drivers WHERE driver_name = ?", (driver_name,))
         result = cursor.fetchone()
         if result and result[0]:
             conn.close()
