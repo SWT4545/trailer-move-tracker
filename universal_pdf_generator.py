@@ -15,8 +15,8 @@ from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 from reportlab.pdfgen import canvas
 
-# DATABASE
-DB_PATH = 'swt_fleet.db'
+# DATABASE - Use the same as app.py
+DB_PATH = 'smith_williams_trucking.db'
 
 # COMPANY INFO - ONE PLACE
 COMPANY = {
