@@ -1574,8 +1574,8 @@ def manage_mlbl_numbers():
                                m.driver_name, m.status, 
                                'pending' as payment_status,
                                COALESCE(t.trailer_number, m.order_number) as trailer_number, 
-                               COALESCE(m.pickup_location, 'Fleet Memphis') as origin, 
-                               COALESCE(m.delivery_location, 'Unknown') as destination,
+                               COALESCE(m.origin_location, 'Fleet Memphis') as origin, 
+                               COALESCE(m.destination_location, m.delivery_location, 'Unknown') as destination,
                                COALESCE(m.estimated_miles, 0) as estimated_miles, 
                                COALESCE(m.amount, m.estimated_earnings, 0) as estimated_earnings
                         FROM moves m
@@ -1592,8 +1592,8 @@ def manage_mlbl_numbers():
                                m.driver_name, m.status, 
                                'pending' as payment_status,
                                m.order_number as trailer_number, 
-                               COALESCE(m.pickup_location, 'Fleet Memphis') as origin, 
-                               COALESCE(m.delivery_location, 'Unknown') as destination,
+                               COALESCE(m.origin_location, 'Fleet Memphis') as origin, 
+                               COALESCE(m.destination_location, m.delivery_location, 'Unknown') as destination,
                                0 as estimated_miles, 
                                COALESCE(m.amount, 0) as estimated_earnings
                         FROM moves m
@@ -1781,7 +1781,7 @@ def manage_mlbl_numbers():
                     SELECT m.order_number, m.order_number as mlbl_number, 
                            m.pickup_date, m.driver_name, 
                            m.new_trailer, m.old_trailer,
-                           m.pickup_location || ' -> ' || m.delivery_location as route,
+                           COALESCE(m.origin_location, 'Unknown') || ' -> ' || COALESCE(m.destination_location, m.delivery_location, 'Unknown') as route,
                            m.status, 'pending' as payment_status
                     FROM moves m
                     WHERE m.order_number IS NOT NULL
@@ -1792,7 +1792,7 @@ def manage_mlbl_numbers():
                     SELECT m.order_number, m.order_number as mlbl_number, 
                            m.pickup_date, m.driver_name, 
                            m.new_trailer, '-',
-                           m.pickup_location || ' -> ' || m.delivery_location as route,
+                           COALESCE(m.origin_location, 'Unknown') || ' -> ' || COALESCE(m.destination_location, m.delivery_location, 'Unknown') as route,
                            m.status, 'pending' as payment_status
                     FROM moves m
                     WHERE m.order_number IS NOT NULL
@@ -1803,7 +1803,7 @@ def manage_mlbl_numbers():
                     SELECT m.order_number, m.order_number as mlbl_number, 
                            m.pickup_date, m.driver_name, 
                            m.order_number as trailer, '-',
-                           m.pickup_location || ' -> ' || m.delivery_location as route,
+                           COALESCE(m.origin_location, 'Unknown') || ' -> ' || COALESCE(m.destination_location, m.delivery_location, 'Unknown') as route,
                            m.status, 'pending' as payment_status
                     FROM moves m
                     WHERE m.order_number IS NOT NULL
@@ -1888,7 +1888,7 @@ def show_active_moves():
                 if 'trailer_id' in move_columns:
                     cursor.execute('''
                         SELECT m.order_number, m.order_number, m.pickup_date, m.driver_name,
-                               m.delivery_location, 
+                               COALESCE(m.destination_location, m.delivery_location, 'Unknown'), 
                                COALESCE(t.trailer_number, 'Not assigned'), '-', 
                                m.status, 0, m.amount
                         FROM moves m
@@ -2042,7 +2042,7 @@ def show_completed_moves():
             if 'new_trailer' in move_columns and 'old_trailer' in move_columns:
                 cursor.execute('''
                     SELECT m.order_number, m.order_number, m.completed_date, m.driver_name,
-                           m.delivery_location, m.new_trailer, m.old_trailer, 'pending', 0, m.amount
+                           COALESCE(m.destination_location, m.delivery_location, 'Unknown'), m.new_trailer, m.old_trailer, 'pending', 0, m.amount
                     FROM moves m
                     WHERE m.status = 'completed'
                     ORDER BY m.completed_date DESC
@@ -2062,7 +2062,7 @@ def show_completed_moves():
                         SELECT m.order_number, m.order_number, 
                                COALESCE(m.completed_date, m.move_date, m.pickup_date), 
                                m.driver_name,
-                               m.delivery_location, 
+                               COALESCE(m.destination_location, m.delivery_location, 'Unknown'), 
                                COALESCE(t.trailer_number, 'Not assigned'), '-', 
                                'pending', 0, m.amount
                         FROM moves m

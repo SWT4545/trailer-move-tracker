@@ -373,6 +373,40 @@ grep -r "✓" *.py
 **Files Affected:** `app.py` line 758
 **Prevention:** Always store database results before checking/using them
 
+### 28. Database Column Reference Errors (RESOLVED)
+**Date:** 2025-08-17
+**Error:** `sqlite3.OperationalError: no such column: delivery_location`
+**Multiple Locations:** Lines 1323, 1471, 1560, 1873, 1881, 1891, 1902, 2053, 2065, 2076, 2421, 2431, 2440, 2494
+**Cause:** Code was referencing non-existent columns:
+  - `pickup_location` (should be `origin_location`)
+  - `delivery_location` when used alone (should check both `destination_location` and `delivery_location`)
+**Root Issue:** Database schema has `origin_location` and `destination_location` as primary columns, with `delivery_location` as a backup
+**Solution:** 
+  - Changed all `pickup_location` references to `origin_location`
+  - Used COALESCE for all location queries: `COALESCE(m.destination_location, m.delivery_location, 'Unknown')`
+  - Applied fix globally across 14+ queries
+**Files Affected:** `app.py` (multiple queries throughout)
+**Prevention:** 
+  - Always use COALESCE when accessing location columns
+  - Check actual database schema before writing queries
+  - Never assume column names - verify with PRAGMA table_info
+
+### 29. No Active Moves to Reassign (RESOLVED)
+**Date:** 2025-08-17
+**Issue:** Admin panel showing "No active moves to reassign"
+**Cause:** Query was failing due to column reference errors
+**Solution:** Fixed underlying column reference issues in queries
+**Files Affected:** `app.py` lines 2400-2450
+
+### 30. Return Trailer Tracking Not Available (RESOLVED)
+**Date:** 2025-08-17
+**Issue:** Warning "Return trailer tracking not available in this database schema"
+**Cause:** Code checking for wrong columns or queries failing
+**Solution:** 
+  - Fixed column references in return trailer queries
+  - Ensured old_trailer and new_trailer columns are properly queried
+**Files Affected:** `app.py` lines 2505-2565
+
 ---
 
-Last Updated: 2025-08-15
+Last Updated: 2025-08-17
