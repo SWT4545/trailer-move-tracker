@@ -2802,15 +2802,59 @@ def admin_panel():
                 st.success(f"Location {location_name} saved with address: {full_address}")
                 st.rerun()
         
-        # Display existing locations
-        st.write("#### Existing Locations")
-        cursor.execute("SELECT * FROM locations ORDER BY location_title")
+        # Display and Edit existing locations
+        st.write("#### Edit Existing Locations")
+        cursor.execute("SELECT id, location_title, address, city, state, zip_code FROM locations ORDER BY location_title")
         locations = cursor.fetchall()
+        
         if locations:
+            # Create editable section for each location
+            location_to_edit = st.selectbox(
+                "Select Location to Edit",
+                options=[f"{loc[1]} (ID: {loc[0]})" for loc in locations],
+                key="location_editor_select"
+            )
+            
+            if location_to_edit:
+                # Extract location ID
+                loc_id = int(location_to_edit.split("ID: ")[1].rstrip(")"))
+                
+                # Find the selected location data
+                selected_loc = next((loc for loc in locations if loc[0] == loc_id), None)
+                
+                if selected_loc:
+                    st.write(f"##### Editing: {selected_loc[1]}")
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        edit_address = st.text_input("Street Address", value=selected_loc[2] or "", key=f"edit_addr_{loc_id}")
+                        edit_city = st.text_input("City", value=selected_loc[3] or "", key=f"edit_city_{loc_id}")
+                    
+                    with col2:
+                        edit_state = st.text_input("State", value=selected_loc[4] or "", key=f"edit_state_{loc_id}")
+                        edit_zip = st.text_input("ZIP Code", value=selected_loc[5] or "", key=f"edit_zip_{loc_id}")
+                    
+                    with col3:
+                        st.write("")  # Spacer
+                        st.write("")  # Spacer
+                        if st.button("💾 Update Location", type="primary", key=f"update_loc_{loc_id}"):
+                            cursor.execute('''
+                                UPDATE locations 
+                                SET address = ?, city = ?, state = ?, zip_code = ?
+                                WHERE id = ?
+                            ''', (edit_address, edit_city, edit_state, edit_zip, loc_id))
+                            conn.commit()
+                            st.success(f"✅ Location {selected_loc[1]} updated successfully!")
+                            st.rerun()
+            
+            # Also show full table view
+            st.write("##### All Locations")
+            cursor.execute("SELECT * FROM locations ORDER BY location_title")
+            all_locations = cursor.fetchall()
             cursor.execute("PRAGMA table_info(locations)")
             cols = [col[1] for col in cursor.fetchall()]
-            df = pd.DataFrame(locations, columns=cols)
-            st.dataframe(df, use_container_width=True, height=300)
+            df = pd.DataFrame(all_locations, columns=cols)
+            st.dataframe(df, use_container_width=True, height=200)
         
         # Add new location
         st.write("#### Add New Location")
