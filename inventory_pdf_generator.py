@@ -297,12 +297,14 @@ def generate_inventory_pdf():
     cursor.execute("""
         SELECT 
             t.trailer_number,
-            CASE WHEN t.current_location LIKE '%Memphis%' THEN 'Fleet Memphis' 
-                 WHEN t.current_location LIKE '%FedEx%' THEN 'FedEx Location'
-                 ELSE COALESCE(t.current_location, 'Unknown') END as location,
+            COALESCE(l.location_title, 
+                CASE WHEN t.current_location_id = 0 THEN 'Fleet Memphis'
+                     WHEN t.current_location_id = 1 THEN 'FedEx Memphis'
+                     ELSE 'Location ' || t.current_location_id END) as location,
             t.status
         FROM trailers t
-        ORDER BY t.current_location, t.trailer_number
+        LEFT JOIN locations l ON t.current_location_id = l.id
+        ORDER BY t.current_location_id, t.trailer_number
     """)
     
     trailers = cursor.fetchall()
