@@ -14,15 +14,15 @@ import base64
 
 # Import PDF generators - Try universal first, then fall back
 try:
-    from universal_pdf_generator import generate_driver_receipt, generate_client_invoice, generate_status_report
+    from src.services.universal_pdf_generator import generate_driver_receipt, generate_client_invoice, generate_status_report
     PDF_AVAILABLE = True
 except ImportError:
     try:
-        from pdf_generator import generate_driver_receipt, generate_client_invoice, generate_status_report
+        from src.services.pdf_generator import generate_driver_receipt, generate_client_invoice, generate_status_report
         PDF_AVAILABLE = True
     except ImportError:
         try:
-            from professional_pdf_generator import generate_status_report_for_profile
+            from src.services.professional_pdf_generator import generate_status_report_for_profile
             def generate_driver_receipt(driver_name, from_date, to_date):
                 return generate_status_report_for_profile(driver_name, "driver")
             def generate_client_invoice(*args, **kwargs):
@@ -50,13 +50,13 @@ except ImportError:
 
 # Import help system (safe - won't block login)
 try:
-    from help_system import get_help_system, show_contextual_help
+    from src.components.help_system import get_help_system, show_contextual_help
     HELP_AVAILABLE = True
 except ImportError:
     HELP_AVAILABLE = False
 
 try:
-    from inventory_pdf_generator import generate_inventory_pdf
+    from src.services.inventory_pdf_generator import generate_inventory_pdf
     INVENTORY_PDF_AVAILABLE = True
 except ImportError:
     INVENTORY_PDF_AVAILABLE = False
@@ -479,13 +479,13 @@ def load_initial_data():
                         pass  # Columns might already exist
             
             # Try to import and run the real data loader
-            from load_real_production_data import load_real_production_data
+            # load_real_production_data file has been removed
             load_real_production_data()
             st.success("Full production data loaded successfully!")
         except ImportError:
             # Try the simpler production data loader
             try:
-                from init_production_data import init_production_data
+                from scripts.maintenance.init_production_data import init_production_data
                 init_production_data()
                 st.success("Production data initialized!")
             except ImportError:
@@ -929,7 +929,7 @@ def show_overview_metrics():
         st.warning("No data found in the system!")
         if st.button("Load Production Data", type="primary"):
             try:
-                from load_real_production_data import load_real_production_data
+                # load_real_production_data file has been removed
                 load_real_production_data()
                 st.success("Real production data loaded successfully!")
                 st.rerun()
@@ -2985,7 +2985,7 @@ def admin_panel():
                 
                 # Try to load production data
                 try:
-                    from init_production_data import init_production_data
+                    from scripts.maintenance.init_production_data import init_production_data
                     init_production_data()
                     st.success("✅ All databases initialized with production data!")
                 except Exception as e:
@@ -2997,7 +2997,7 @@ def admin_panel():
             if st.button("🔄 Reload Production Data"):
                 load_initial_data()
                 try:
-                    from init_production_data import init_production_data
+                    from scripts.maintenance.init_production_data import init_production_data
                     init_production_data()
                     st.success("Production data reloaded!")
                 except:
@@ -3034,14 +3034,14 @@ def admin_panel():
                         # Add button to initialize sample data
                         if len(trailers) == 0:
                             if st.button("🔄 Initialize Sample Trailers"):
-                                from init_production_data import init_production_data
+                                from scripts.maintenance.init_production_data import init_production_data
                                 init_production_data()
                                 st.success("Sample trailers added!")
                                 st.rerun()
                     else:
                         st.warning("No trailers in database")
                         if st.button("🔄 Initialize Sample Trailers"):
-                            from init_production_data import init_production_data
+                            from scripts.maintenance.init_production_data import init_production_data
                             init_production_data()
                             st.success("Sample trailers added!")
                             st.rerun()
@@ -4237,7 +4237,7 @@ def show_dashboard():
             if st.button("Generate Report", type="primary"):
                 if report_type == "Trailer Inventory Report":
                     try:
-                        from inventory_pdf_generator import generate_inventory_pdf
+                        from src.services.inventory_pdf_generator import generate_inventory_pdf
                         filename = generate_inventory_pdf()
                         with open(filename, 'rb') as f:
                             st.download_button(
@@ -4252,7 +4252,7 @@ def show_dashboard():
                 
                 elif report_type == "Fleet Status Report":
                     try:
-                        from professional_pdf_generator import generate_status_report
+                        from src.services.professional_pdf_generator import generate_status_report
                         from_date = st.date_input("Report From", value=date.today() - timedelta(days=30), key="status_from")
                         to_date = st.date_input("Report To", value=date.today(), key="status_to")
                         filename = generate_status_report(from_date, to_date)
